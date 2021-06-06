@@ -22,7 +22,7 @@
 #define CLIENT_BUILD_1_3_1 4297
 #define CLIENT_BUILD_1_4_2 4375
 #define CLIENT_BUILD_1_5_1 4449
-#define CLIENT_BUILD_1_6_1 4544
+#define CLIENT_BUILD_1_6_1 4620
 #define CLIENT_BUILD_1_7_1 4695
 #define CLIENT_BUILD_1_8_4 4878
 #define CLIENT_BUILD_1_9_4 5086
@@ -33,7 +33,7 @@
 // Change this to define which build of the game to emulate.
 // Has an effect on things such as core gameplay mechanics,
 // loading of client data, and network packets structure.
-#define SUPPORTED_CLIENT_BUILD CLIENT_BUILD_1_12_1
+#define SUPPORTED_CLIENT_BUILD CLIENT_BUILD_1_6_1
 
 // This defines which client builds the world server will accept.
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_12_1
@@ -49,7 +49,7 @@
 #elif SUPPORTED_CLIENT_BUILD == CLIENT_BUILD_1_7_1
 #define EXPECTED_MANGOSD_CLIENT_BUILD        { 4695, 0}
 #elif SUPPORTED_CLIENT_BUILD == CLIENT_BUILD_1_6_1
-#define EXPECTED_MANGOSD_CLIENT_BUILD        { 4544, 0}
+#define EXPECTED_MANGOSD_CLIENT_BUILD        { 4620, 0}
 #elif SUPPORTED_CLIENT_BUILD == CLIENT_BUILD_1_5_1
 #define EXPECTED_MANGOSD_CLIENT_BUILD        { 4449, 0}
 #elif SUPPORTED_CLIENT_BUILD == CLIENT_BUILD_1_4_2
