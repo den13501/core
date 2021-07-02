@@ -344,6 +344,7 @@ public:
             SpellEntry const* pIceBlock;
             SpellEntry const* pBlizzard;
             SpellEntry const* pBlastWave;
+            SpellEntry const* pCombustion;
         } mage;
         struct
         {
@@ -370,6 +371,7 @@ public:
             SpellEntry const* pSilence;
             SpellEntry const* pFade;
             SpellEntry const* pShackleUndead;
+            SpellEntry const* pSmite;
         } priest;
         struct
         {
