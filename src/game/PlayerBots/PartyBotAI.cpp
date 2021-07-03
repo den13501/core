@@ -308,6 +308,14 @@ bool PartyBotAI::ShouldAutoRevive() const
     return alivePlayerNearby;
 }
 
+bool PartyBotAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const
+{
+    if (pSpellEntry->IsAreaOfEffectSpell() && !m_marksToCC.empty())
+        return false;
+
+    return CombatBotBaseAI::CanTryToCastSpell(pTarget, pSpellEntry);
+}
+
 bool PartyBotAI::CanUseCrowdControl(SpellEntry const* pSpellEntry, Unit* pTarget) const
 {
     if ((pSpellEntry->AuraInterruptFlags & AURA_INTERRUPT_FLAG_DAMAGE) &&
@@ -940,6 +948,9 @@ void PartyBotAI::UpdateInCombatAI()
             UpdateInCombatAI_Druid();
             break;
     }
+
+    if (me->GetVictim())
+        UseTrinketEffects();
 }
 
 void PartyBotAI::UpdateOutOfCombatAI_Paladin()

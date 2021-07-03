@@ -2647,6 +2647,38 @@ SpellCastResult CombatBotBaseAI::CastWeaponBuff(SpellEntry const* pSpellEntry, E
     return spell->prepare(std::move(targets), nullptr);
 }
 
+void CombatBotBaseAI::UseTrinketEffects()
+{
+    if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_TRINKET1))
+        if (UseItemEffect(pItem))
+            return;
+    if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_TRINKET2))
+        if (UseItemEffect(pItem))
+            return;
+}
+
+bool CombatBotBaseAI::UseItemEffect(Item* pItem)
+{
+    ItemPrototype const* pProto = pItem->GetProto();
+    for (auto const& itr : pProto->Spells)
+    {
+        if (itr.SpellId && itr.SpellTrigger == ITEM_SPELLTRIGGER_ON_USE)
+        {
+            if (SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(itr.SpellId))
+            {
+                if (me->IsSpellReady(*pSpellEntry, pProto))
+                {
+                    if (pSpellEntry->IsPositiveSpell())
+                        return me->CastSpell(me, pSpellEntry, false, pItem) == SPELL_CAST_OK;
+                    else if (me->GetVictim())
+                        return me->CastSpell(me->GetVictim(), pSpellEntry, false, pItem) == SPELL_CAST_OK;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 bool CombatBotBaseAI::IsWearingShield() const
 {
     Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
