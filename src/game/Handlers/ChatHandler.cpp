@@ -703,7 +703,8 @@ void WorldSession::HandleEmoteOpcode(WorldPacket& recv_data)
     if (emote != EMOTE_ONESHOT_NONE && emote != EMOTE_ONESHOT_WAVE)
         return;
 
-    GetPlayer()->InterruptSpellsWithChannelFlags(CHANNEL_FLAG_ANIM_CANCELS);
+    GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_ANIM_CANCELS);
+    GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_ANIM_CANCELS);
     GetPlayer()->HandleEmoteCommand(emote);
 }
 
@@ -777,7 +778,8 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket& recv_data)
             if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
                 break;
 
-            GetPlayer()->InterruptSpellsWithChannelFlags(CHANNEL_FLAG_ANIM_CANCELS);
+            GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_ANIM_CANCELS);
+            GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_ANIM_CANCELS);
             GetPlayer()->HandleEmoteCommand(emote_id);
             break;
         }
