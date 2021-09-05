@@ -3401,7 +3401,7 @@ void Aura::HandleModCharm(bool apply, bool Real)
             caster->SetInCombatWith(target);
             target->SetInCombatWith(caster);
 
-            target->SetInCombatState(false, caster);
+            target->SetInCombatState(0, caster);
         }
         else
         {
@@ -7169,7 +7169,7 @@ void SpellAuraHolder::Update(uint32 diff)
 
         // enter combat
         if (!GetSpellProto()->HasAttribute(SPELL_ATTR_EX_NO_THREAT) &&
-            !GetSpellProto()->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO) &&
+            !GetSpellProto()->HasAttribute(SPELL_ATTR_EX2_NO_INITIAL_THREAT) &&
             !IsPositive() && caster->IsVisibleForOrDetect(m_target, m_target, false))
         {
             m_target->SetInCombatWith(caster);
@@ -7962,7 +7962,7 @@ void Aura::HandleInterruptRegen(bool apply, bool real)
         return;
     if (!apply)
         return;
-    GetTarget()->SetInCombatState(false);
+    GetTarget()->SetInCombatState();
 }
 
 // Un nouvel aura ...
