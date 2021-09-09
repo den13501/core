@@ -620,13 +620,35 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     {
         AddToPlayerGroup();
 
+        if (m_level && m_level != me->GetLevel())
+        {
+            me->GiveLevel(m_level);
+            me->InitTalentForLevel();
+            me->SetUInt32Value(PLAYER_XP, 0);
+        }
+
         if (!m_cloneGuid.IsEmpty())
+        {
             CloneFromPlayer(sObjectAccessor.FindPlayer(m_cloneGuid));
+            AutoAssignRole();
+        }
         else
+        {
             LearnPremadeSpecForClass();
 
-        if (m_role == ROLE_INVALID)
-            AutoAssignRole();
+            if (m_role == ROLE_INVALID)
+                AutoAssignRole();
+
+            AutoEquipGear(sWorld.getConfig(CONFIG_UINT32_PARTY_BOT_AUTO_EQUIP));
+
+            // fix client bug causing some item slots to not be visible
+            if (Player* pLeader = GetPartyLeader())
+            {
+                me->SetVisibility(VISIBILITY_OFF);
+                pLeader->UpdateVisibilityOf(pLeader, me);
+                me->SetVisibility(VISIBILITY_ON);
+            }
+        }
 
         ResetSpellData();
         PopulateSpellData();
@@ -634,6 +656,8 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         me->UpdateSkillsToMaxSkillsForLevel();
         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
         SummonPetIfNeeded();
+        me->SetHealthPercent(100.0f);
+        me->SetPowerPercent(me->GetPowerType(), 100.0f);
 
         uint32 newzone, newarea;
         me->GetZoneAndAreaId(newzone, newarea);
