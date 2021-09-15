@@ -1180,6 +1180,12 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.warlock.pLifeTap->Id < pSpellEntry->Id)
                         m_spells.warlock.pLifeTap = pSpellEntry;
                 }
+				else if (pSpellEntry->SpellName[0].find("Unending Breath") != std::string::npos)
+				{
+					if (!m_spells.warlock.pUnendingBreath ||
+						m_spells.warlock.pUnendingBreath->Id < pSpellEntry->Id)
+						m_spells.warlock.pUnendingBreath = pSpellEntry;
+				}
                 break;
             }
             case CLASS_WARRIOR:
