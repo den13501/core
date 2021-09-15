@@ -2016,6 +2016,21 @@ void PartyBotAI::UpdateInCombatAI_Priest()
 
 void PartyBotAI::UpdateOutOfCombatAI_Warlock()
 {
+	if (m_spells.warlock.pUnendingBreath)
+	{
+		if (Player* pTarget = SelectBuffTarget(m_spells.warlock.pUnendingBreath))
+		{
+			if (CanTryToCastSpell(pTarget, m_spells.warlock.pUnendingBreath))
+			{
+				if (DoCastSpell(pTarget, m_spells.warlock.pUnendingBreath) == SPELL_CAST_OK)
+				{
+					m_isBuffing = true;
+					return;
+				}
+			}
+		}
+	}
+
     if (m_spells.warlock.pDetectInvisibility)
     {
         if (Player* pTarget = SelectBuffTarget(m_spells.warlock.pDetectInvisibility))
