@@ -659,21 +659,21 @@ bool ChatHandler::PartyBotAddRequirementCheck(Player const* pPlayer, Player cons
 {
     if (pPlayer->IsTaxiFlying())
     {
-        SendSysMessage("Cannot add bots while flying.");
+        SendSysMessage("不能在飛行中加入機器人。");
         return false;
     }
 
     // Spawning bots inside BG will cause server crash on BG end.
     if (pPlayer->InBattleGround())
     {
-        SendSysMessage("Cannot add bots inside battlegrounds.");
+        SendSysMessage("戰場中不能加入機器人。");
         return false;
     }
 
     if (pPlayer->GetGroup() && (pPlayer->GetGroup()->IsFull() || sWorld.getConfig(CONFIG_UINT32_PARTY_BOT_MAX_BOTS) &&
         (pPlayer->GetGroup()->GetMembersCount() - 1 >= sWorld.getConfig(CONFIG_UINT32_PARTY_BOT_MAX_BOTS))))
     {
-        SendSysMessage("Cannot add more bots. Group is full.");
+        SendSysMessage("無法再加入更多機器人。隊伍已滿。");
         return false;
     }
 
@@ -682,14 +682,14 @@ bool ChatHandler::PartyBotAddRequirementCheck(Player const* pPlayer, Player cons
         if (pMap->IsDungeon() &&
             pMap->GetPlayers().getSize() >= pMap->GetMapEntry()->maxPlayers)
         {
-            SendSysMessage("Cannot add more bots. Instance is full.");
+            SendSysMessage("無法再加入更多機器人。團隊已滿。");
             return false;
         }
     }
 
     if (pTarget && pTarget->GetTeam() != pPlayer->GetTeam())
     {
-        SendSysMessage("Cannot clone enemy faction characters.");
+        SendSysMessage("不能複製敵對陣營人物成機器人。");
         return false;
     }
 
@@ -698,19 +698,19 @@ bool ChatHandler::PartyBotAddRequirementCheck(Player const* pPlayer, Player cons
     {
         if (pPlayer->IsDead())
         {
-            SendSysMessage("Cannot add bots while dead.");
+            SendSysMessage("死亡時不能加入機器人。");
             return false;
         }
 
         if (pPlayer->IsInCombat())
         {
-            SendSysMessage("Cannot add bots while in combat.");
+            SendSysMessage("戰鬥中不能加入機器人。");
             return false;
         }
 
         if (pPlayer->GetMap()->IsDungeon())
         {
-            SendSysMessage("Cannot add bots while inside instances.");
+            SendSysMessage("在副本內不能加入機器人。");
             return false;
         }
 
@@ -719,19 +719,20 @@ bool ChatHandler::PartyBotAddRequirementCheck(Player const* pPlayer, Player cons
         {
             if (pTarget->IsDead())
             {
-                SendSysMessage("Cannot clone dead characters.");
+                SendSysMessage("不能對複製已死亡的人物。");
                 return false;
             }
 
             if (pTarget->IsInCombat())
             {
-                SendSysMessage("Cannot clone characters that are in combat.");
+                SendSysMessage("不能複製戰鬥中的人物。");
                 return false;
             }
 
-            if (pTarget->GetLevel() > pPlayer->GetLevel() + 10)
-            {
-                SendSysMessage("Cannot clone higher level characters.");
+            //if (pTarget->GetLevel() > pPlayer->GetLevel() + 10) Prevent player clone higher level bot
+			if (pTarget->GetLevel() > pPlayer->GetLevel())
+			{
+                SendSysMessage("不能對複製高等的人物。");
                 return false;
             }
         }
@@ -754,13 +755,13 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
 
     if (!args)
     {
-        SendSysMessage("Incorrect syntax. Expected role or class.");
+        SendSysMessage("語法錯誤。必須是類型(如dps/tank/healer)或職業(如warrior/mage)。\n且敵對陣營職業不可用。");
         SetSentErrorMessage(true);
         return false;
     }
 
     uint8 botClass = 0;
-    uint32 botLevel = pPlayer->GetLevel();
+    uint32 botLevel = pPlayer->GetLevel();  //讀取玩家等級
     CombatBotRoles botRole = ROLE_INVALID;
 
     if (char* arg1 = ExtractArg(&args))
@@ -786,8 +787,11 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
             botClass = CLASS_DRUID;
         else if (option == "dps")
         {
-            botClass = PickRandomValue(CLASS_WARRIOR, CLASS_HUNTER, CLASS_ROGUE, CLASS_MAGE, CLASS_WARLOCK);
-            botRole = CombatBotBaseAI::IsMeleeDamageClass(botClass) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
+			if (pPlayer->GetTeam() == ALLIANCE)
+				botClass = PickRandomValue(CLASS_WARRIOR, CLASS_HUNTER, CLASS_ROGUE, CLASS_MAGE, CLASS_WARLOCK, CLASS_PALADIN); //聯盟dps randon加入CLASS_PALADIN
+			else
+				botClass = PickRandomValue(CLASS_WARRIOR, CLASS_HUNTER, CLASS_ROGUE, CLASS_MAGE, CLASS_WARLOCK, CLASS_SHAMAN); //部落dps randon加入CLASS_SHAMAN
+			botRole = CombatBotBaseAI::IsMeleeDamageClass(botClass) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
         }
         else if (option == "healer")
         {
@@ -801,16 +805,35 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
         }
         else if (option == "tank")
         {
-            botClass = CLASS_WARRIOR;
-            botRole = ROLE_TANK;
+            //botClass = CLASS_WARRIOR;
+			std::vector<uint32> tankClasses = { CLASS_WARRIOR, CLASS_DRUID };
+			if (pPlayer->GetTeam() == ALLIANCE)
+				tankClasses.push_back(CLASS_PALADIN); //如果陣營為聯盟則回傳聖騎
+			botClass = SelectRandomContainerElement(tankClasses);
+			botRole = ROLE_TANK;
         }
+		else if (option == "wtank")
+		{
+			botClass = CLASS_WARRIOR;
+			botRole = ROLE_TANK;
+		}
+		else if (option == "dtank")
+		{
+			botClass = CLASS_DRUID;
+			botRole = ROLE_TANK;
+		}
+		else if (option == "ptank" && pPlayer->GetTeam() == ALLIANCE)
+		{
+			botClass = CLASS_PALADIN;
+			botRole = ROLE_TANK;
+		}
 
-        ExtractUInt32(&args, botLevel);
+        //ExtractUInt32(&args, botLevel); //prevent player add level argument
     }
 
     if (!botClass)
     {
-        SendSysMessage("Incorrect syntax. Expected role or class.");
+        SendSysMessage("語法錯誤。必須是類型(如dps/tank/healer)或職業(如warrior/mage)。\n另外也不能徵召敵對陣營專屬職業");
         SetSentErrorMessage(true);
         return false;
     }
@@ -822,7 +845,7 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
 
     PartyBotAI* ai = new PartyBotAI(pPlayer, nullptr, botRole, botRace, botClass, botLevel, pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
     if (sPlayerBotMgr.AddBot(ai))
-        SendSysMessage("New party bot added.");
+        SendSysMessage("加入一位機器人。");
     else
     {
         SendSysMessage("Error spawning bot.");
@@ -861,7 +884,7 @@ bool ChatHandler::HandlePartyBotCloneCommand(char* args)
 
     PartyBotAI* ai = new PartyBotAI(pPlayer, pTarget, ROLE_INVALID, botRace, botClass, pPlayer->GetLevel(), pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
     if (sPlayerBotMgr.AddBot(ai))
-        SendSysMessage("New party bot added.");
+        SendSysMessage("加入一位機器人。");
     else
     {
         SendSysMessage("Error spawning bot.");
@@ -909,12 +932,13 @@ bool ChatHandler::HandlePartyBotSetRoleCommand(char* args)
             pAI->m_role = role;
             pAI->ResetSpellData();
             pAI->PopulateSpellData();
-            PSendSysMessage("%s is now a %s.", pTarget->GetName(), roleStr.c_str());
+			//pAI->AutoEquipGear(PLAYER_BOT_AUTO_EQUIP_PREMADE_GEAR); //made bot auto change equipment when it assigned new role
+            PSendSysMessage("%s 現在隊伍身分是 %s.", pTarget->GetName(), roleStr.c_str());
             return true;
         }
     }
 
-    SendSysMessage("Target is not a party bot.");
+    SendSysMessage("目標並非機器人。");
     SetSentErrorMessage(true);
     return false;
 }
@@ -933,7 +957,7 @@ bool ChatHandler::HandlePartyBotAttackStartCommand(char* args)
     Group* pGroup = pPlayer->GetGroup();
     if (!pGroup)
     {
-        SendSysMessage("You are not in a group.");
+        SendSysMessage("你不在隊伍中。");
         SetSentErrorMessage(true);
         return false;
     }
@@ -956,7 +980,7 @@ bool ChatHandler::HandlePartyBotAttackStartCommand(char* args)
         }
     }
     
-    PSendSysMessage("All party bots are now attacking %s.", pTarget->GetName());
+    PSendSysMessage("全隊機器人開始攻擊目標 %s。", pTarget->GetName());
     return true;
 }
 
@@ -986,7 +1010,7 @@ bool ChatHandler::HandlePartyBotAttackStopCommand(char* args)
     Group* pGroup = pPlayer->GetGroup();
     if (!pGroup)
     {
-        SendSysMessage("You are not in a group.");
+        SendSysMessage("你不在隊伍中。");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1009,7 +1033,7 @@ bool ChatHandler::HandlePartyBotAttackStopCommand(char* args)
         }
     }
 
-    PSendSysMessage("All party bots have stopped attacking %s.", pTarget->GetName());
+    PSendSysMessage("全隊機器人停止攻擊目標 %s。", pTarget->GetName());
     return true;
 }
 
@@ -1027,7 +1051,7 @@ bool ChatHandler::HandlePartyBotAoECommand(char* args)
     Group* pGroup = pPlayer->GetGroup();
     if (!pGroup)
     {
-        SendSysMessage("You are not in a group.");
+        SendSysMessage("你不在隊伍中。");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1062,7 +1086,7 @@ bool ChatHandler::HandlePartyBotAoECommand(char* args)
         }
     }
 
-    PSendSysMessage("All party bots are casting AoE spells at %s.", pTarget->GetName());
+    PSendSysMessage("全隊機器人使用範圍法術攻擊目標 %s。", pTarget->GetName());
     return true;
 }
 
@@ -1084,7 +1108,7 @@ bool ChatHandler::HandlePartyBotControlMarkCommand(char* args)
     auto itrMark = raidTargetIcons.find(mark);
     if (itrMark == raidTargetIcons.end())
     {
-        SendSysMessage("Unknown target mark. Valid names are: star, circle, diamond, triangle, moon, square, cross, skill");
+        SendSysMessage("未知的標記。可使用的標記名稱：star, circle, diamond, triangle, moon, square, cross, skull");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1098,12 +1122,12 @@ bool ChatHandler::HandlePartyBotControlMarkCommand(char* args)
         {
             if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pTarget->AI()))
             {
-                PSendSysMessage("%s will crowd control %s.", pTarget->GetName(), args);
+                PSendSysMessage("%s 將控場目標 %s。", pTarget->GetName(), args);
                 pAI->m_marksToCC.push_back(itrMark->second);
                 return true;
             }
         }
-        SendSysMessage("Target is not a party bot.");
+        SendSysMessage("目標並非機器人。");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1111,7 +1135,7 @@ bool ChatHandler::HandlePartyBotControlMarkCommand(char* args)
     Group* pGroup = pPlayer->GetGroup();
     if (!pGroup)
     {
-        SendSysMessage("You are not in a group.");
+        SendSysMessage("你不在隊伍中。");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1133,7 +1157,7 @@ bool ChatHandler::HandlePartyBotControlMarkCommand(char* args)
         }
     }
 
-    PSendSysMessage("All party bots will crowd control %s.", args);
+    PSendSysMessage("全體機器人控場目標 %s。", args);
     return true;
 }
 
@@ -1143,7 +1167,7 @@ bool ChatHandler::HandlePartyBotFocusMarkCommand(char* args)
     auto itrMark = raidTargetIcons.find(mark);
     if (itrMark == raidTargetIcons.end())
     {
-        SendSysMessage("Unknown target mark. Valid names are: star, circle, diamond, triangle, moon, square, cross, skill");
+        SendSysMessage("未知的標記。可使用的標記名稱：star, circle, diamond, triangle, moon, square, cross, skull");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1157,12 +1181,12 @@ bool ChatHandler::HandlePartyBotFocusMarkCommand(char* args)
         {
             if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pTarget->AI()))
             {
-                PSendSysMessage("%s will focus %s.", pTarget->GetName(), args);
+                PSendSysMessage("%s 專注目標在 %s.", pTarget->GetName(), args);
                 pAI->m_marksToFocus.push_back(itrMark->second);
                 return true;
             }
         }
-        SendSysMessage("Target is not a party bot.");
+        SendSysMessage("目標並非機器人。");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1170,7 +1194,7 @@ bool ChatHandler::HandlePartyBotFocusMarkCommand(char* args)
     Group* pGroup = pPlayer->GetGroup();
     if (!pGroup)
     {
-        SendSysMessage("You are not in a group.");
+        SendSysMessage("你不在隊伍中。");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1192,7 +1216,7 @@ bool ChatHandler::HandlePartyBotFocusMarkCommand(char* args)
         }
     }
 
-    PSendSysMessage("All party bots will focus %s.", args);
+    PSendSysMessage("全隊機器人專注目標在 %s。", args);
     return true;
 }
 
@@ -1207,13 +1231,13 @@ bool ChatHandler::HandlePartyBotClearMarksCommand(char* args)
         {
             if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pTarget->AI()))
             {
-                PSendSysMessage("All mark assignments cleared for %s.", pTarget->GetName());
+                PSendSysMessage("為 %s 清除標記。", pTarget->GetName());
                 pAI->m_marksToCC.clear();
                 pAI->m_marksToFocus.clear();
                 return true;
             }
         }
-        SendSysMessage("Target is not a party bot.");
+        SendSysMessage("目標並非機器人。");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1221,7 +1245,7 @@ bool ChatHandler::HandlePartyBotClearMarksCommand(char* args)
     Group* pGroup = pPlayer->GetGroup();
     if (!pGroup)
     {
-        SendSysMessage("You are not in a group.");
+        SendSysMessage("你不在隊伍中。");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1244,7 +1268,7 @@ bool ChatHandler::HandlePartyBotClearMarksCommand(char* args)
         }
     }
 
-    SendSysMessage("Mark assignments cleared for all bots.");
+    SendSysMessage("為全隊機器人清除標記。");
     return true;
 }
 
@@ -1279,9 +1303,9 @@ bool ChatHandler::HandlePartyBotComeToMeCommand(char* args)
     if (pTarget && pTarget != pPlayer)
     {
         if (ok = HandlePartyBotComeToMeHelper(pTarget, pPlayer))
-            PSendSysMessage("%s is coming to your position.", pTarget->GetName());
+            PSendSysMessage("%s 將前往你的位置。", pTarget->GetName());
         else
-            PSendSysMessage("%s is not a party bot or it cannot move.", pTarget->GetName());
+            PSendSysMessage("%s 非機器人或是無法移動。", pTarget->GetName());
         return ok;
     }
     else if (Group* pGroup = pPlayer->GetGroup())
@@ -1299,13 +1323,13 @@ bool ChatHandler::HandlePartyBotComeToMeCommand(char* args)
         }
 
         if (ok)
-            SendSysMessage("All party bots are coming to your position.");
+            SendSysMessage("全隊機器人將前往你的位置。");
         else
-            SendSysMessage("There are no party bots in the group or they cannot move.");
+            SendSysMessage("隊伍中無機器人或是無法移動。");
         return ok;
     }
 
-    SendSysMessage("You are not in a group.");
+    SendSysMessage("你不在隊伍中。");
     SetSentErrorMessage(true);
     return false;
 }
@@ -1344,9 +1368,9 @@ bool ChatHandler::HandlePartyBotUseGObjectCommand(char* args)
     if (pTarget && pTarget != pPlayer)
     {
         if (ok = HandlePartyBotUseGObjectHelper(pTarget, pGo))
-            PSendSysMessage("%s has used the object.", pTarget->GetName());
+            PSendSysMessage("%s 使用此物件。", pTarget->GetName());
         else
-            PSendSysMessage("%s is not in range or is not a party bot.", pTarget->GetName());
+            PSendSysMessage("%s 非機器人或物件不在其所及範圍內。", pTarget->GetName());
         return ok;
     }
     else if (Group* pGroup = pPlayer->GetGroup())
@@ -1358,13 +1382,13 @@ bool ChatHandler::HandlePartyBotUseGObjectCommand(char* args)
         }
 
         if (ok)
-            SendSysMessage("All party bots in range have used the object.");
+            SendSysMessage("全隊機器人使用了範圍可及的目標物件。");
         else
-            SendSysMessage("There are no party bots in range of the object.");
+            SendSysMessage("目標物件不在機器人所及範圍內。");
         return ok;
     }
 
-    SendSysMessage("You are not in a group.");
+    SendSysMessage("你不在隊伍中。");
     SetSentErrorMessage(true);
     return false;
 }
@@ -1417,7 +1441,7 @@ bool ChatHandler::HandlePartyBotPauseHelper(char* args, bool pause)
         Group* pGroup = pPlayer->GetGroup();
         if (!pGroup)
         {
-            SendSysMessage("You are not in a group.");
+            SendSysMessage("你不在隊伍中。");
             SetSentErrorMessage(true);
             return false;
         }
@@ -1438,16 +1462,16 @@ bool ChatHandler::HandlePartyBotPauseHelper(char* args, bool pause)
         if (success)
         {
             if (pause)
-                PSendSysMessage("All party bots paused for %u seconds.", (duration / IN_MILLISECONDS));
+                PSendSysMessage("全隊機器人暫停動作 %u 秒。", (duration / IN_MILLISECONDS));
             else
-                SendSysMessage("All party bots unpaused.");
+                SendSysMessage("全隊機器人全隊機器人解除暫停");
         }
         else
-            SendSysMessage("No party bots in group.");
+            SendSysMessage("隊伍中無機器人。");
     }
     else
     {
-        Player* pTarget = GetSelectedPlayer();
+        Player* pTarget = GetSelectedPlayer();//對著指定的機器人下達暫停指令
         if (!pTarget)
         {
             SendSysMessage(LANG_NO_CHAR_SELECTED);
@@ -1458,13 +1482,13 @@ bool ChatHandler::HandlePartyBotPauseHelper(char* args, bool pause)
         if (HandlePartyBotPauseApplyHelper(pTarget, duration))
         {
             if (pause)
-                PSendSysMessage("%s paused for %u seconds.", pTarget->GetName(), (duration / IN_MILLISECONDS));
+                PSendSysMessage("%s 暫停動作 %u 秒。", pTarget->GetName(), (duration / IN_MILLISECONDS));
             else
-                PSendSysMessage("%s unpaused.", pTarget->GetName());
+                PSendSysMessage("%s 解除暫停。", pTarget->GetName());
         }
             
         else
-            SendSysMessage("Target is not a party bot.");
+            SendSysMessage("目標並非機器人。");
     }
 
     return true;
@@ -1499,7 +1523,7 @@ bool ChatHandler::HandlePartyBotRemoveCommand(char* args)
         }
     }
 
-    SendSysMessage("Target is not a party bot.");
+    SendSysMessage("目標並非機器人。");
     SetSentErrorMessage(true);
     return false;
 }
@@ -1527,7 +1551,7 @@ bool ChatHandler::HandleBattleBotAddCommand(char* args, uint8 bg)
 
     if (!*args)
     {
-        SendSysMessage("Incorrect syntax. Expected faction");
+        SendSysMessage("錯誤的語法。需指定陣營");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1544,7 +1568,7 @@ bool ChatHandler::HandleBattleBotAddCommand(char* args, uint8 bg)
             botTeam = ALLIANCE;
         else
         {
-            SendSysMessage("Incorrect syntax. Expected faction");
+            SendSysMessage("錯誤的語法。需指定陣營");
             SetSentErrorMessage(true);
             return false;
         }
@@ -1565,13 +1589,13 @@ bool ChatHandler::HandleBattleBotAddCommand(char* args, uint8 bg)
     sPlayerBotMgr.AddBot(ai);
 
     if (bg == BATTLEGROUND_QUEUE_WS)
-        PSendSysMessage("Added %s battle bot and queuing for WS", option.c_str());
+        PSendSysMessage("戰歌峽谷，%s參戰！", option.c_str());
         
     if (bg == BATTLEGROUND_QUEUE_AB)
-        PSendSysMessage("Added %s battle bot and queuing for AB", option.c_str());
+        PSendSysMessage("阿拉希盆地，%s參戰！", option.c_str());
     
     if (bg == BATTLEGROUND_QUEUE_AV)
-        PSendSysMessage("Added %s battle bot and queuing for AV", option.c_str());
+        PSendSysMessage("奧特蘭克山谷，%s參戰！", option.c_str());
 
     return true;
 }
@@ -1595,7 +1619,7 @@ bool ChatHandler::HandleBattleBotRemoveCommand(char* args)
         }
     }
 
-    SendSysMessage("Target is not a battle bot.");
+    SendSysMessage("目標並非戰場機器人。");
     SetSentErrorMessage(true);
     return false;
 }
@@ -1641,7 +1665,7 @@ bool ChatHandler::HandleBattleBotShowPathCommand(char* args)
         }
     }
 
-    SendSysMessage("Target is not a battle bot.");
+    SendSysMessage("目標並非戰場機器人。");
     SetSentErrorMessage(true);
     return false;
 }
@@ -1652,7 +1676,7 @@ bool ChatHandler::HandleBattleBotShowAllPathsCommand(char* args)
     BattleGround* pBG = pPlayer->GetBattleGround();
     if (!pBG)
     {
-        SendSysMessage("You are not in a battleground.");
+        SendSysMessage("你不在戰場中。");
         return false;
     }
 
