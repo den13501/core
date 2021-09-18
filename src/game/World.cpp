@@ -427,7 +427,7 @@ void World::LoadConfigSettings(bool reload)
 
     ///- Read the player limit and the Message of the day from the config file
     SetPlayerLimit(sConfig.GetIntDefault("PlayerLimit", DEFAULT_PLAYER_LIMIT), true);
-    SetMotd(sConfig.GetStringDefault("Motd", "Welcome to the Massive Network Game Object Server.") + std::string("\n") + std::string(GetPatchName()) + std::string(" is now live!"));
+    SetMotd(sConfig.GetStringDefault("Motd", "Welcome to the Massive Network Game Object Server.") + std::string("\n") + std::string(GetPatchName()) + std::string(" 正式上線！"));
 
     ///- Read all rates from the config file
     setConfigPos(CONFIG_FLOAT_RATE_HEALTH,               "Rate.Health", 1.0f);
@@ -1171,27 +1171,27 @@ char const* World::GetPatchName() const
     switch(GetWowPatch())
     {
         case 0:
-            return "Patch 1.2: Mysteries of Maraudon";
+            return "版本 1.2: 瑪拉頓之謎";
         case 1:
-            return "Patch 1.3: Ruins of the Dire Maul";
+            return "版本 1.3: 厄運之槌的廢墟";
         case 2:
-            return "Patch 1.4: The Call to War";
+            return "版本 1.4: 戰爭的召喚";
         case 3:
-            return "Patch 1.5: Battlegrounds";
+            return "版本 1.5: 戰鼓響起";
         case 4:
-            return "Patch 1.6: Assault on Blackwing Lair";
+            return "版本 1.6: 攻陷黑翼之巢";
         case 5:
-            return "Patch 1.7: Rise of the Blood God";
+            return "版本 1.7: 血神的興起";
         case 6:
-            return "Patch 1.8: Dragons of Nightmare";
+            return "版本 1.8: 夢魘之龍";
         case 7:
-            return "Patch 1.9: The Gates of Ahn'Qiraj";
+            return "版本 1.9: 安其拉之門";
         case 8:
-            return "Patch 1.10: Storms of Azeroth";
+            return "版本 1.10: 風暴降臨艾澤拉斯";
         case 9:
-            return "Patch 1.11: Shadow of the Necropolis";
+            return "版本 1.11: 納克薩瑪斯之影";
         case 10:
-            return "Patch 1.12: Drums of War";
+            return "版本 1.12: 戰鼓再響";
     }
 
     return "Invalid Patch!";
