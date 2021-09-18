@@ -1180,7 +1180,13 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.warlock.pLifeTap->Id < pSpellEntry->Id)
                         m_spells.warlock.pLifeTap = pSpellEntry;
                 }
-                break;
+				else if (pSpellEntry->SpellName[0].find("Unending Breath") != std::string::npos)
+				{
+					if (!m_spells.warlock.pUnendingBreath ||
+						m_spells.warlock.pUnendingBreath->Id < pSpellEntry->Id)
+						m_spells.warlock.pUnendingBreath = pSpellEntry;
+				}
+				break;
             }
             case CLASS_WARRIOR:
             {
@@ -2941,6 +2947,9 @@ void CombatBotBaseAI::UseTrinketEffects()
         if (UseItemEffect(pItem))
             return;
     if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_TRINKET2))
+        if (UseItemEffect(pItem))
+            return;
+    if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND)) //add use of mainhand weapon effect
         if (UseItemEffect(pItem))
             return;
 }
