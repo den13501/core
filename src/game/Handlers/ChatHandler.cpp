@@ -686,7 +686,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleEmoteOpcode(WorldPacket& recv_data)
 {
-    if (!GetPlayer()->IsAlive() || GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
+    if (!GetPlayer()->IsAlive() || GetPlayer()->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PREVENT_ANIM))
         return;
 
     if (!GetPlayer()->CanSpeak())
@@ -742,7 +742,7 @@ private:
 
 void WorldSession::HandleTextEmoteOpcode(WorldPacket& recv_data)
 {
-    if (!GetPlayer()->IsAlive())
+    if (!GetPlayer()->IsAlive() || GetPlayer()->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PREVENT_ANIM))
         return;
 
     if (!GetPlayer()->CanSpeak())
@@ -774,10 +774,6 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket& recv_data)
             break;
         default:
         {
-            // in feign death state allowed only text emotes.
-            if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
-                break;
-
             GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_ANIM_CANCELS);
             GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_ANIM_CANCELS);
             GetPlayer()->HandleEmoteCommand(emote_id);
