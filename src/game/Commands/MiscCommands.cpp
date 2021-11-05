@@ -1844,7 +1844,7 @@ bool ChatHandler::HandleBGStartCommand(char *args)
     BattleGround* pBg = chr->GetBattleGround();
     if (!pBg)
     {
-        SendSysMessage("Vous devez etre dans un champs de bataille pour utiliser cette commande.");
+        SendSysMessage("You have to be in a battleground to use this command.");
         SetSentErrorMessage(true);
         return false;
     }
