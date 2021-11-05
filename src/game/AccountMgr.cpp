@@ -241,7 +241,7 @@ void AccountMgr::Load()
         case SEC_BASIC_ADMIN:
         case SEC_DEVELOPER:
         case SEC_ADMINISTRATOR:
-            // Peut etre deja dans la liste ? On prend le plus haut gmlevel.
+            // Maybe already in the list? We take the highest gmlevel.
             if (m_accountSecurity.find(accountId) == m_accountSecurity.end() ||
                 m_accountSecurity[accountId] < secu)
                 m_accountSecurity[accountId] = secu;
