@@ -69,13 +69,76 @@ enum
 };
 
 
-bool PlayerBotAI::SpawnNewPlayer(WorldSession* sess, uint8 class_, uint32 race_, uint32 mapId, uint32 instanceId, float x, float y, float z, float o, Player* pClone)
+//Function讀取載入所有屬性後，產生PARTYBOT專用機器人 P.S這是自改的function，只有partybot可自訂性別，battlebot則不需要
+bool PlayerBotAI::SpawnNewPartybotPlayer(WorldSession* sess, uint8 class_, uint32 race_, uint8 gender_, uint32 mapId, uint32 instanceId, float x, float y, float z, float o, Player* pClone) //嘗試修改自訂性別
+{
+	ASSERT(botEntry);
+	std::string name = sObjectMgr.GeneratePetName(1863); // Succubus name
+	normalizePlayerName(name);
+	botEntry->name = name;
+	//uint8 gender = pClone ? pClone->GetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_GENDER) : urand(0, 1); //性別
+	uint8 skin = pClone ? pClone->GetByteValue(PLAYER_BYTES, 0) : urand(0, 5);
+	uint8 face = pClone ? pClone->GetByteValue(PLAYER_BYTES, 1) : urand(0, 5);
+	uint8 hairStyle = pClone ? pClone->GetByteValue(PLAYER_BYTES, 2) : urand(0, 5);
+	uint8 hairColor = pClone ? pClone->GetByteValue(PLAYER_BYTES, 3) : urand(0, 5);
+	uint8 facialHair = pClone ? pClone->GetByteValue(PLAYER_BYTES_2, 0) : urand(0, 5);
+	Player* newChar = new Player(sess);
+	uint32 guid = botEntry->playerGUID;
+	if (!newChar->Create(guid, name, race_, class_, gender_, skin, face, hairStyle, hairColor, facialHair))
+	{
+		sLog.outError("PlayerBotAI::SpawnNewPlayer: Unable to create a player!");
+		delete newChar;
+		return false;
+	}
+	newChar->SetLocationMapId(mapId);
+	newChar->SetLocationInstanceId(instanceId);
+	newChar->SetAutoInstanceSwitch(false);
+	newChar->GetMotionMaster()->Initialize();
+	// Set instance
+	if (instanceId && mapId > 1) // Not a continent
+	{
+		DungeonPersistentState* state = (DungeonPersistentState*)sMapPersistentStateMgr
+			.AddPersistentState(sMapStorage.LookupEntry<MapEntry>(mapId), instanceId, time(nullptr) + 3600, false, true);
+		newChar->BindToInstance(state, true, true);
+	}
+	// Generate position
+	Map* map = sMapMgr.FindMap(mapId, instanceId);
+	if (!map)
+	{
+		sLog.outError("PlayerBotAI::SpawnNewPlayer: Map (%u, %u) not found!", mapId, instanceId);
+		delete newChar;
+		return false;
+	}
+	newChar->Relocate(x, y, z, o);
+	sObjectMgr.InsertPlayerInCache(newChar);
+	newChar->SetMap(map);
+	newChar->SaveRecallPosition();
+	newChar->CreatePacketBroadcaster();
+	MasterPlayer* mPlayer = new MasterPlayer(sess);
+	mPlayer->LoadPlayer(newChar);
+	mPlayer->SetSocial(sSocialMgr.LoadFromDB(nullptr, newChar->GetObjectGuid()));
+	if (!newChar->GetMap()->Add(newChar))
+	{
+		sLog.outError("PlayerBotAI::SpawnNewPlayer: Unable to add player to map!");
+		delete newChar;
+		return false;
+	}
+	sess->SetPlayer(newChar);
+	sess->SetMasterPlayer(mPlayer);
+	sObjectAccessor.AddObject(newChar);
+	newChar->SetCanModifyStats(true);
+	newChar->UpdateAllStats();
+	return true;
+}
+
+//Function讀取載入所有屬性後，生成機器人
+bool PlayerBotAI::SpawnNewPlayer(WorldSession* sess, uint8 class_, uint32 race_, uint32 mapId, uint32 instanceId, float x, float y, float z, float o, Player* pClone) //嘗試修改自訂性別
 {
     ASSERT(botEntry);
     std::string name = sObjectMgr.GeneratePetName(1863); // Succubus name
     normalizePlayerName(name);
     botEntry->name = name;    
-    uint8 gender = pClone ? pClone->GetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_GENDER) : urand(0, 1);
+    uint8 gender = pClone ? pClone->GetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_GENDER) : urand(0, 1); //性別
     uint8 skin = pClone ? pClone->GetByteValue(PLAYER_BYTES, 0) : urand(0, 5);
     uint8 face = pClone ? pClone->GetByteValue(PLAYER_BYTES, 1) : urand(0, 5);
     uint8 hairStyle = pClone ? pClone->GetByteValue(PLAYER_BYTES, 2) : urand(0, 5);

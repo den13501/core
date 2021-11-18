@@ -9,27 +9,32 @@
 #include "Spell.h"
 #include "SpellAuras.h"
 
-enum CombatBotSpells
+enum CombatBotSpells //此處的法術定義不是施放或使用，主要用於機器人產生時的身分判斷和做為屬性打底
 {
-    SPELL_MAIL_PROFICIENCY = 8737,
-    SPELL_PLATE_PROFICIENCY = 750,
+	SPELL_MAIL_PROFICIENCY = 8737, //學習鎖甲
+	SPELL_PLATE_PROFICIENCY = 750, //學習鎧甲
+	SPELL_GUNS = 266, //學習槍
+	SPELL_BOWS = 264, //學習弓
+	SEPLL_CROSSBOWS = 5011, //學習十字弓
+	SPELL_THROWN = 2567, //學習投擲
 
-    SPELL_SHIELD_SLAM = 23922,
-    SPELL_HOLY_SHIELD = 20925,
-    SPELL_SANCTITY_AURA = 20218,
-    SPELL_SHADOWFORM = 15473,
-    SPELL_ELEMENTAL_MASTERY = 16166,
-    SPELL_STORMSTRIKE = 17364,
-    SPELL_MOONKIN_FORM = 24858,
-    SPELL_LEADER_OF_THE_PACK = 17007,
+	SPELL_SHIELD_SLAM = 23922,
+	SPELL_HOLY_SHIELD = 20925,
+	SPELL_SANCTITY_AURA = 20218,
+	SPELL_SHADOWFORM = 15473,
+	SPELL_ELEMENTAL_MASTERY = 16166,
+	SPELL_STORMSTRIKE = 17364,
+	SPELL_MOONKIN_FORM = 24858,
+	SPELL_LEADER_OF_THE_PACK = 17007,
 
-    SPELL_SUMMON_IMP = 688,
-    SPELL_SUMMON_VOIDWALKER = 697,
-    SPELL_SUMMON_FELHUNTER = 691,
-    SPELL_SUMMON_SUCCUBUS = 712,
-    SPELL_TAME_BEAST = 13481,
+    SPELL_SUMMON_IMP = 688, //召喚小鬼
+    SPELL_SUMMON_VOIDWALKER = 697, //召喚虛空行者
+    SPELL_SUMMON_FELHUNTER = 691, //召喚惡魔獵犬
+    SPELL_SUMMON_SUCCUBUS = 712, //召喚媚魔
+    SPELL_TAME_BEAST = 13481, //馴服野獸
 
-    PET_WOLF    = 565,
+    PET_WOLF    = 565,	//瘋狂的恐狼
+	PET_LUPOS   = 521, //魯伯斯
     PET_CAT     = 681,
     PET_BEAR    = 822,
     PET_CRAB    = 831,
@@ -623,103 +628,148 @@ void CombatBotBaseAI::PopulateSpellData()
             }
             case CLASS_HUNTER:
             {
-                if (pSpellEntry->SpellName[0].find("Aspect of the Cheetah") != std::string::npos)
+                if (pSpellEntry->SpellName[0].find("Aspect of the Cheetah") != std::string::npos) //獵豹守護
                 {
                     if (!m_spells.hunter.pAspectOfTheCheetah ||
                         m_spells.hunter.pAspectOfTheCheetah->Id < pSpellEntry->Id)
                         m_spells.hunter.pAspectOfTheCheetah = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Aspect of the Hawk") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Aspect of the Hawk") != std::string::npos) //雄鷹守護
                 {
                     if (!m_spells.hunter.pAspectOfTheHawk ||
                         m_spells.hunter.pAspectOfTheHawk->Id < pSpellEntry->Id)
                         m_spells.hunter.pAspectOfTheHawk = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Aspect of the Monkey") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Aspect of the Monkey") != std::string::npos) //靈猴守護
                 {
                     if (!m_spells.hunter.pAspectOfTheMonkey ||
                         m_spells.hunter.pAspectOfTheMonkey->Id < pSpellEntry->Id)
                         m_spells.hunter.pAspectOfTheMonkey = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Serpent Sting") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Serpent Sting") != std::string::npos) //毒蛇釘刺
                 {
                     if (!m_spells.hunter.pSerpentSting ||
                         m_spells.hunter.pSerpentSting->Id < pSpellEntry->Id)
                         m_spells.hunter.pSerpentSting = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Arcane Shot") != std::string::npos)
+				else if (pSpellEntry->SpellName[0].find("Viper Sting") != std::string::npos) //蝮蛇釘刺
+				{
+					if (!m_spells.hunter.pViperSting ||
+						m_spells.hunter.pViperSting->Id < pSpellEntry->Id)
+						m_spells.hunter.pViperSting = pSpellEntry;
+				}
+                else if (pSpellEntry->SpellName[0].find("Arcane Shot") != std::string::npos) //秘法射擊
                 {
                     if (!m_spells.hunter.pArcaneShot ||
                         m_spells.hunter.pArcaneShot->Id < pSpellEntry->Id)
                         m_spells.hunter.pArcaneShot = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Aimed Shot") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Aimed Shot") != std::string::npos) //瞄準射擊
                 {
                     if (!m_spells.hunter.pAimedShot ||
                         m_spells.hunter.pAimedShot->Id < pSpellEntry->Id)
                         m_spells.hunter.pAimedShot = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Multi-Shot") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Multi-Shot") != std::string::npos) //多重射擊
                 {
                     if (!m_spells.hunter.pMultiShot ||
                         m_spells.hunter.pMultiShot->Id < pSpellEntry->Id)
                         m_spells.hunter.pMultiShot = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Concussive Shot") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Concussive Shot") != std::string::npos) //震盪射擊
                 {
                     if (!m_spells.hunter.pConcussiveShot ||
                         m_spells.hunter.pConcussiveShot->Id < pSpellEntry->Id)
                         m_spells.hunter.pConcussiveShot = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Wing Clip") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Wing Clip") != std::string::npos) //摔绊
                 {
                     if (!m_spells.hunter.pWingClip ||
                         m_spells.hunter.pWingClip->Id < pSpellEntry->Id)
                         m_spells.hunter.pWingClip = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Hunter's Mark") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Hunter's Mark") != std::string::npos) //獵人印記
                 {
                     if (!m_spells.hunter.pHuntersMark ||
                         m_spells.hunter.pHuntersMark->Id < pSpellEntry->Id)
                         m_spells.hunter.pHuntersMark = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Mongoose Bite") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Mongoose Bite") != std::string::npos) //猫鼬撕咬
                 {
                     if (!m_spells.hunter.pMongooseBite ||
                         m_spells.hunter.pMongooseBite->Id < pSpellEntry->Id)
                         m_spells.hunter.pMongooseBite = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Raptor Strike") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Raptor Strike") != std::string::npos) //猛禽一擊
                 {
                     if (!m_spells.hunter.pRaptorStrike ||
                         m_spells.hunter.pRaptorStrike->Id < pSpellEntry->Id)
                         m_spells.hunter.pRaptorStrike = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Disengage") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Disengage") != std::string::npos) //逃脫
                 {
                     if (!m_spells.hunter.pDisengage ||
                         m_spells.hunter.pDisengage->Id < pSpellEntry->Id)
                         m_spells.hunter.pDisengage = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Feign Death") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Feign Death") != std::string::npos) //假死
                 {
                     if (!m_spells.hunter.pFeignDeath ||
                         m_spells.hunter.pFeignDeath->Id < pSpellEntry->Id)
                         m_spells.hunter.pFeignDeath = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Scare Beast") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Scare Beast") != std::string::npos) //恐嚇野獸
                 {
                     if (!m_spells.hunter.pScareBeast ||
                         m_spells.hunter.pScareBeast->Id < pSpellEntry->Id)
                         m_spells.hunter.pScareBeast = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Volley") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Volley") != std::string::npos) //亂射
                 {
                     if (!m_spells.hunter.pVolley ||
                         m_spells.hunter.pVolley->Id < pSpellEntry->Id)
                         m_spells.hunter.pVolley = pSpellEntry;
                 }
-                break;
+                
+				else if (pSpellEntry->SpellName[0].find("Frost Trap") != std::string::npos) //冰霜陷阱
+				{
+					if (!m_spells.hunter.pFrostTrap ||
+						m_spells.hunter.pFrostTrap->Id < pSpellEntry->Id)
+						m_spells.hunter.pFrostTrap = pSpellEntry;
+				}
+				
+				else if (pSpellEntry->SpellName[0].find("Freezing Trap") != std::string::npos) //冰凍陷阱
+				{
+					if (!m_spells.hunter.pFreezingTrap ||
+						m_spells.hunter.pFreezingTrap->Id < pSpellEntry->Id)
+						m_spells.hunter.pFreezingTrap = pSpellEntry;
+				}
+				
+				else if (pSpellEntry->SpellName[0].find("Explosive Trap") != std::string::npos) //爆炸陷阱
+				{
+					if (!m_spells.hunter.pExplosiveTrap ||
+						m_spells.hunter.pExplosiveTrap->Id < pSpellEntry->Id)
+						m_spells.hunter.pExplosiveTrap = pSpellEntry;
+				}
+				else if (pSpellEntry->SpellName[0].find("Immolation Trap") != std::string::npos) //獻計陷阱
+				{
+					if (!m_spells.hunter.pImmolationTrap ||
+						m_spells.hunter.pImmolationTrap->Id < pSpellEntry->Id)
+						m_spells.hunter.pImmolationTrap = pSpellEntry;
+				}
+				else if (pSpellEntry->SpellName[0].find("Revive Pet") != std::string::npos) //復活寵物
+				{
+					if (!m_spells.hunter.pRevivePet ||
+						m_spells.hunter.pRevivePet->Id < pSpellEntry->Id)
+						m_spells.hunter.pRevivePet = pSpellEntry;
+				}
+				else if (pSpellEntry->SpellName[0].find("Rapid Fire") != std::string::npos) //急速射擊
+				{
+					if (!m_spells.hunter.pRapidFire ||
+						m_spells.hunter.pRapidFire->Id < pSpellEntry->Id)
+						m_spells.hunter.pRapidFire = pSpellEntry;
+				}
+				break;
             }
             case CLASS_MAGE:
             {
@@ -1395,6 +1445,18 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.warrior.pPiercingHowl->Id < pSpellEntry->Id)
                         m_spells.warrior.pPiercingHowl = pSpellEntry;
                 }
+				else if (pSpellEntry->SpellName[0].find("Revenge") != std::string::npos)
+				{
+					if (!m_spells.warrior.pRevenge ||
+						m_spells.warrior.pRevenge->Id < pSpellEntry->Id)
+						m_spells.warrior.pRevenge = pSpellEntry;
+				}
+				else if (pSpellEntry->SpellName[0].find("Challenging Shout") != std::string::npos)
+				{
+					if (!m_spells.warrior.pChallengingShout ||
+						m_spells.warrior.pChallengingShout->Id < pSpellEntry->Id)
+						m_spells.warrior.pChallengingShout = pSpellEntry;
+				}
                 break;
             }
             case CLASS_ROGUE:
@@ -1841,6 +1903,7 @@ void CombatBotBaseAI::PopulateSpellData()
             }
         }
 
+		//從spell_dbc的SPELL_EFFECT定義治療、嘲諷法術類型
         for (uint32 i = 0; i < MAX_SPELL_EFFECTS; i++)
         {
             switch (pSpellEntry->Effect[i])
@@ -1848,21 +1911,21 @@ void CombatBotBaseAI::PopulateSpellData()
                 case SPELL_EFFECT_HEAL:
                     spellListDirectHeal.insert(pSpellEntry);
                     break;
-                case SPELL_EFFECT_ATTACK_ME:
+                case SPELL_EFFECT_ATTACK_ME: //單體嘲諷SPELL.DBC SPELL_EFFECT ID 114
                     spellListTaunt.push_back(pSpellEntry);
                     break;
                 case SPELL_EFFECT_RESURRECT:
                 case SPELL_EFFECT_RESURRECT_NEW:
                     m_resurrectionSpell = pSpellEntry;
                     break;
-                case SPELL_EFFECT_APPLY_AURA:
+                case SPELL_EFFECT_APPLY_AURA: //範圍上AURA SPELL_EFFECT ID 6
                 {
                     switch (pSpellEntry->EffectApplyAuraName[i])
                     {
                         case SPELL_AURA_PERIODIC_HEAL:
                             spellListPeriodicHeal.insert(pSpellEntry);
                             break;
-                        case SPELL_AURA_MOD_TAUNT:
+                        case SPELL_AURA_MOD_TAUNT: //群體嘲諷
                             spellListTaunt.push_back(pSpellEntry);
                             break;
                     }
@@ -2061,6 +2124,7 @@ void CombatBotBaseAI::PopulateSpellData()
     }
 }
 
+//增加施法材料
 void CombatBotBaseAI::AddAllSpellReagents()
 {
     for (const auto& pSpell : m_spells.raw.spells)
@@ -2081,7 +2145,7 @@ void CombatBotBaseAI::AddAllSpellReagents()
     }
 }
 
-
+//其他人也正對著相同目標function
 bool CombatBotBaseAI::AreOthersOnSameTarget(ObjectGuid guid, bool checkMelee, bool checkSpells) const
 {
     Group* pGroup = me->GetGroup();
@@ -2110,6 +2174,7 @@ bool CombatBotBaseAI::AreOthersOnSameTarget(ObjectGuid guid, bool checkMelee, bo
     return false;
 }
 
+//尋找並治療受傷的同伴
 bool CombatBotBaseAI::FindAndHealInjuredAlly(float selfHealPercent, float groupHealPercent)
 {
     Unit* pTarget = SelectHealTarget(selfHealPercent, groupHealPercent);
@@ -2204,6 +2269,7 @@ bool CombatBotBaseAI::HealInjuredTargetDirect(Unit* pTarget)
     return false;
 }
 
+//Function 判斷是否可被治療目標，目標活著且30碼內
 bool CombatBotBaseAI::IsValidHealTarget(Unit const* pTarget, float healthPercent) const
 {
     return (pTarget->GetHealthPercent() < healthPercent) &&
@@ -2212,6 +2278,7 @@ bool CombatBotBaseAI::IsValidHealTarget(Unit const* pTarget, float healthPercent
             me->IsWithinDist(pTarget, 30.0f);
 }
 
+//Function-選擇治療目標
 Unit* CombatBotBaseAI::SelectHealTarget(float selfHealPercent, float groupHealPercent) const
 {
     if (me->GetHealthPercent() < selfHealPercent)
@@ -2220,28 +2287,28 @@ Unit* CombatBotBaseAI::SelectHealTarget(float selfHealPercent, float groupHealPe
     Unit* pTarget = nullptr;
     float healthPercent = 100.0f;
 
-    if (Group* pGroup = me->GetGroup())
+    if (Group* pGroup = me->GetGroup()) //迴圈抓出隊伍成員
     {
         for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
         {
             if (Unit* pMember = itr->getSource())
             {
-                // We already checked self.
+                // We already checked self.跳過自己
                 if (pMember == me)
                     continue;
 
-                // Avoid all healers picking same target.
+                // Avoid all healers picking same target. 避免多位補師重複選取同樣目標
                 if (pTarget && !IsTankClass(pMember->GetClass()) && AreOthersOnSameTarget(pMember->GetObjectGuid(), false, true))
                     continue;
 
-                // Check if we should heal party member.
+                // Check if we should heal party member. 檢查我們是否應治療隊伍成員
                 if ((IsValidHealTarget(pMember, groupHealPercent) &&
                     healthPercent > pMember->GetHealthPercent()) ||
-                    // Or a pet if there are no injured players.
+                    // Or a pet if there are no injured players. //如果沒有受傷的玩家則治療寵物
                     (!pTarget && (pMember = pMember->GetPet()) &&
                       IsValidHealTarget(pMember, groupHealPercent)))
                 {
-                    healthPercent = pMember->GetHealthPercent();
+                    healthPercent = pMember->GetHealthPercent(); //取得成員的生命百分比
                     pTarget = pMember;
                 }
             }
@@ -2281,6 +2348,7 @@ Unit* CombatBotBaseAI::SelectPeriodicHealTarget(float selfHealPercent, float gro
     return nullptr;
 }
 
+//Function 判斷是否為適合的仇恨對象
 bool CombatBotBaseAI::IsValidHostileTarget(Unit const* pTarget) const
 {
     return me->IsValidAttackTarget(pTarget) &&
@@ -2289,6 +2357,7 @@ bool CombatBotBaseAI::IsValidHostileTarget(Unit const* pTarget) const
            !pTarget->IsTotalImmune();
 }
 
+//Function 判斷是否為適合的可消除減益BUFF對象
 bool CombatBotBaseAI::IsValidDispelTarget(Unit const* pTarget, SpellEntry const* pSpellEntry) const
 {
     uint32 dispelMask = 0;
@@ -2347,6 +2416,7 @@ bool CombatBotBaseAI::IsValidDispelTarget(Unit const* pTarget, SpellEntry const*
     return true;
 }
 
+//Function 獲得範圍內的攻擊者數量
 uint8 CombatBotBaseAI::GetAttackersInRangeCount(float range) const
 {
     uint8 count = 0;
@@ -2391,6 +2461,7 @@ bool CombatBotBaseAI::IsValidBuffTarget(Unit const* pTarget, SpellEntry const* p
     return true;
 }
 
+//選擇BUFF對象之迴圈函式
 Player* CombatBotBaseAI::SelectBuffTarget(SpellEntry const* pSpellEntry) const
 {
     Group* pGroup = me->GetGroup();
@@ -2413,6 +2484,7 @@ Player* CombatBotBaseAI::SelectBuffTarget(SpellEntry const* pSpellEntry) const
     return nullptr;
 }
 
+//選擇消除隊友DEFUFF之迴圈函式
 Player* CombatBotBaseAI::SelectDispelTarget(SpellEntry const* pSpellEntry) const
 {
     Group* pGroup = me->GetGroup();
@@ -2435,6 +2507,7 @@ Player* CombatBotBaseAI::SelectDispelTarget(SpellEntry const* pSpellEntry) const
     return nullptr;
 }
 
+//決定是否需要召喚寵物function
 void CombatBotBaseAI::SummonPetIfNeeded()
 {
     if (me->GetClass() == CLASS_HUNTER)
@@ -2445,15 +2518,19 @@ void CombatBotBaseAI::SummonPetIfNeeded()
         if (me->GetLevel() < 10)
             return;
 
-        uint32 petId = PickRandomValue( PET_WOLF, PET_CAT, PET_BEAR, PET_CRAB, PET_GORILLA, PET_BIRD,
+		//隨機挑選一種獵人寵物
+        /*VM原始定義，從多種動物中隨機挑一個出來
+		uint32 petId = PickRandomValue( PET_WOLF, PET_LUPOS, PET_CAT, PET_BEAR, PET_CRAB, PET_GORILLA, PET_BIRD,
                                         PET_BOAR, PET_BAT, PET_CROC, PET_SPIDER, PET_OWL, PET_STRIDER,
                                         PET_SCORPID, PET_SERPENT, PET_RAPTOR, PET_TURTLE, PET_HYENA );
+		*/
+		uint32 petId = PET_LUPOS;//測試，獵人只使用魯伯斯
         if (Creature* pCreature = me->SummonCreature(petId,
             me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0.0f,
             TEMPSUMMON_TIMED_COMBAT_OR_DEAD_DESPAWN, 3000, false, 3000))
         {
             pCreature->SetLevel(me->GetLevel());
-            me->CastSpell(pCreature, SPELL_TAME_BEAST, true);
+            me->CastSpell(pCreature, SPELL_TAME_BEAST, true); //生物召喚出來後使用非玩家可用的瞬發馴服野獸法術收服
         }
     }
     else if (me->GetClass() == CLASS_WARLOCK)
@@ -2463,18 +2540,19 @@ void CombatBotBaseAI::SummonPetIfNeeded()
 
         std::vector<uint32> vSummons;
         if (me->HasSpell(SPELL_SUMMON_IMP))
-            vSummons.push_back(SPELL_SUMMON_IMP);
-        if (me->HasSpell(SPELL_SUMMON_VOIDWALKER))
+            vSummons.push_back(SPELL_SUMMON_IMP); //為試做術士寵物也能丟法術，先暫時限制只能用小鬼
+        /*if (me->HasSpell(SPELL_SUMMON_VOIDWALKER))
             vSummons.push_back(SPELL_SUMMON_VOIDWALKER);
         if (me->HasSpell(SPELL_SUMMON_FELHUNTER))
             vSummons.push_back(SPELL_SUMMON_FELHUNTER);
         if (me->HasSpell(SPELL_SUMMON_SUCCUBUS))
-            vSummons.push_back(SPELL_SUMMON_SUCCUBUS);
+            vSummons.push_back(SPELL_SUMMON_SUCCUBUS);*/
         if (!vSummons.empty())
             me->CastSpell(me, SelectRandomContainerElement(vSummons), true);
     }
 }
 
+//學習護甲熟練度function
 void CombatBotBaseAI::LearnArmorProficiencies()
 {
     switch (me->GetClass())
@@ -2494,6 +2572,28 @@ void CombatBotBaseAI::LearnArmorProficiencies()
             break;
         }
     }
+}
+
+//學習遠程武器熟練度function
+void CombatBotBaseAI::LearnRemoteWeaponProficiencies()
+{
+	switch (me->GetClass())
+	{
+		case CLASS_WARRIOR:
+		case CLASS_ROGUE:
+		case CLASS_HUNTER:
+		{
+			if (!me->HasSpell(SPELL_GUNS))
+				me->LearnSpell(SPELL_PLATE_PROFICIENCY, false, false);
+			else if (!me->HasSpell(SPELL_BOWS))
+				me->LearnSpell(SPELL_BOWS, false, false);
+			else if (!me->HasSpell(SEPLL_CROSSBOWS))
+				me->LearnSpell(SEPLL_CROSSBOWS, false, false);
+			else if (!me->HasSpell(SPELL_THROWN))
+				me->LearnSpell(SPELL_THROWN, false, false);
+			break;
+		}
+	}
 }
 
 void CombatBotBaseAI::LearnPremadeSpecForClass()
@@ -2539,6 +2639,7 @@ void CombatBotBaseAI::LearnPremadeSpecForClass()
     }
 }
 
+//裝備預設物品範本
 void CombatBotBaseAI::EquipPremadeGearTemplate()
 {
     std::vector<PlayerPremadeGearTemplate const*> vGear;
@@ -2615,6 +2716,7 @@ inline uint32 GetPrimaryItemStatForClassAndRole(uint8 playerClass, uint8 role)
 void CombatBotBaseAI::EquipRandomGearInEmptySlots()
 {
     LearnArmorProficiencies();
+	LearnRemoteWeaponProficiencies();
 
     std::map<uint32 /*slot*/, std::vector<ItemPrototype const*>> itemsPerSlot;
     for (uint32 i = 1; i < sItemStorage.GetMaxEntry(); ++i)
@@ -2779,6 +2881,7 @@ void CombatBotBaseAI::AutoEquipGear(uint32 option)
     }
 }
 
+//可以嘗試使用法術的判斷function
 bool CombatBotBaseAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const
 {
     if (!me->IsSpellReady(pSpellEntry->Id))
@@ -2831,13 +2934,14 @@ bool CombatBotBaseAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* p
     return true;
 }
 
+//施法的判斷funnction
 SpellCastResult CombatBotBaseAI::DoCastSpell(Unit* pTarget, SpellEntry const* pSpellEntry)
 {
     if (me != pTarget)
         me->SetFacingToObject(pTarget);
 
     if (me->IsMounted())
-        me->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
+        me->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED); //下坐騎(移除身上坐騎法術狀態)
 
     me->SetTargetGuid(pTarget->GetObjectGuid());
     me->m_castingSpell = (me->GetClass() == CLASS_ROGUE) ? me->GetComboPoints() : pSpellEntry->Id;
@@ -2858,12 +2962,13 @@ SpellCastResult CombatBotBaseAI::DoCastSpell(Unit* pTarget, SpellEntry const* pS
         if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, INVENTORY_SLOT_ITEM_START))
             me->DestroyItem(INVENTORY_SLOT_BAG_0, INVENTORY_SLOT_ITEM_START, true);
 
-        AddItemToInventory(pSpellEntry->Reagent[0]);
+        AddItemToInventory(pSpellEntry->Reagent[0]); //放入物品(材料、彈藥)到包包內
     }
 
     return result;
 }
 
+//放入物品到包包內的function
 void CombatBotBaseAI::AddItemToInventory(uint32 itemId, uint32 count)
 {
     ItemPosCountVec dest;
@@ -2875,6 +2980,7 @@ void CombatBotBaseAI::AddItemToInventory(uint32 itemId, uint32 count)
     }
 }
 
+//補充彈藥function
 void CombatBotBaseAI::AddHunterAmmo()
 {
     if (Item* pWeapon = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED))
@@ -2967,6 +3073,7 @@ void CombatBotBaseAI::EquipOrUseNewItem()
     }
 }
 
+//召喚薩滿圖騰
 bool CombatBotBaseAI::SummonShamanTotems()
 {
     if (m_spells.shaman.pAirTotem &&
@@ -3018,6 +3125,7 @@ SpellCastResult CombatBotBaseAI::CastWeaponBuff(SpellEntry const* pSpellEntry, E
     return spell->prepare(std::move(targets), nullptr);
 }
 
+//使用飾品效果
 void CombatBotBaseAI::UseTrinketEffects()
 {
     if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_TRINKET1))
@@ -3027,10 +3135,11 @@ void CombatBotBaseAI::UseTrinketEffects()
         if (UseItemEffect(pItem))
             return;
     if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND)) //add use of mainhand weapon effect
-        if (UseItemEffect(pItem))
+        if (UseItemEffect(pItem)) //呼叫使用物品效果function
             return;
 }
 
+//使用物品效果function
 bool CombatBotBaseAI::UseItemEffect(Item* pItem)
 {
     ItemPrototype const* pProto = pItem->GetProto();
@@ -3065,6 +3174,7 @@ bool CombatBotBaseAI::IsWearingShield() const
     return false;
 }
 
+//送出假封包opcode
 void CombatBotBaseAI::SendFakePacket(uint16 opcode)
 {
     switch (opcode)
@@ -3085,7 +3195,7 @@ void CombatBotBaseAI::SendFakePacket(uint16 opcode)
             me->GetSession()->HandleMoveTeleportAckOpcode(data);
             break;
         }
-        case CMSG_BATTLEFIELD_PORT:
+        case CMSG_BATTLEFIELD_PORT: //傳送到戰場OPCODE
         {
             for (uint32 i = BATTLEGROUND_QUEUE_AV; i <= BATTLEGROUND_QUEUE_AB; i++)
             {
@@ -3102,13 +3212,13 @@ void CombatBotBaseAI::SendFakePacket(uint16 opcode)
             }
             break;
         }
-        case CMSG_BEGIN_TRADE:
+        case CMSG_BEGIN_TRADE: //開啟交易OPCODE
         {
             WorldPacket data(CMSG_BEGIN_TRADE);
             me->GetSession()->HandleBeginTradeOpcode(data);
             break;
         }
-        case CMSG_ACCEPT_TRADE:
+        case CMSG_ACCEPT_TRADE: //接受交易OPCODE
         {
             if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, INVENTORY_SLOT_ITEM_START))
                 me->DestroyItem(INVENTORY_SLOT_BAG_0, INVENTORY_SLOT_ITEM_START, true);

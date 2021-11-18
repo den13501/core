@@ -90,6 +90,7 @@ public:
     void AddAllSpellReagents();
     void SummonPetIfNeeded();
     void LearnArmorProficiencies();
+	void LearnRemoteWeaponProficiencies();
     void LearnPremadeSpecForClass();
     void EquipPremadeGearTemplate();
     void EquipRandomGearInEmptySlots();
@@ -266,7 +267,7 @@ public:
     }
 
     SpellEntry const* m_resurrectionSpell = nullptr;
-    std::vector<SpellEntry const*> spellListTaunt;
+    std::vector<SpellEntry const*> spellListTaunt; //陣列：嘲諷技能
     std::set<SpellEntry const*, HealAuraCompare> spellListPeriodicHeal;
     std::set<SpellEntry const*, HealSpellCompare> spellListDirectHeal;
     union
@@ -325,6 +326,7 @@ public:
             SpellEntry const* pAspectOfTheMonkey;
             SpellEntry const* pAspectOfTheHawk;
             SpellEntry const* pSerpentSting;
+			SpellEntry const* pViperSting;
             SpellEntry const* pArcaneShot;
             SpellEntry const* pAimedShot;
             SpellEntry const* pMultiShot;
@@ -337,6 +339,12 @@ public:
             SpellEntry const* pFeignDeath;
             SpellEntry const* pScareBeast;
             SpellEntry const* pVolley;
+			SpellEntry const* pFrostTrap;
+			SpellEntry const* pFreezingTrap;
+			SpellEntry const* pExplosiveTrap;
+			SpellEntry const* pImmolationTrap;
+			SpellEntry const* pRevivePet;
+			SpellEntry const* pRapidFire;
         } hunter;
         struct
         {
@@ -456,7 +464,9 @@ public:
             SpellEntry const* pShieldSlam;
             SpellEntry const* pSunderArmor;
             SpellEntry const* pConcussionBlow;
-            SpellEntry const* pPiercingHowl;
+            SpellEntry const* pPiercingHowl; //刺耳怒吼
+			SpellEntry const* pRevenge; //復仇
+			SpellEntry const* pChallengingShout; //挑戰怒吼
         } warrior;
         struct
         {
@@ -528,7 +538,7 @@ public:
             SpellEntry const* pCower;
             // Bear
             SpellEntry const* pGrowl;
-            SpellEntry const* pChallengingRoar;
+            SpellEntry const* pChallengingRoar; //挑戰咆哮
             SpellEntry const* pDemoralizingRoar;
             SpellEntry const* pEnrage;
             SpellEntry const* pFrenziedRegeneration;

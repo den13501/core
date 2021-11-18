@@ -28,13 +28,35 @@
 #include "Chat.h"
 #include <random>
 
-enum PartyBotSpells
+enum PartyBotSpells //此處的法術定義是給機器人使用和施放用的，通常是較通用的法術，非特定職業的法術
 {
     PB_SPELL_FOOD = 1131,
     PB_SPELL_DRINK = 1137,
     PB_SPELL_AUTO_SHOT = 75,
     PB_SPELL_SHOOT_WAND = 5019,
     PB_SPELL_HONORLESS_TARGET = 2479,
+	PB_SPELL_GOBLIN_SAPPER_CHARGE = 13241, //哥布林工事炸藥(對自己放)
+	PB_SPELL_IRON_GRENADE = 4068, //鐵皮手雷(對敵人放)
+	PB_SPELL_SHOOT_GUN = 7918, //槍射擊
+	PB_SPELL_SHOOT_BOW = 2480, //弓射擊
+	PB_SPELL_SHOOT_CROSSBOW = 7919, //十字弓射擊
+	PB_SPELL_THROW = 2764, //投擲武器
+};
+
+enum WarlockBotPetSpells //此處的法術定義是給術士機器人寵物使用和施放用的
+{
+	PB_SPELL_FIREBOLT_RANK1 = 3110, //火焰箭R1 需要等級1
+	PB_SPELL_FIREBOLT_RANK2 = 7799, //火焰箭R2 需要等級8
+	PB_SPELL_FIREBOLT_RANK3 = 7800, //火焰箭R3 需要等級18
+	PB_SPELL_FIREBOLT_RANK4 = 7801, //火焰箭R4 需要等級28
+	PB_SPELL_FIREBOLT_RANK5 = 7802, //火焰箭R5 需要等級38
+	PB_SPELL_FIREBOLT_RANK6 = 11762, //火焰箭R6 需要等級48
+	PB_SPELL_FIREBOLT_RANK7 = 11763, //火焰箭R7 需要等級58
+	PB_SPELL_BLOODPACT_RANK1 = 6307, //血之契印R1 需要等級4
+	PB_SPELL_BLOODPACT_RANK2 = 7802, //血之契印R2 需要等級14
+	PB_SPELL_BLOODPACT_RANK3 = 7805, //血之契印R3 需要等級26
+	PB_SPELL_BLOODPACT_RANK4 = 11766, //血之契印R4 需要等級38
+	PB_SPELL_BLOODPACT_RANK5 = 11767, //血之契印R5 需要等級50
 };
 
 #define PB_UPDATE_INTERVAL 1000
@@ -43,6 +65,7 @@ enum PartyBotSpells
 #define PB_MIN_FOLLOW_ANGLE 0.0f
 #define PB_MAX_FOLLOW_ANGLE 6.0f
 
+//Function: 克隆自玩家
 void PartyBotAI::CloneFromPlayer(Player const* pPlayer)
 {
     if (!pPlayer)
@@ -91,6 +114,7 @@ void PartyBotAI::CloneFromPlayer(Player const* pPlayer)
     }
 }
 
+//Function: 獲得隊長
 Player* PartyBotAI::GetPartyLeader() const
 {
     Group* pGroup = me->GetGroup();
@@ -116,6 +140,7 @@ Player* PartyBotAI::GetPartyLeader() const
     return nullptr;
 }
 
+//從目標逃開邏輯function
 bool PartyBotAI::RunAwayFromTarget(Unit* pTarget)
 {
     if (Player* pLeader = GetPartyLeader())
@@ -188,6 +213,7 @@ bool PartyBotAI::DrinkAndEat()
     return needToEat || needToDrink;
 }
 
+//應該自動復活function
 bool PartyBotAI::ShouldAutoRevive() const
 {
     if (me->GetDeathState() == DEAD)
@@ -243,6 +269,7 @@ bool PartyBotAI::CanUseCrowdControl(SpellEntry const* pSpellEntry, Unit* pTarget
     return true;
 }
 
+//對目標開始攻擊function
 bool PartyBotAI::AttackStart(Unit* pVictim)
 {
     m_isBuffing = false;
@@ -266,6 +293,199 @@ bool PartyBotAI::AttackStart(Unit* pVictim)
     return false;
 }
 
+//機器人停止攻擊命令助手function
+void StopTankBotAttackHelper(PartyBotAI* pAI, Player* pBot)
+{
+	pBot->AttackStop(true);
+	pBot->InterruptNonMeleeSpells(false);
+	if (!pBot->IsStopped())
+		pBot->StopMoving();
+	if (pBot->GetMotionMaster()->GetCurrentMovementGeneratorType() == CHASE_MOTION_TYPE)
+		pBot->GetMotionMaster()->Clear();
+	if (pAI->m_updateTimer.GetExpiry() < 3000)
+		pAI->m_updateTimer.Reset(3000);
+}
+
+bool HandlePartyBotDPSPauseApplyHelper(Player* pTarget, uint32 duration)
+{
+	if (pTarget->AI())
+	{
+		if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pTarget->AI()))
+		{
+			pAI->m_updateTimer.Reset(duration);
+
+			if (duration)
+			{
+				pTarget->StopMoving();
+				pTarget->GetMotionMaster()->MoveIdle();
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+//坦克開怪function
+bool PartyBotAI::TankPull(Unit* pVictim)
+{
+	bool success = false;
+	bool all = false;
+	uint32 duration = 10 * IN_MILLISECONDS;
+	/*	PartyBotAI* pAI;
+	uint32 duration;
+	duration = 10* IN_MILLISECONDS;
+
+
+	if (m_role != ROLE_TANK &&
+		((m_role = ROLE_MELEE_DPS) || (m_role = ROLE_RANGE_DPS))) //如果非坦職，且職業為DPS進行以下判斷
+	{
+		m_isBuffing = false;
+
+		if (me->IsMounted())
+			me->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
+
+		pAI->m_updateTimer.Reset(duration);
+
+		if (duration)
+		{
+			me->StopMoving();
+			me->GetMotionMaster()->MoveIdle();
+		}
+		return false;
+	}
+	else if (m_role = ROLE_HEALER) //如果是補職則離開function
+		return false;
+	else //如果是坦職則進行以下判斷*/
+	if (m_role == ROLE_TANK)
+	{
+		m_isBuffing = false;
+
+		if (me->IsMounted())
+			me->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
+		switch (me->GetClass())
+		{
+			case CLASS_WARRIOR:
+			{
+				if (me->Attack(pVictim, true))
+				{
+					if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
+						&& me->GetDistance(pVictim) > 30.0f) //如果目前移動行為為閒置且和敵人距離>30碼
+					{
+						me->GetMotionMaster()->MoveChase(pVictim, 10.0f); //則往敵人移動距離25碼
+					}
+					if (me->GetCombatDistance(me->GetVictim()) == 10.0f)
+						me->AttackStop(true);
+					me->InterruptNonMeleeSpells(false);
+
+					if (!me->IsStopped())
+						me->StopMoving();
+					if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == CHASE_MOTION_TYPE)
+						me->GetMotionMaster()->Clear();
+					//me->GetMotionMaster()->MoveChase(pVictim, 10.0f); //則往敵人移動距離10碼
+					//if (!me->IsStopped())
+					//me->StopMoving();
+					/*				if (me->HasSpell(PB_SPELL_SHOOT_BOW) &&
+					!me->IsMoving() &&
+					(me->GetCombatDistance(pVictim) > 8.0f) &&
+					!me->IsNonMeleeSpellCasted()) //如果和敵人距離>8碼就射擊
+					{
+					switch (me->CastSpell(pVictim, PB_SPELL_SHOOT_BOW, false))
+					{
+					case SPELL_FAILED_NEED_AMMO:
+					case SPELL_FAILED_NO_AMMO:
+					{
+					AddHunterAmmo();
+					break;
+					}
+					}
+					me->AttackStop(true);
+					me->InterruptNonMeleeSpells(false);
+					if (!me->IsStopped())
+					me->StopMoving();
+					}*/
+					return true;
+					if (me->GetDistance(pVictim) >= 8.0f && me->GetDistance(pVictim) <= 30.0f) //如果在8~30碼之間
+					{
+						if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
+							&& me->GetDistance(pVictim) > 30.0f) //如果目前移動行為為閒置且和敵人距離>30碼
+						{
+							me->GetMotionMaster()->MoveChase(pVictim, 10.0f); //則往敵人移動距離25碼
+						}
+						if (me->GetCombatDistance(me->GetVictim()) == 10.0f)
+							me->AttackStop(true);
+						me->InterruptNonMeleeSpells(false);
+
+						if (!me->IsStopped())
+							me->StopMoving();
+						if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == CHASE_MOTION_TYPE)
+							me->GetMotionMaster()->Clear();
+						//me->GetMotionMaster()->MoveChase(pVictim, 8.0f); //則往敵人移動距離10碼
+						//if (!me->IsStopped())
+						//	me->StopMoving();
+						/*					if (me->HasSpell(PB_SPELL_SHOOT_BOW) &&
+						//(me->GetCombatDistance(pVictim) > 8.0f) &&
+						!me->IsNonMeleeSpellCasted()) //如果和敵人距離>8碼就射擊
+						{
+						switch (me->CastSpell(pVictim, PB_SPELL_SHOOT_BOW, false))
+						{
+						case SPELL_FAILED_NEED_AMMO:
+						case SPELL_FAILED_NO_AMMO:
+						{
+						AddHunterAmmo();
+						break;
+						}
+						}
+						//me->AttackStop(true);
+						me->InterruptNonMeleeSpells(false);
+						if (!me->IsStopped())
+						me->StopMoving();
+						if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == CHASE_MOTION_TYPE)
+						me->GetMotionMaster()->Clear();
+
+						break;
+						}*/
+						return true;
+					}
+
+					else if (me->GetDistance(pVictim) < 8.0f)
+					{
+						if (me->Attack(pVictim, true))//如果距離<8碼就上前攻擊
+						{
+							if (me->HasDistanceCasterMovement())
+								me->SetCasterChaseDistance(0.0f);
+
+							me->GetMotionMaster()->MoveChase(pVictim, 1.0f, 3.0f);
+						}
+						return true;
+					}
+				}
+					return false;
+			}
+			case CLASS_PALADIN:
+			case CLASS_DRUID:
+			{
+				if (me->Attack(pVictim, true))
+					{
+						if (me->HasDistanceCasterMovement())
+							me->SetCasterChaseDistance(0.0f);
+						me->GetMotionMaster()->MoveChase(pVictim, 1.0f, 3.0f);
+					}
+			}
+			return true;
+			}
+	}
+	else
+		if (m_role == ROLE_MELEE_DPS || m_role == ROLE_RANGE_DPS)
+		{
+			if (HandlePartyBotDPSPauseApplyHelper(me, duration))
+				success = true;
+		}
+
+	return false;
+}
+
 Unit* PartyBotAI::GetMarkedTarget(RaidTargetIcon mark) const
 {
     ObjectGuid targetGuid = me->GetGroup()->GetTargetWithIcon(mark);
@@ -275,6 +495,7 @@ Unit* PartyBotAI::GetMarkedTarget(RaidTargetIcon mark) const
     return nullptr;
 }
 
+//Function-選擇攻擊目標
 Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
 {
     if (!m_spamGuid.IsEmpty())
@@ -299,25 +520,25 @@ Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
         }
     }
 
-    // Who is the leader attacking.
+    // Who is the leader attacking. 隊長攻擊的目標
     if (Unit* pVictim = pLeader->GetVictim())
     {
         if (IsValidHostileTarget(pVictim))
             return pVictim;
     }
 
-    // Who is attacking me.
+    // Who is attacking me. 誰在攻擊我
     for (const auto pAttacker : me->GetAttackers())
     {
         if (IsValidHostileTarget(pAttacker))
             return pAttacker;
     }
 
-    // Check if other group members are under attack.
+    // Check if other group members are under attack. 檢查遭受攻擊中的隊伍成員
     if (Unit* pPartyAttacker = SelectPartyAttackTarget())
         return pPartyAttacker;
 
-    // Assist pet if its in combat.
+    // Assist pet if its in combat. 寵物若在戰鬥中則協助牠
     if (Pet* pPet = me->GetPet())
     {
         if (Unit* pPetAttacker = pPet->GetAttackerForHelper())
@@ -327,6 +548,7 @@ Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
     return nullptr;
 }
 
+//選擇隊伍攻擊的目標function
 Unit* PartyBotAI::SelectPartyAttackTarget() const
 {
     Group* pGroup = me->GetGroup();
@@ -350,6 +572,7 @@ Unit* PartyBotAI::SelectPartyAttackTarget() const
     return nullptr;
 }
 
+//選擇要復活的目標
 Player* PartyBotAI::SelectResurrectionTarget() const
 {
     Group* pGroup = me->GetGroup();
@@ -417,6 +640,7 @@ bool PartyBotAI::CrowdControlMarkedTargets()
     return false;
 }
 
+//加入玩家的隊伍
 void PartyBotAI::AddToPlayerGroup()
 {
     Player* pPlayer = ObjectAccessor::FindPlayer(m_leaderGuid);
@@ -460,11 +684,12 @@ void PartyBotAI::OnWhisper(Player* pWho, std::string text)
 
 }
 
+//送出假封包
 void PartyBotAI::SendFakePacket(uint16 opcode)
 {
     switch (opcode)
     {
-        case CMSG_LOOT_ROLL:
+        case CMSG_LOOT_ROLL: //拾取骰裝
         {
             if (m_lootResponses.empty())
                 return;
@@ -488,9 +713,9 @@ void PartyBotAI::OnPacketReceived(WorldPacket const* packet)
     //printf("Bot received %s\n", LookupOpcodeName(packet->GetOpcode()));
     switch (packet->GetOpcode())
     {
-        case SMSG_LEARNED_SPELL:
+        case SMSG_LEARNED_SPELL: //學習法術
         case SMSG_SUPERCEDED_SPELL:
-        case SMSG_REMOVED_SPELL:
+        case SMSG_REMOVED_SPELL: //移除法術
         {
             if (m_initialized)
                 m_resetSpellData = true;
@@ -515,6 +740,7 @@ void PartyBotAI::OnPlayerLogin()
         me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
 }
 
+//PARTYBOT更新AI FUNCTION
 void PartyBotAI::UpdateAI(uint32 const diff)
 {
     m_updateTimer.Update(diff);
@@ -525,10 +751,10 @@ void PartyBotAI::UpdateAI(uint32 const diff)
 
     if (!me->IsInWorld() || me->IsBeingTeleported())
         return;
-
+	
     if (!m_initialized)
     {
-        AddToPlayerGroup();
+        AddToPlayerGroup(); //加入玩家的隊伍
 
         if (m_level && m_level != me->GetLevel())
         {
@@ -560,20 +786,20 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             }
         }
 
-        ResetSpellData();
-        PopulateSpellData();
-        AddAllSpellReagents();
-        me->UpdateSkillsToMaxSkillsForLevel();
-        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-        SummonPetIfNeeded();
-        me->SetHealthPercent(100.0f);
-        me->SetPowerPercent(me->GetPowerType(), 100.0f);
+        ResetSpellData(); //重置法術資料
+        PopulateSpellData(); //載入法術資料
+        AddAllSpellReagents(); //加入施法材料
+        me->UpdateSkillsToMaxSkillsForLevel(); //技能提升到MAX
+        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE); //移除不可攻擊標記
+        SummonPetIfNeeded(); //如果有需要則召喚寵物
+        me->SetHealthPercent(100.0f); //設定生命值100%
+        me->SetPowerPercent(me->GetPowerType(), 100.0f); //設定能量值100
 
         uint32 newzone, newarea;
         me->GetZoneAndAreaId(newzone, newarea);
         me->UpdateZone(newzone, newarea);
 
-        m_initialized = true;
+        m_initialized = true; //以上function執行完後初始化狀態為真
         return;
     }
 
@@ -599,7 +825,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     {
         if (m_receivedBgInvite)
         {
-            SendFakePacket(CMSG_BATTLEFIELD_PORT);
+            SendFakePacket(CMSG_BATTLEFIELD_PORT); //傳送戰場
             m_receivedBgInvite = false;
             return;
         }
@@ -640,9 +866,9 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         {
             if (ShouldAutoRevive())
             {
-                me->ResurrectPlayer(0.5f);
-                me->SpawnCorpseBones();
-                me->CastSpell(me, PB_SPELL_HONORLESS_TARGET, true);
+                me->ResurrectPlayer(0.5f); //復活後生命值50%
+                me->SpawnCorpseBones(); //產生地上的骷髏
+                me->CastSpell(me, PB_SPELL_HONORLESS_TARGET, true); //非榮譽目標法術
             }
         }
         
@@ -656,7 +882,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             me->InterruptSpell(CURRENT_AUTOREPEAT_SPELL, true);
         else if (me->GetClass() == CLASS_HUNTER)
         {
-            if (me->GetCombatDistance(me->GetVictim()) < 8.0f)
+            if (me->GetCombatDistance(me->GetVictim()) < 8.0f) //如果與敵人距離小於8碼則停止自動射擊
                 me->InterruptSpell(CURRENT_AUTOREPEAT_SPELL, true);
             else
                 UpdateInCombatAI_Hunter();
@@ -671,7 +897,8 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     if (me->GetTargetGuid() == me->GetObjectGuid())
         me->ClearTarget();
 
-    if (!me->IsInCombat())
+    //如果非戰鬥中則判斷是否飲食
+	if (!me->IsInCombat())
     {
         if (DrinkAndEat())
         {
@@ -680,7 +907,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             return;
         }
 
-        // Teleport to leader if too far away.
+        // Teleport to leader if too far away. 離隊長達100碼則傳送到身邊
         if (!me->IsWithinDistInMap(pLeader, 100.0f))
         {
             if (!me->IsStopped())
@@ -693,7 +920,8 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             return;
         }
     }
-
+	
+	//如果機器人非站立狀態，則改變為站立狀態
     if (me->GetStandState() != UNIT_STAND_STATE_STAND)
         me->SetStandState(UNIT_STAND_STATE_STAND);
 
@@ -711,7 +939,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     Unit* pVictim = me->GetVictim();
     bool const isOnTransport = me->GetTransport() != nullptr;
 
-    if (m_role != ROLE_HEALER && !isOnTransport)
+    if (m_role != ROLE_HEALER && !isOnTransport) //如果身分非治療且不在交通工具上
     {
         if (!pVictim || pVictim->IsDead() || pVictim->HasBreakableByDamageCrowdControlAura())
         {
@@ -785,10 +1013,10 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         UpdateInCombatAI();
 }
 
-
+//Function-更新非戰鬥時AI
 void PartyBotAI::UpdateOutOfCombatAI()
 {
-    if (m_resurrectionSpell)
+    if (m_resurrectionSpell) //判斷復活目標
         if (Player* pTarget = SelectResurrectionTarget())
             if (CanTryToCastSpell(pTarget, m_resurrectionSpell))
                 if (DoCastSpell(pTarget, m_resurrectionSpell) == SPELL_CAST_OK)
@@ -829,6 +1057,7 @@ void PartyBotAI::UpdateOutOfCombatAI()
     }
 }
 
+//Function-更新戰鬥中AI
 void PartyBotAI::UpdateInCombatAI()
 {
     if (m_spamSpell)
@@ -845,7 +1074,7 @@ void PartyBotAI::UpdateInCombatAI()
     {
         Unit* pVictim = me->GetVictim();
 
-        // Defend party members.
+        // Defend party members.協防隊友
         if (!pVictim || pVictim->GetVictim() == me)
         {
             if (pVictim = SelectPartyAttackTarget())
@@ -855,7 +1084,7 @@ void PartyBotAI::UpdateInCombatAI()
             }
         }
 
-        // Taunt target if its attacking someone else.
+        // Taunt target if its attacking someone else.如果隊友被攻擊則嘲諷敵人，從嘲諷法術陣列中挑選
         if (pVictim && pVictim->GetVictim() != me)
         {
             for (const auto& pSpellEntry : spellListTaunt)
@@ -917,7 +1146,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Paladin()
 
     if (m_role == ROLE_TANK &&
         m_spells.paladin.pRighteousFury &&
-        CanTryToCastSpell(me, m_spells.paladin.pRighteousFury))
+        CanTryToCastSpell(me, m_spells.paladin.pRighteousFury)) //使用正義之怒
     {
         if (DoCastSpell(me, m_spells.paladin.pRighteousFury) == SPELL_CAST_OK)
             return;
@@ -948,6 +1177,19 @@ void PartyBotAI::UpdateOutOfCombatAI_Paladin()
     if (m_role == ROLE_HEALER &&
         FindAndHealInjuredAlly())
         return;
+
+	if (Unit* pVictim = me->GetVictim()) //嘗試用丟手雷進入戰鬥狀態
+	{
+		if (m_role == ROLE_TANK)
+		{
+			SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_IRON_GRENADE);
+			if (me->GetEnemyCountInRadiusAround(pVictim, 5.0f) >= 2 && me->CastSpell(pVictim, pSpellEntry, true))//目標周圍3碼內敵人數量3個以上則丟手雷
+			{
+				if (DoCastSpell(pVictim, pSpellEntry) == SPELL_CAST_OK)
+					return;
+			}
+		}
+	}
 }
 
 void PartyBotAI::UpdateInCombatAI_Paladin()
@@ -955,7 +1197,7 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
     if (m_spells.paladin.pDivineShield &&
        (me->GetHealthPercent() < 20.0f) &&
        (m_role != ROLE_TANK) &&
-        CanTryToCastSpell(me, m_spells.paladin.pDivineShield))
+        CanTryToCastSpell(me, m_spells.paladin.pDivineShield)) //聖盾術(無敵)
     {
         if (DoCastSpell(me, m_spells.paladin.pDivineShield) == SPELL_CAST_OK)
             return;
@@ -986,9 +1228,9 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
         }
     }
 
-    if (m_spells.paladin.pCleanse)
+    if (m_spells.paladin.pCleanse) //清潔術
     {
-        if (Unit* pFriend = SelectDispelTarget(m_spells.paladin.pCleanse))
+        if (Unit* pFriend = SelectDispelTarget(m_spells.paladin.pCleanse)) //選擇要消除debuff的對象
         {
             if (CanTryToCastSpell(pFriend, m_spells.paladin.pCleanse))
             {
@@ -1001,7 +1243,8 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
     if (!me->GetAttackers().empty())
     {
         if (m_spells.paladin.pHolyShield &&
-            CanTryToCastSpell(me, m_spells.paladin.pHolyShield))
+			GetAttackersInRangeCount(10.0f) <= 4 &&
+            CanTryToCastSpell(me, m_spells.paladin.pHolyShield)) //神聖之盾
         {
             if (DoCastSpell(me, m_spells.paladin.pHolyShield) == SPELL_CAST_OK)
                 return;
@@ -1019,7 +1262,7 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
             }
         }
     }
-
+	//當身分是治療時
     if (m_role == ROLE_HEALER)
     {
         if (m_spells.paladin.pHolyShock &&
@@ -1062,7 +1305,7 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
         {
             if (hasSeal && m_spells.paladin.pJudgement &&
                (me->GetPowerPercent(POWER_MANA) > 30.0f) &&
-                CanTryToCastSpell(pVictim, m_spells.paladin.pJudgement))
+                CanTryToCastSpell(pVictim, m_spells.paladin.pJudgement)) //審判
             {
                 if (DoCastSpell(pVictim, m_spells.paladin.pJudgement) == SPELL_CAST_OK)
                     return;
@@ -1070,21 +1313,21 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
             if (m_spells.paladin.pHammerOfJustice &&
                (pVictim->IsNonMeleeSpellCasted() ||
                (me->GetHealthPercent() < 20.0f && !me->GetAttackers().empty())) &&
-                CanTryToCastSpell(pVictim, m_spells.paladin.pHammerOfJustice))
+                CanTryToCastSpell(pVictim, m_spells.paladin.pHammerOfJustice)) //制裁之錘(暈錘)
             {
                 if (DoCastSpell(pVictim, m_spells.paladin.pHammerOfJustice) == SPELL_CAST_OK)
                     return;
             }
             if (m_spells.paladin.pHammerOfWrath &&
                 pVictim->GetHealthPercent() < 20.0f &&
-                CanTryToCastSpell(pVictim, m_spells.paladin.pHammerOfWrath))
+                CanTryToCastSpell(pVictim, m_spells.paladin.pHammerOfWrath)) //憤怒之錘
             {
                 if (DoCastSpell(pVictim, m_spells.paladin.pHammerOfWrath) == SPELL_CAST_OK)
                     return;
             }
             if (m_spells.paladin.pConsecration &&
-               (GetAttackersInRangeCount(10.0f) > 2) &&
-                CanTryToCastSpell(me, m_spells.paladin.pConsecration))
+               (GetAttackersInRangeCount(10.0f) >= 2) &&
+                CanTryToCastSpell(me, m_spells.paladin.pConsecration)) //10碼內敵人數量>=2則用奉獻
             {
                 if (DoCastSpell(me, m_spells.paladin.pConsecration) == SPELL_CAST_OK)
                     return;
@@ -1129,7 +1372,7 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
 
     if (m_spells.paladin.pBlessingOfFreedom &&
        (me->HasUnitState(UNIT_STAT_ROOT) || me->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED)) &&
-        CanTryToCastSpell(me, m_spells.paladin.pBlessingOfFreedom))
+        CanTryToCastSpell(me, m_spells.paladin.pBlessingOfFreedom)) //被定身時使用自由祝福解除
     {
         if (DoCastSpell(me, m_spells.paladin.pBlessingOfFreedom) == SPELL_CAST_OK)
             return;
@@ -1279,25 +1522,27 @@ void PartyBotAI::UpdateInCombatAI_Shaman()
         HealInjuredTarget(me);
 }
 
+//更新獵人戰鬥外AI function
 void PartyBotAI::UpdateOutOfCombatAI_Hunter()
 {
-    if (m_spells.hunter.pAspectOfTheHawk &&
-        CanTryToCastSpell(me, m_spells.hunter.pAspectOfTheHawk))
+	if (m_spells.hunter.pAspectOfTheHawk &&
+        CanTryToCastSpell(me, m_spells.hunter.pAspectOfTheHawk)) //鷹眼術
     {
         if (DoCastSpell(me, m_spells.hunter.pAspectOfTheHawk) == SPELL_CAST_OK)
             return;
     }
 
+	//如果取得了敵人則進行判斷
     if (Unit* pVictim = me->GetVictim())
     {
         if (m_spells.hunter.pHuntersMark &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pHuntersMark))
+            CanTryToCastSpell(pVictim, m_spells.hunter.pHuntersMark)) //獵人印記
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pHuntersMark) == SPELL_CAST_OK)
                 return;
         }
 
-        if (Pet* pPet = me->GetPet())
+        if (Pet* pPet = me->GetPet()) //如果有寵物則讓寵物攻擊
         {
             if (!pPet->GetVictim())
             {
@@ -1308,32 +1553,51 @@ void PartyBotAI::UpdateOutOfCombatAI_Hunter()
 
         UpdateInCombatAI_Hunter();
     }
-    else
-        SummonPetIfNeeded();
+    else //反之，非戰鬥中則進行判斷寵物召喚或復活
+		if (Pet* pPet = me->GetPet())
+		{
+			if (!pPet->IsAlive()  &&
+				CanTryToCastSpell(pPet, m_spells.hunter.pRevivePet))
+			{
+				if (DoCastSpell(pPet, m_spells.hunter.pRevivePet) == SPELL_CAST_OK)
+					return;
+			}
+			SummonPetIfNeeded(); //沒有敵人則召喚寵物
+		}
+		
 }
 
+//更新獵人戰鬥中AI function
 void PartyBotAI::UpdateInCombatAI_Hunter()
 {
     if (Unit* pVictim = me->GetVictim())
     {
         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
-            && me->GetDistance(pVictim) > 30.0f)
+            && me->GetDistance(pVictim) > 30.0f) //如果目前移動行為是閒置且和敵人距離>30碼
         {
-            me->GetMotionMaster()->MoveChase(pVictim, 25.0f);
+            me->GetMotionMaster()->MoveChase(pVictim, 25.0f); //則往敵人移動距離25碼
         }
 
         if (m_spells.hunter.pVolley &&
            (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2) &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pVolley))
+            CanTryToCastSpell(pVictim, m_spells.hunter.pVolley)) //如果有亂射法術且「目標10碼內敵人>」2且可嘗試使用亂射
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pVolley) == SPELL_CAST_OK)
                 return;
         }
 
+		if (m_spells.hunter.pRapidFire &&
+			(me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2) &&
+			CanTryToCastSpell(me, m_spells.hunter.pRapidFire)) //如果有亂射法術且「目標10碼內敵人>」2且可嘗試使用急速射擊。WIP-還須加上判斷敵方為精英的條件
+		{
+			if (DoCastSpell(pVictim, m_spells.hunter.pRapidFire) == SPELL_CAST_OK)
+				return;
+		}
+
         if (me->HasSpell(PB_SPELL_AUTO_SHOT) &&
             !me->IsMoving() &&
             (me->GetCombatDistance(pVictim) > 8.0f) &&
-            !me->IsNonMeleeSpellCasted())
+            !me->IsNonMeleeSpellCasted()) //如果有自動射擊法術且不再移動中且與敵人相距>8碼且沒有近戰範圍法術使用中，則使用自動射擊
         {
             switch (me->CastSpell(pVictim, PB_SPELL_AUTO_SHOT, false))
             {
@@ -1348,7 +1612,7 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 
         if (m_spells.hunter.pConcussiveShot &&
             pVictim->IsMoving() && (pVictim->GetVictim() == me) &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pConcussiveShot))
+            CanTryToCastSpell(pVictim, m_spells.hunter.pConcussiveShot)) //如果有震盪射擊法術且敵人移動中且敵人的目標是我，則使用震盪射擊
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pConcussiveShot) == SPELL_CAST_OK)
                 return;
@@ -1439,7 +1703,7 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
         else
         {
             if (m_spells.hunter.pAspectOfTheHawk &&
-                CanTryToCastSpell(me, m_spells.hunter.pAspectOfTheHawk))
+                CanTryToCastSpell(me, m_spells.hunter.pAspectOfTheHawk)) //鷹眼術
             {
                 if (DoCastSpell(me, m_spells.hunter.pAspectOfTheHawk) == SPELL_CAST_OK)
                     return;
@@ -1462,7 +1726,7 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 
 void PartyBotAI::UpdateOutOfCombatAI_Mage()
 {
-    if (m_spells.mage.pArcaneBrilliance)
+    if (m_spells.mage.pArcaneBrilliance) //秘法光輝
     {
         if (CanTryToCastSpell(me, m_spells.mage.pArcaneBrilliance))
         {
@@ -1473,7 +1737,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Mage()
             }
         }
     }
-    else if (m_spells.mage.pArcaneIntellect)
+    else if (m_spells.mage.pArcaneIntellect) //秘法智慧
     {
         if (Player* pTarget = SelectBuffTarget(m_spells.mage.pArcaneIntellect))
         {
@@ -1489,7 +1753,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Mage()
     }
 
     if (m_spells.mage.pIceArmor &&
-        CanTryToCastSpell(me, m_spells.mage.pIceArmor))
+        CanTryToCastSpell(me, m_spells.mage.pIceArmor)) //冰甲術
     {
         if (DoCastSpell(me, m_spells.mage.pIceArmor) == SPELL_CAST_OK)
         {
@@ -1499,7 +1763,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Mage()
     }
 
     if (m_spells.mage.pIceBarrier &&
-        CanTryToCastSpell(me, m_spells.mage.pIceBarrier))
+        CanTryToCastSpell(me, m_spells.mage.pIceBarrier)) //寒冰護體
     {
         if (DoCastSpell(me, m_spells.mage.pIceBarrier) == SPELL_CAST_OK)
         {
@@ -1727,7 +1991,7 @@ void PartyBotAI::UpdateInCombatAI_Mage()
 
 void PartyBotAI::UpdateOutOfCombatAI_Priest()
 {
-    if (m_spells.priest.pPrayerofFortitude)
+    if (m_spells.priest.pPrayerofFortitude)//堅韌禱言
     {
         if (Player* pTarget = SelectBuffTarget(m_spells.priest.pPrayerofFortitude))
         {
@@ -1741,7 +2005,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Priest()
             }
         }
     }
-    else if (m_spells.priest.pPowerWordFortitude)
+    else if (m_spells.priest.pPowerWordFortitude)//真言術：韌
     {
         if (Player* pTarget = SelectBuffTarget(m_spells.priest.pPowerWordFortitude))
         {
@@ -1756,7 +2020,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Priest()
         }
     }
 
-    if (m_spells.priest.pPrayerofSpirit)
+    if (m_spells.priest.pPrayerofSpirit) //精神禱言
     {
         if (Player* pTarget = SelectBuffTarget(m_spells.priest.pPrayerofSpirit))
         {
@@ -1770,7 +2034,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Priest()
             }
         }
     }
-    else if (m_spells.priest.pDivineSpirit)
+    else if (m_spells.priest.pDivineSpirit) //神聖之靈
     {
         if (Player* pTarget = SelectBuffTarget(m_spells.priest.pDivineSpirit))
         {
@@ -1785,7 +2049,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Priest()
         }
     }
 
-    if (m_spells.priest.pShadowProtection)
+    if (m_spells.priest.pShadowProtection) //防護暗影
     {
         if (Player* pTarget = SelectBuffTarget(m_spells.priest.pShadowProtection))
         {
@@ -1801,7 +2065,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Priest()
     }
 
     if (m_spells.priest.pInnerFire &&
-        CanTryToCastSpell(me, m_spells.priest.pInnerFire))
+        CanTryToCastSpell(me, m_spells.priest.pInnerFire)) //心靈之火
     {
         if (DoCastSpell(me, m_spells.priest.pInnerFire) == SPELL_CAST_OK)
         {
@@ -1825,7 +2089,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Priest()
         UpdateInCombatAI_Priest();
 }
 
-void PartyBotAI::UpdateInCombatAI_Priest()
+void PartyBotAI::UpdateInCombatAI_Priest() //牧師戰鬥中AI
 {
     if (m_spells.priest.pPowerWordShield &&
         CanTryToCastSpell(me, m_spells.priest.pPowerWordShield))
@@ -1960,15 +2224,15 @@ void PartyBotAI::UpdateInCombatAI_Priest()
 
         if (m_spells.priest.pPsychicScream &&
             GetAttackersInRangeCount(10.0f) &&
-            CanTryToCastSpell(me, m_spells.priest.pPsychicScream))
+            CanTryToCastSpell(me, m_spells.priest.pPsychicScream)) //使用心靈尖嘯
         {
-            if (DoCastSpell(me, m_spells.priest.pPsychicScream) == SPELL_CAST_OK)
+			if (DoCastSpell(me, m_spells.priest.pPsychicScream) == SPELL_CAST_OK)
                 return;
         }
-
+		
         if (m_spells.priest.pManaBurn &&
            (pVictim->GetPowerType() == POWER_MANA) &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pManaBurn))
+            CanTryToCastSpell(pVictim, m_spells.priest.pManaBurn)) //法力燃燒
         {
             if (DoCastSpell(pVictim, m_spells.priest.pManaBurn) == SPELL_CAST_OK)
                 return;
@@ -1976,7 +2240,7 @@ void PartyBotAI::UpdateInCombatAI_Priest()
 
         if (m_spells.priest.pMindFlay &&
            !pVictim->CanReachWithMeleeAutoAttack(me) &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pMindFlay))
+            CanTryToCastSpell(pVictim, m_spells.priest.pMindFlay)) //心靈鞭笞
         {
             if (DoCastSpell(pVictim, m_spells.priest.pMindFlay) == SPELL_CAST_OK)
                 return;
@@ -2016,22 +2280,25 @@ void PartyBotAI::UpdateInCombatAI_Priest()
 
 void PartyBotAI::UpdateOutOfCombatAI_Warlock()
 {
-	if (m_spells.warlock.pUnendingBreath)
+	if (m_spells.warlock.pUnendingBreath) //水息術
 	{
 		if (Player* pTarget = SelectBuffTarget(m_spells.warlock.pUnendingBreath))
 		{
-			if (CanTryToCastSpell(pTarget, m_spells.warlock.pUnendingBreath))
+			if (pTarget->IsInWater() || pTarget->IsSwimming())
 			{
-				if (DoCastSpell(pTarget, m_spells.warlock.pUnendingBreath) == SPELL_CAST_OK)
+				if (CanTryToCastSpell(pTarget, m_spells.warlock.pUnendingBreath))
 				{
-					m_isBuffing = true;
-					return;
+					if (DoCastSpell(pTarget, m_spells.warlock.pUnendingBreath) == SPELL_CAST_OK)
+					{
+						m_isBuffing = true;
+						return;
+					}
 				}
 			}
 		}
 	}
 
-    if (m_spells.warlock.pDetectInvisibility)
+    if (m_spells.warlock.pDetectInvisibility) //偵測次級隱形
     {
         if (Player* pTarget = SelectBuffTarget(m_spells.warlock.pDetectInvisibility))
         {
@@ -2047,7 +2314,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
     }
 
     if (m_spells.warlock.pDemonArmor &&
-        CanTryToCastSpell(me, m_spells.warlock.pDemonArmor))
+        CanTryToCastSpell(me, m_spells.warlock.pDemonArmor)) //惡魔護甲
     {
         if (DoCastSpell(me, m_spells.warlock.pDemonArmor) == SPELL_CAST_OK)
         {
@@ -2056,9 +2323,11 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
         }
     }
 
+	//如果buffing且沒有水息術或偵測次級隱形不再GCD或水息術不在GCD時，則將m_ifBuffing設為false
     if (m_isBuffing &&
-       (!m_spells.warlock.pDetectInvisibility ||
-        !me->HasGCD(m_spells.warlock.pDetectInvisibility)))
+       ((!m_spells.warlock.pUnendingBreath) ||
+        ((!me->HasGCD(m_spells.warlock.pDetectInvisibility)) ||
+		!me->HasGCD(m_spells.warlock.pUnendingBreath))))
     {
         m_isBuffing = false;
     }
@@ -2067,26 +2336,127 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
     {
         if (Pet* pPet = me->GetPet())
         {
-            if (!pPet->GetVictim())
+			if (!pPet->GetVictim())
             {
                 pPet->GetCharmInfo()->SetIsCommandAttack(true);
-                pPet->AI()->AttackStart(pVictim);
+                //pPet->AI()->AttackStart(pVictim); //VM原版，命令寵物開始攻擊，僅普通攻擊
+				if (me->GetLevel() >= 1 && me->GetLevel() < 8)
+				{
+					pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK1, false); //測試功能，術士小鬼放火焰箭
+				}
+				else if (me->GetLevel() >= 8 && me->GetLevel() < 18)
+				{
+					pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK2, false); //測試功能，術士小鬼放火焰箭
+				}
+				else if (me->GetLevel() >= 18 && me->GetLevel() < 28)
+				{
+					pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK3, false); //測試功能，術士小鬼放火焰箭
+				}
+				else if (me->GetLevel() >= 28 && me->GetLevel() < 38)
+				{
+					pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK4, false); //測試功能，術士小鬼放火焰箭
+				}
+				else if (me->GetLevel() >= 38 && me->GetLevel() < 48)
+				{
+					pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK5, false); //測試功能，術士小鬼放火焰箭
+				}
+				else if (me->GetLevel() >= 48 && me->GetLevel() < 58)
+				{
+					pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK6, false); //測試功能，術士小鬼放火焰箭
+				}
+				else if (me->GetLevel() >= 58 && me->GetLevel() <= 60)
+				{
+					pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK7, false); //測試功能，術士小鬼放火焰箭
+				}
             }
         }
 
         UpdateInCombatAI_Warlock();
     }
-    else
-        SummonPetIfNeeded();
+	else //反之，非戰鬥中，進行判斷寵物召喚或復活
+	{
+		SummonPetIfNeeded(); //沒有敵人則召喚寵物
+		if (Pet* pPet = me->GetPet())
+		{
+			Player* pLeader = GetPartyLeader();
+			//if(!pLeader->HasAura(PB_SPELL_BLOODPACT_RANK1))
+			if (me->GetLevel() >=4 && me->GetLevel() < 14 && !pLeader->HasAura(PB_SPELL_BLOODPACT_RANK1))
+			{
+				pPet->CastSpell(me, PB_SPELL_BLOODPACT_RANK1, true);
+				m_isBuffing = true;
+				return;
+			}
+			else if (me->GetLevel() >= 14 && me->GetLevel() < 26 && !pLeader->HasAura(PB_SPELL_BLOODPACT_RANK2))
+			{
+				pPet->CastSpell(me, PB_SPELL_BLOODPACT_RANK2, true);
+				m_isBuffing = true;
+				return;
+			}
+			else if (me->GetLevel() >= 26 && me->GetLevel() < 38 && !pLeader->HasAura(PB_SPELL_BLOODPACT_RANK3))
+			{
+				pPet->CastSpell(me, PB_SPELL_BLOODPACT_RANK3, true);
+				m_isBuffing = true;
+				return;
+			}
+			else if (me->GetLevel() >= 38 && me->GetLevel() < 50 && !pLeader->HasAura(PB_SPELL_BLOODPACT_RANK4))
+			{
+				pPet->CastSpell(me, PB_SPELL_BLOODPACT_RANK4, true);
+				m_isBuffing = true;
+				return;
+			}
+			else if (me->GetLevel() >= 50 && me->GetLevel() <= 60 && !pLeader->HasAura(PB_SPELL_BLOODPACT_RANK5))
+			{
+				pPet->CastSpell(me, PB_SPELL_BLOODPACT_RANK5, true);
+				m_isBuffing = true;
+				return;
+			}
+		}
+		return;
+	}
+
 }
 
 void PartyBotAI::UpdateInCombatAI_Warlock()
 {
     if (Unit* pVictim = me->GetVictim())
     {
-        if (m_spells.warlock.pDeathCoil &&
+		if (Pet* pPet = me->GetPet())
+		{
+				//pPet->GetCharmInfo()->SetIsCommandAttack(true);
+				//pPet->AI()->AttackStart(pVictim); //VM原版，命令寵物開始攻擊，僅普通攻擊
+			if (me->GetLevel() >= 1 && me->GetLevel() < 8)
+			{
+				pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK1, false); //測試功能，術士小鬼放火焰箭
+			}
+			else if (me->GetLevel() >= 8 && me->GetLevel() < 18)
+			{
+				pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK2, false); //測試功能，術士小鬼放火焰箭
+			}
+			else if (me->GetLevel() >= 18 && me->GetLevel() < 28)
+			{
+				pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK3, false); //測試功能，術士小鬼放火焰箭
+			}
+			else if (me->GetLevel() >= 28 && me->GetLevel() < 38)
+			{
+				pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK4, false); //測試功能，術士小鬼放火焰箭
+			}
+			else if (me->GetLevel() >= 38 && me->GetLevel() < 48)
+			{
+				pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK5, false); //測試功能，術士小鬼放火焰箭
+			}
+			else if (me->GetLevel() >= 48 && me->GetLevel() < 58)
+			{
+				pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK6, false); //測試功能，術士小鬼放火焰箭
+			}
+			else if (me->GetLevel() >= 58 && me->GetLevel() <= 60)
+			{
+				pPet->CastSpell(pVictim, PB_SPELL_FIREBOLT_RANK7, false); //測試功能，術士小鬼放火焰箭
+			}
+		}
+
+		if (m_spells.warlock.pDeathCoil &&
            (pVictim->CanReachWithMeleeAutoAttack(me) || pVictim->IsNonMeleeSpellCasted()) &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pDeathCoil))
+            CanTryToCastSpell(pVictim, m_spells.warlock.pDeathCoil)) //死亡纏繞
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pDeathCoil) == SPELL_CAST_OK)
                 return;
@@ -2094,7 +2464,7 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
 
         if (m_spells.warlock.pShadowburn &&
            (pVictim->GetHealthPercent() < 10.0f) &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pShadowburn))
+            CanTryToCastSpell(pVictim, m_spells.warlock.pShadowburn)) //暗影灼燒
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pShadowburn) == SPELL_CAST_OK)
                 return;
@@ -2102,14 +2472,14 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
 
         if (m_spells.warlock.pSearingPain &&
            (pVictim->GetHealthPercent() < 20.0f) &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pSearingPain))
+            CanTryToCastSpell(pVictim, m_spells.warlock.pSearingPain)) //灼熱之痛
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pSearingPain) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.warlock.pBanish &&
-            me->GetAttackers().size() > 1)
+            me->GetAttackers().size() > 1) //如果攻擊者>1就使用放逐術
         {
             Unit* pAttacker = *me->GetAttackers().begin();
             if ((pAttacker->GetHealth() > me->GetHealth()) &&
@@ -2121,16 +2491,16 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
         }
 
         if (m_spells.warlock.pRainOfFire &&
-           (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2) &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pRainOfFire))
+           (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 4) &&
+            CanTryToCastSpell(pVictim, m_spells.warlock.pRainOfFire)) //火焰之雨
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pRainOfFire) == SPELL_CAST_OK)
                 return;
         }
 
-        if (m_spells.warlock.pDemonicSacrifice)
+        if (m_spells.warlock.pDemonicSacrifice) //惡魔犧牲
         {
-            if (Pet* pPet = me->GetPet())
+            if (Pet* pPet = me->GetPet()) //如果術士惡魔活著則對其使用惡魔犧牲
             {
                 if (pPet->IsAlive() &&
                     CanTryToCastSpell(pPet, m_spells.warlock.pDemonicSacrifice))
@@ -2142,37 +2512,37 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
         }
 
         if (m_spells.warlock.pImmolate &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pImmolate))
+            CanTryToCastSpell(pVictim, m_spells.warlock.pImmolate)) //獻祭
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pImmolate) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.warlock.pConflagrate &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pConflagrate))
+            CanTryToCastSpell(pVictim, m_spells.warlock.pConflagrate)) //燃燒(對受獻祭影響的目標使用)
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pConflagrate) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.warlock.pCorruption &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pCorruption))
+            CanTryToCastSpell(pVictim, m_spells.warlock.pCorruption)) //腐蝕
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pCorruption) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.warlock.pSiphonLife &&
-           (me->GetHealthPercent() < 80.0f) &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pSiphonLife))
+           (me->GetHealthPercent() < 50.0f) &&
+            CanTryToCastSpell(pVictim, m_spells.warlock.pSiphonLife)) //靈魂虹吸，VM原版當術士生命<80使用，我比照Ace方式改為<50
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pSiphonLife) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.warlock.pDrainLife &&
-           (me->GetHealthPercent() < 30.0f) &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pDrainLife))
+           (me->GetHealthPercent() < 50.0f) &&
+            CanTryToCastSpell(pVictim, m_spells.warlock.pDrainLife)) //吸取生命，VM原版當術士生命<30使用，，我比照Ace方式改為<50
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pDrainLife) == SPELL_CAST_OK)
                 return;
@@ -2180,14 +2550,16 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
 
         if (m_spells.warlock.pFear &&
             pVictim->GetVictim() == me &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pFear))
+			pVictim->CanReachWithMeleeAutoAttack(me) &&
+			(!pVictim->HasAuraType(SPELL_AURA_PERIODIC_DAMAGE) || !pVictim->HasAuraType(SPELL_AURA_PERIODIC_DAMAGE_PERCENT)) &&
+            CanTryToCastSpell(pVictim, m_spells.warlock.pFear)) //恐懼術
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pFear) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.warlock.pCurseofAgony &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pCurseofAgony))
+            CanTryToCastSpell(pVictim, m_spells.warlock.pCurseofAgony)) //痛苦
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pCurseofAgony) == SPELL_CAST_OK)
                 return;
@@ -2201,14 +2573,14 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
 
         if (m_spells.warlock.pHowlofTerror &&
             GetAttackersInRangeCount(10.0f) > 1 &&
-            CanTryToCastSpell(me, m_spells.warlock.pHowlofTerror))
+            CanTryToCastSpell(me, m_spells.warlock.pHowlofTerror)) //恐懼嚎叫
         {
             if (DoCastSpell(me, m_spells.warlock.pHowlofTerror) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.warlock.pShadowBolt &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pShadowBolt))
+            CanTryToCastSpell(pVictim, m_spells.warlock.pShadowBolt)) //暗影箭
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pShadowBolt) == SPELL_CAST_OK)
                 return;
@@ -2216,8 +2588,8 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
 
         if (m_spells.warlock.pLifeTap &&
            (me->GetPowerPercent(POWER_MANA) < 10.0f) &&
-           (me->GetHealthPercent() > 70.0f) &&
-            CanTryToCastSpell(me, m_spells.warlock.pLifeTap))
+           //(me->GetHealthPercent() > 70.0f) &&
+            CanTryToCastSpell(me, m_spells.warlock.pLifeTap)) //生命分流
         {
             if (DoCastSpell(me, m_spells.warlock.pLifeTap) == SPELL_CAST_OK)
                 return;
@@ -2234,44 +2606,93 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
 void PartyBotAI::UpdateOutOfCombatAI_Warrior()
 {
     if (m_spells.warrior.pBattleStance &&
-        CanTryToCastSpell(me, m_spells.warrior.pBattleStance))
+        CanTryToCastSpell(me, m_spells.warrior.pBattleStance)) //非戰鬥中先切回戰鬥姿態
     {
         if (DoCastSpell(me, m_spells.warrior.pBattleStance) == SPELL_CAST_OK)
             return;
     }
 
     if (m_spells.warrior.pBattleShout &&
-       !me->HasAura(m_spells.warrior.pBattleShout->Id))
+       !me->HasAura(m_spells.warrior.pBattleShout->Id)) //戰鬥怒吼
     {
         if (CanTryToCastSpell(me, m_spells.warrior.pBattleShout))
-            DoCastSpell(me, m_spells.warrior.pBattleShout);
+            DoCastSpell(me, m_spells.warrior.pBattleShout); //使用戰鬥怒吼
         else if (m_spells.warrior.pBloodrage &&
             (me->GetPower(POWER_RAGE) < 10) &&
-            CanTryToCastSpell(me, m_spells.warrior.pBloodrage))
+            CanTryToCastSpell(me, m_spells.warrior.pBloodrage)) //如果怒氣小於10且使用血性狂暴來產生怒氣
         {
             DoCastSpell(me, m_spells.warrior.pBloodrage);
         }
     }
 
-    if (Unit* pVictim = me->GetVictim())
+    if (Unit* pVictim = me->GetVictim()) //嘗試用衝鋒進入戰鬥狀態
     {
-        if (m_spells.warrior.pCharge &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pCharge))
-        {
-            if (DoCastSpell(pVictim, m_spells.warrior.pCharge) == SPELL_CAST_OK)
-                return;
-        }
+		if (me->GetMap()->IsDungeon())
+		{
+			if (m_spells.warrior.pCharge &&
+				CanTryToCastSpell(pVictim, m_spells.warrior.pCharge))
+			{
+				if (DoCastSpell(pVictim, m_spells.warrior.pCharge) == SPELL_CAST_OK)//如果衝鋒成功，敵方周圍敵人數量2個以上使用鐵皮手雷
+				{
+					if (me->GetEnemyCountInRadiusAround(pVictim, 5.0f) > 1) 
+					{
+						SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_IRON_GRENADE);
+						me->CastSpell(pVictim, pSpellEntry, true);
+						if (DoCastSpell(pVictim, pSpellEntry) == SPELL_CAST_OK)
+							return;
+					}
+				}
+				else
+				{
+					SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_IRON_GRENADE);
+					if (me->GetEnemyCountInRadiusAround(pVictim, 5.0f) > 1 && me->CastSpell(pVictim, pSpellEntry, true))//衝鋒失敗，目標周圍3碼內敵人數量2個以上則丟手雷
+					{
+						if (DoCastSpell(pVictim, pSpellEntry) == SPELL_CAST_OK)
+							return;
+					}
+
+				}
+			}
+		}
+		else //非副本時
+		{
+			if (m_spells.warrior.pCharge &&
+				CanTryToCastSpell(pVictim, m_spells.warrior.pCharge))
+			{
+				if (DoCastSpell(pVictim, m_spells.warrior.pCharge) == SPELL_CAST_OK)
+				{
+					if (me->GetEnemyCountInRadiusAround(pVictim, 5.0f) > 2) //如果衝鋒成功，敵方周圍敵人數量3個以上使用哥布林工事炸藥炸自己
+					{
+						SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_IRON_GRENADE);
+						me->CastSpell(pVictim, pSpellEntry, true);
+						if (DoCastSpell(pVictim, pSpellEntry) == SPELL_CAST_OK)
+							return;
+					}
+				}
+				else
+				{
+					SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_IRON_GRENADE);
+					if (me->GetEnemyCountInRadiusAround(pVictim, 5.0f) > 2 && me->CastSpell(pVictim, pSpellEntry, true))//目標周圍3碼內敵人數量3個以上則丟手雷
+					{
+						if (DoCastSpell(pVictim, pSpellEntry) == SPELL_CAST_OK)
+							return;
+					}
+
+				}
+			}
+		}
     }
+	
 }
 
 void PartyBotAI::UpdateInCombatAI_Warrior()
 {
     if (Unit* pVictim = me->GetVictim())
     {
-        if (pVictim->IsNonMeleeSpellCasted(false, false, true))
+		if (pVictim->IsNonMeleeSpellCasted(false, false, true)) //當敵方使用非進戰法術時，進行斷法
         {
             if (m_spells.warrior.pPummel &&
-                CanTryToCastSpell(pVictim, m_spells.warrior.pPummel))
+                CanTryToCastSpell(pVictim, m_spells.warrior.pPummel)) //拳擊
             {
                 if (DoCastSpell(pVictim, m_spells.warrior.pPummel) == SPELL_CAST_OK)
                     return;
@@ -2279,7 +2700,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
             if (m_spells.warrior.pShieldBash &&
                 IsWearingShield() &&
-                CanTryToCastSpell(pVictim, m_spells.warrior.pShieldBash))
+                CanTryToCastSpell(pVictim, m_spells.warrior.pShieldBash)) //盾擊
             {
                 if (DoCastSpell(pVictim, m_spells.warrior.pShieldBash) == SPELL_CAST_OK)
                     return;
@@ -2288,14 +2709,14 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
         if (m_spells.warrior.pExecute &&
            (pVictim->GetHealthPercent() < 20.0f) &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pExecute))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pExecute)) //敵方生命小於20%時，使用斬殺
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pExecute) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.warrior.pOverpower &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pOverpower))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pOverpower)) //壓制
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pOverpower) == SPELL_CAST_OK)
                 return;
@@ -2303,7 +2724,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
         if (m_spells.warrior.pLastStand &&
             me->GetHealthPercent() < 20.0f &&
-            CanTryToCastSpell(me, m_spells.warrior.pLastStand))
+            CanTryToCastSpell(me, m_spells.warrior.pLastStand)) //如果自己生命小於20%時，使用破釜沉舟
         {
             if (DoCastSpell(me, m_spells.warrior.pLastStand) == SPELL_CAST_OK)
                 return;
@@ -2311,19 +2732,19 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
         if (m_spells.warrior.pConcussionBlow &&
            (pVictim->IsNonMeleeSpellCasted() || pVictim->IsMoving() || (me->GetHealthPercent() < 50.0f)) &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pConcussionBlow))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pConcussionBlow)) //「敵方施法中或移動中或自己生命小於50%」且使用震盪猛擊
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pConcussionBlow) == SPELL_CAST_OK)
                 return;
         }
 
         if (me->GetShapeshiftForm() == FORM_DEFENSIVESTANCE &&
-            IsWearingShield())
+            IsWearingShield()) //防禦姿態下的判斷式
         {
-            if (!me->GetAttackers().empty())
+            if (!me->GetAttackers().empty()) //如果攻擊我的人不是0人
             {
                 if (m_spells.warrior.pShieldBlock &&
-                    CanTryToCastSpell(me, m_spells.warrior.pShieldBlock))
+                    CanTryToCastSpell(me, m_spells.warrior.pShieldBlock)) //使用盾牌格擋
                 {
                     if (DoCastSpell(me, m_spells.warrior.pShieldBlock) == SPELL_CAST_OK)
                         return;
@@ -2331,15 +2752,25 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
                 if (m_spells.warrior.pShieldWall &&
                    (me->GetHealthPercent() < 40.0f) &&
-                    CanTryToCastSpell(me, m_spells.warrior.pShieldWall))
+                    CanTryToCastSpell(me, m_spells.warrior.pShieldWall)) //當自己生命小於40%並使用盾牆
                 {
                     if (DoCastSpell(me, m_spells.warrior.pShieldWall) == SPELL_CAST_OK)
                         return;
                 }
+				/*
+				if (me->GetHealthPercent() > 80.0f && me->GetEnemyCountInRadiusAround(pVictim,10.0f) > 2 ) //防禦姿態下生命大於80%且敵方周圍敵人3個以上使用哥布林工事炸藥炸自己
+				{
+					if (SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_GOBLIN_SAPPER_CHARGE))
+					{
+						me->CastSpell(me, pSpellEntry, true);
+						if(DoCastSpell(me, pSpellEntry) == SPELL_CAST_OK)
+						return;
+					}
+				}*/
             }
 
             if (m_spells.warrior.pShieldSlam &&
-                CanTryToCastSpell(pVictim, m_spells.warrior.pShieldSlam))
+                CanTryToCastSpell(pVictim, m_spells.warrior.pShieldSlam)) //盾牌猛擊
             {
                 if (DoCastSpell(pVictim, m_spells.warrior.pShieldSlam) == SPELL_CAST_OK)
                     return;
@@ -2347,8 +2778,9 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
         }
 
         if (m_spells.warrior.pThunderClap &&
-            m_role == ROLE_TANK &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pThunderClap))
+            m_role == ROLE_TANK && 
+			me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 1 &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pThunderClap)) //身份為坦且敵方周圍敵人2個以上且可嘗試使用雷霆一擊(20怒8碼)
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pThunderClap) == SPELL_CAST_OK)
                 return;
@@ -2356,7 +2788,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
         if (m_spells.warrior.pSunderArmor &&
             m_role == ROLE_TANK &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pSunderArmor))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pSunderArmor)) //身份為坦且可嘗試使用破甲
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pSunderArmor) == SPELL_CAST_OK)
                 return;
@@ -2366,14 +2798,14 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
             pVictim->IsMoving() &&
            !pVictim->HasUnitState(UNIT_STAT_ROOT) &&
            !pVictim->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pHamstring))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pHamstring)) //敵人在移動且敵人非狀態為站立且敵人沒有減速DEBUFF在身上且嘗試使用斷筋
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pHamstring) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.warrior.pRend &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pRend))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pRend)) //撕裂
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pRend) == SPELL_CAST_OK)
                 return;
@@ -2382,7 +2814,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
         if (m_spells.warrior.pIntimidatingShout &&
            (me->GetHealthPercent() < 30.0f) &&
            (GetAttackersInRangeCount(10.0f) > 2) &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pIntimidatingShout))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pIntimidatingShout)) //當生命小於30%且範圍10碼內攻擊我的人大於2且使用破膽咆哮
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pIntimidatingShout) == SPELL_CAST_OK)
                 return;
@@ -2390,7 +2822,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
         if (m_spells.warrior.pRetaliation &&
            (GetAttackersInRangeCount(10.0f) > 2) &&
-            CanTryToCastSpell(me, m_spells.warrior.pRetaliation))
+            CanTryToCastSpell(me, m_spells.warrior.pRetaliation)) //當10碼範圍內攻擊自己的人>2且可嘗試使用反擊風暴
         {
             if (DoCastSpell(me, m_spells.warrior.pRetaliation) == SPELL_CAST_OK)
                 return;
@@ -2398,7 +2830,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
         if (m_spells.warrior.pSweepingStrikes &&
             CanTryToCastSpell(me, m_spells.warrior.pSweepingStrikes) &&
-           (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2))
+           (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2)) //橫掃攻擊
         {
             if (DoCastSpell(me, m_spells.warrior.pSweepingStrikes) == SPELL_CAST_OK)
                 return;
@@ -2407,17 +2839,17 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
         if (m_role != ROLE_TANK &&
            (me->GetHealthPercent() > 60.0f) && (pVictim->GetHealthPercent() > 40.0f) &&
            !me->HasUnitState(UNIT_STAT_ROOT) &&
-           !me->IsImmuneToMechanic(MECHANIC_FEAR))
+           !me->IsImmuneToMechanic(MECHANIC_FEAR)) //若「身分非坦」且生命>60%且敵方身命>40%且自己非定身狀態且自己非免疫恐懼狀態
         {
             if (m_spells.warrior.pRecklessness &&
-                CanTryToCastSpell(me, m_spells.warrior.pRecklessness))
+                CanTryToCastSpell(me, m_spells.warrior.pRecklessness)) //鲁莽
             {
                 if (DoCastSpell(me, m_spells.warrior.pRecklessness) == SPELL_CAST_OK)
                     return;
             }
 
             if (m_spells.warrior.pDeathWish &&
-                CanTryToCastSpell(me, m_spells.warrior.pDeathWish))
+                CanTryToCastSpell(me, m_spells.warrior.pDeathWish)) //死亡之願
             {
                 if (DoCastSpell(me, m_spells.warrior.pDeathWish) == SPELL_CAST_OK)
                     return;
@@ -2425,19 +2857,30 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
         }
 
         if (m_spells.warrior.pMortalStrike &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pMortalStrike))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pMortalStrike)) //致死打擊
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pMortalStrike) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.warrior.pBloodthirst &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pBloodthirst))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pBloodthirst)) //嗜血
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pBloodthirst) == SPELL_CAST_OK)
                 return;
-        }
+			else //測試，當嗜血施放失敗(CD中)時嘗試使用旋風斬
+			{
+				if (m_spells.warrior.pWhirlwind &&
+					CanTryToCastSpell(pVictim, m_spells.warrior.pWhirlwind)) //旋風斬
+				{
+					if (DoCastSpell(pVictim, m_spells.warrior.pWhirlwind) == SPELL_CAST_OK)
+						return;
+				}
+			}
 
+        }
+		
+		//當生命小於20%或「身份為坦且敵方等級大於等於我」時切換防禦姿態
         if ((me->GetHealthPercent() < 20.0f) ||
             (m_role == ROLE_TANK && pVictim->GetLevel() >= me->GetLevel()))
         {
@@ -2447,7 +2890,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
                 DoCastSpell(me, m_spells.warrior.pDefensiveStance);
             }
         }
-        else
+        else //否則，也就是身命力大於20%就會切成狂暴姿態
         {
             if (m_spells.warrior.pBerserkerStance &&
                 CanTryToCastSpell(me, m_spells.warrior.pBerserkerStance))
@@ -2455,24 +2898,24 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
                 DoCastSpell(me, m_spells.warrior.pBerserkerStance);
             }
         }
-
+		//承上，在狂暴姿態下程式往下執行
         if (m_spells.warrior.pIntercept &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pIntercept))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pIntercept)) //攔截
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pIntercept) == SPELL_CAST_OK)
                 return;
         }
-
+		
         if (m_spells.warrior.pWhirlwind &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pWhirlwind))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pWhirlwind)) //旋風斬
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pWhirlwind) == SPELL_CAST_OK)
                 return;
         }
-
+		
         if (m_spells.warrior.pDisarm &&
             IsMeleeWeaponClass(pVictim->GetClass()) &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pDisarm))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pDisarm)) //繳械
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pDisarm) == SPELL_CAST_OK)
                 return;
@@ -2480,42 +2923,76 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
         if (m_spells.warrior.pDemoralizingShout &&
             m_role == ROLE_TANK &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pDemoralizingShout))
+            CanTryToCastSpell(pVictim, m_spells.warrior.pDemoralizingShout)) //挫志怒吼
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pDemoralizingShout) == SPELL_CAST_OK)
                 return;
         }
 
+		//當本身動作處於閒置且我無法接觸可對目標進戰自動攻擊時，則往目標移動
         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
             && !me->CanReachWithMeleeAutoAttack(pVictim))
         {
             me->GetMotionMaster()->MoveChase(pVictim);
         }
+		
+		//***承上，往目標移動後程式往下判斷***//
 
-        if (me->GetPower(POWER_RAGE) > 30)
+        //當怒氣值>30時判斷敵人數量決定使用何種的招式，使用順劈斬或英勇打擊的判斷
+		if (me->GetPower(POWER_RAGE) > 30)
         {
-            if (m_spells.warrior.pCleave && me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 1)
+            if (m_spells.warrior.pCleave && me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 1) //8碼內敵人2個以上
             {
-                if (CanTryToCastSpell(pVictim, m_spells.warrior.pCleave))
+                if (CanTryToCastSpell(pVictim, m_spells.warrior.pCleave)) //順劈斬(消耗20怒氣)
                 {
                     if (DoCastSpell(pVictim, m_spells.warrior.pCleave) == SPELL_CAST_OK)
                         return;
                 }
             }
-            else
+            else //8碼內敵人只有1人
             {
-                if (m_spells.warrior.pHeroicStrike &&
-                    CanTryToCastSpell(pVictim, m_spells.warrior.pHeroicStrike))
+				
+				SpellAuraHolder* holder = pVictim->GetSpellAuraHolder(m_spells.warrior.pSunderArmor->Id); //測試，抓取敵方身上的破甲堆疊
+
+				if (m_spells.warrior.pSunderArmor &&
+					m_role == ROLE_TANK && 
+					//(!pVictim->HasAura(7386) || !pVictim->HasAura(7405) || !pVictim->HasAura(11596) || !pVictim->HasAura(11597)) &&
+					//(!pVictim->HasAura(m_spells.warrior.pSunderArmor->Id)) && //實驗中，抓取敵方是否有身上破甲且破甲堆疊<5 //holder->GetStackAmount() < 5
+					(holder && holder->GetStackAmount() <= 5) &&
+					CanTryToCastSpell(pVictim, m_spells.warrior.pSunderArmor)) //身份為坦且敵人身上沒有破甲BUFF且可嘗試使用破甲(消耗15怒氣)
+				{
+					if (DoCastSpell(pVictim, m_spells.warrior.pSunderArmor) == SPELL_CAST_OK)
+						return;
+				}
+				
+				if (m_spells.warrior.pHeroicStrike &&
+                    CanTryToCastSpell(pVictim, m_spells.warrior.pHeroicStrike)) //英勇打擊(消耗15怒氣)
                 {
                     if (DoCastSpell(pVictim, m_spells.warrior.pHeroicStrike) == SPELL_CAST_OK)
                         return;
                 }
+
+				if (m_spells.warrior.pRevenge &&
+					CanTryToCastSpell(pVictim, m_spells.warrior.pRevenge)) //復仇(消耗5怒氣)
+				{
+					if (DoCastSpell(pVictim, m_spells.warrior.pRevenge) == SPELL_CAST_OK)
+						return;
+				}
             }
         }
     }
+
+	if (m_spells.warrior.pBerserkerRage &&
+		(me->HasUnitState(UNIT_STAT_ROOT) || me->HasUnitState(UNIT_STAT_STUNNED) || me->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED)) &&
+		CanTryToCastSpell(me, m_spells.warrior.pBerserkerRage)) //被定身或擊暈或身上有減速DEBUFF時，使用狂暴之怒解除
+	{
+		if (DoCastSpell(me, m_spells.warrior.pBerserkerRage) == SPELL_CAST_OK)
+			return;
+	}
+
     else // no victim
     {
-        if (m_spells.warrior.pBattleShout &&
+        if (!me->HasAura(m_spells.warrior.pBattleShout->Id) && m_spells.warrior.pBattleShout &&
             CanTryToCastSpell(me, m_spells.warrior.pBattleShout))
         {
             if (DoCastSpell(me, m_spells.warrior.pBattleShout) == SPELL_CAST_OK)
@@ -2896,8 +3373,23 @@ void PartyBotAI::UpdateOutOfCombatAI_Druid()
             return;
     }
 
-    if (me->GetVictim())
-        UpdateInCombatAI_Druid();
+    //if (me->GetVictim())
+    //    UpdateInCombatAI_Druid();
+	if (Unit* pVictim = me->GetVictim()) //嘗試用丟手雷進入戰鬥狀態
+	{
+		if (m_role == ROLE_TANK)
+		{
+			SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_IRON_GRENADE);
+			if (me->GetEnemyCountInRadiusAround(pVictim, 5.0f) >= 2 && me->CastSpell(pVictim, pSpellEntry, true))//目標周圍3碼內敵人數量3個以上則丟手雷
+			{
+				if (DoCastSpell(pVictim, pSpellEntry) == SPELL_CAST_OK)
+					return;
+			}
+			UpdateInCombatAI_Druid();
+		}
+		else
+			UpdateInCombatAI_Druid();
+	}
 }
 
 void PartyBotAI::UpdateInCombatAI_Druid()
@@ -3098,7 +3590,7 @@ void PartyBotAI::UpdateInCombatAI_Druid()
             }
 
             if (m_spells.druid.pFeralCharge &&
-                CanTryToCastSpell(pVictim, m_spells.druid.pFeralCharge))
+                CanTryToCastSpell(pVictim, m_spells.druid.pFeralCharge)) //野性衝鋒
             {
                 if (DoCastSpell(pVictim, m_spells.druid.pFeralCharge) == SPELL_CAST_OK)
                     return;

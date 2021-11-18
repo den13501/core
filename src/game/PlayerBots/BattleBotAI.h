@@ -56,7 +56,8 @@ public:
     bool DrinkAndEat();
     bool UseMount();
     uint32 GetMountSpellId() const;
-    bool CheckForUnreachableTarget();
+	void AddHKRanks(); //Battlebot加軍階函數
+	bool CheckForUnreachableTarget();
     float GetMaxAggroDistanceForMap() const;
     bool AttackStart(Unit* pVictim);
     Unit* SelectAttackTarget(Unit* pExcept = nullptr) const;

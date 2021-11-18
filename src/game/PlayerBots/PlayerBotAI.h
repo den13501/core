@@ -41,7 +41,9 @@ class PlayerBotAI: public PlayerAI
         void UpdateAI(uint32 const /*diff*/) override; // Handle delayed teleports
         virtual void OnPlayerLogin() {}
         virtual void BeforeAddToMap(Player* player) {} // me=nullptr at call
-        // Helpers
+		// 自改:PARTYBOT RACE可選擇
+		bool SpawnNewPartybotPlayer(WorldSession * sess, uint8 class_, uint32 race_, uint8 gender, uint32 mapId, uint32 instanceId, float x, float y, float z, float o, Player * pClone);
+        // Helpers battlebot生成用
         bool SpawnNewPlayer(WorldSession* sess, uint8 classId, uint32 raceId, uint32 mapId, uint32 instanceId, float dx, float dy, float dz, float o, Player* pClone = nullptr);
         PlayerBotEntry* botEntry;
 };

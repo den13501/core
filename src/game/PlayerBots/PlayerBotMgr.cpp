@@ -597,6 +597,7 @@ bool ChatHandler::HandleBotStartCommand(char * args)
     return true;
 }
 
+//Function: 隨機選擇職業之種族
 uint8 SelectRandomRaceForClass(uint8 playerClass, Team playerTeam)
 {
     switch (playerClass)
@@ -752,6 +753,7 @@ bool ChatHandler::PartyBotAddRequirementCheck(Player const* pPlayer, Player cons
     return true;
 }
 
+//Function- partybot add機器人命令
 bool ChatHandler::HandlePartyBotAddCommand(char* args)
 {
     Player* pPlayer = m_session->GetPlayer();
@@ -763,40 +765,81 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
         SetSentErrorMessage(true);
         return false;
     }
+	//硬限制玩家在下面的條件下不能呼叫機器人
+	if (pPlayer->IsDead())
+	{
+		SendSysMessage("死亡時不能加入機器人。");
+		return false;
+	}
+
+	if (pPlayer->IsInCombat())
+	{
+		SendSysMessage("戰鬥中不能加入機器人。");
+		return false;
+	}
+
+	/*if (pPlayer->GetMap()->IsDungeon())
+	{
+		SendSysMessage("在副本內不能加入機器人。");
+		return false;
+	}*/
 
     if (!args)
     {
-        SendSysMessage("語法錯誤。必須是類型(如dps/tank/healer)或職業(如warrior/mage)。\n且敵對陣營職業不可用。");
+        SendSysMessage("語法錯誤。必須是身分(dps/tank/healer)或職業(warrior/mage..etc)。且敵對陣營職業不可用。");
         SetSentErrorMessage(true);
         return false;
     }
 
     uint8 botClass = 0;
-    uint32 botLevel = pPlayer->GetLevel();  //讀取玩家等級
-    CombatBotRoles botRole = ROLE_INVALID;
+    uint32 botLevel = pPlayer->GetLevel();  //讀取玩家等級，如沒額外輸入第二參數，預設機器人等級就是玩家等級
+	uint32 botGender = urand(0, 1); //加入性別屬性供定義
+	CombatBotRoles botRole = ROLE_INVALID;
 
-    if (char* arg1 = ExtractArg(&args))
+    if (char* arg1 = ExtractArg(&args)) //判斷參數arg1=玩家輸入命令partbot add後的參數args=職業
     {
         std::string option = arg1;
-        if (option == "warrior")
-            botClass = CLASS_WARRIOR;
+		if (option == "warrior")
+			botClass = CLASS_WARRIOR;
+		else if (option == "mwarrior")
+			(botClass = CLASS_WARRIOR) && (botRole = ROLE_MELEE_DPS);
         else if (option == "paladin" && pPlayer->GetTeam() == ALLIANCE)
             botClass = CLASS_PALADIN;
-        else if (option == "hunter")
+		else if (option == "mpaladin" && pPlayer->GetTeam() == ALLIANCE)
+			(botClass = CLASS_PALADIN) && (botRole = ROLE_MELEE_DPS);
+		else if (option == "hpaladin" && pPlayer->GetTeam() == ALLIANCE)
+			(botClass = CLASS_PALADIN) && (botRole = ROLE_HEALER);
+		else if (option == "hunter")
             botClass = CLASS_HUNTER;
         else if (option == "rogue")
             botClass = CLASS_ROGUE;
         else if (option == "priest")
             botClass = CLASS_PRIEST;
-        else if (option == "shaman" && pPlayer->GetTeam() == HORDE)
+		else if (option == "rpriest")
+			(botClass = CLASS_PRIEST) && (botRole = ROLE_RANGE_DPS);
+		else if (option == "hpriest")
+			(botClass = CLASS_PRIEST) && (botRole = ROLE_HEALER);
+		else if (option == "shaman" && pPlayer->GetTeam() == HORDE)
             botClass = CLASS_SHAMAN;
-        else if (option == "mage")
+		else if (option == "mshaman" && pPlayer->GetTeam() == HORDE)
+			(botClass = CLASS_SHAMAN) && (botRole = ROLE_MELEE_DPS);
+		else if (option == "rshaman" && pPlayer->GetTeam() == HORDE)
+			(botClass = CLASS_SHAMAN) && (botRole = ROLE_RANGE_DPS);
+		else if (option == "hshaman" && pPlayer->GetTeam() == HORDE)
+			(botClass = CLASS_SHAMAN) && (botRole = ROLE_HEALER);
+		else if (option == "mage")
             botClass = CLASS_MAGE;
         else if (option == "warlock")
             botClass = CLASS_WARLOCK;
         else if (option == "druid")
             botClass = CLASS_DRUID;
-        else if (option == "dps")
+		else if (option == "mdruid")
+			(botClass = CLASS_DRUID) && (botRole = ROLE_MELEE_DPS);
+		else if (option == "rdruid")
+			(botClass = CLASS_DRUID) && (botRole = ROLE_RANGE_DPS);
+		else if (option == "hdruid")
+			(botClass = CLASS_DRUID) && (botRole = ROLE_HEALER);
+		else if (option == "dps")
         {
 			if (pPlayer->GetTeam() == ALLIANCE)
 				botClass = PickRandomValue(CLASS_WARRIOR, CLASS_HUNTER, CLASS_ROGUE, CLASS_MAGE, CLASS_WARLOCK, CLASS_PALADIN); //聯盟dps randon加入CLASS_PALADIN
@@ -823,39 +866,47 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
 			botClass = SelectRandomContainerElement(tankClasses);
 			botRole = ROLE_TANK;
         }
-		else if (option == "wtank")
+		else if (option == "wtank") //防戰
 		{
 			botClass = CLASS_WARRIOR;
 			botRole = ROLE_TANK;
 		}
-		else if (option == "dtank")
+		else if (option == "dtank") //熊坦
 		{
 			botClass = CLASS_DRUID;
 			botRole = ROLE_TANK;
 		}
-		else if (option == "ptank" && pPlayer->GetTeam() == ALLIANCE)
+		else if (option == "ptank" && pPlayer->GetTeam() == ALLIANCE) //防騎
 		{
 			botClass = CLASS_PALADIN;
 			botRole = ROLE_TANK;
 		}
 
-        //ExtractUInt32(&args, botLevel); //prevent player add level argument
+        //ExtractUInt32(&args, botLevel); //prevent player add level argument禁止使用第二個參數=botlevel
+		ExtractUInt32(&args, botGender); //使用第二個參數=botGender
     }
 
-    if (!botClass)
+	if (!botClass) //命令沒有輸入職業的話
     {
-        SendSysMessage("語法錯誤。必須是類型(如dps/tank/healer)或職業(如warrior/mage)。\n另外也不能徵召敵對陣營專屬職業");
+        SendSysMessage("語法錯誤。必須是類型(如dps/tank/healer)或職業(如warrior/mage)。另外也不能徵召敵對陣營專屬職業");
         SetSentErrorMessage(true);
         return false;
     }
 
-    uint8 botRace = SelectRandomRaceForClass(botClass, pPlayer->GetTeam());
+	if (botGender >1)
+	{
+		SendSysMessage("性別參數必須是0(男)或1(女)");
+		SetSentErrorMessage(true);
+		return false;
+	}
+
+    uint8 botRace = SelectRandomRaceForClass(botClass, pPlayer->GetTeam()); //種族用亂數選擇
 
     float x, y, z;
     pPlayer->GetNearPoint(pPlayer, x, y, z, 0, 5.0f, frand(0.0f, 6.0f));
 
-    PartyBotAI* ai = new PartyBotAI(pPlayer, nullptr, botRole, botRace, botClass, botLevel, pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
-    if (sPlayerBotMgr.AddBot(ai))
+    PartyBotAI* ai = new PartyBotAI(pPlayer, nullptr, botRole, botRace, botGender, botClass, botLevel, pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
+    if (sPlayerBotMgr.AddBot(ai)) //前面的條件皆通過，執行產生機器人function
         SendSysMessage("加入一位機器人。");
     else
     {
@@ -867,6 +918,7 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
     return true;
 }
 
+//Function: 克隆機器人命令
 bool ChatHandler::HandlePartyBotCloneCommand(char* args)
 {
     Player* pPlayer = m_session->GetPlayer();
@@ -889,11 +941,12 @@ bool ChatHandler::HandlePartyBotCloneCommand(char* args)
 
     uint8 botRace = pTarget->GetRace();
     uint8 botClass = pTarget->GetClass();
+	uint8 botGender = pTarget->GetGender();
 
     float x, y, z;
     pPlayer->GetNearPoint(pPlayer, x, y, z, 0, 5.0f, frand(0.0f, 6.0f));
 
-    PartyBotAI* ai = new PartyBotAI(pPlayer, pTarget, ROLE_INVALID, botRace, botClass, pPlayer->GetLevel(), pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
+    PartyBotAI* ai = new PartyBotAI(pPlayer, pTarget, ROLE_INVALID, botRace, botGender, botClass, pPlayer->GetLevel(), pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
     if (sPlayerBotMgr.AddBot(ai))
         SendSysMessage("加入一位機器人。");
     else
@@ -906,6 +959,7 @@ bool ChatHandler::HandlePartyBotCloneCommand(char* args)
     return true;
 }
 
+//Function: 指定機器人身分命令
 bool ChatHandler::HandlePartyBotSetRoleCommand(char* args)
 {
     if (!args)
@@ -938,12 +992,30 @@ bool ChatHandler::HandlePartyBotSetRoleCommand(char* args)
 
     if (pTarget->AI())
     {
-        if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pTarget->AI()))
+		Player* pPlayer = m_session->GetPlayer();
+		if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pTarget->AI()))
         {
-            pAI->m_role = role;
+			if (pTarget->IsDead() || pPlayer->IsDead())
+			{
+				SendSysMessage("死亡時不能變更身份。");
+				return false;
+			}
+
+			if (pTarget->IsInCombat() || pPlayer->IsInCombat())
+			{
+				SendSysMessage("戰鬥中不能變更身份。");
+				return false;
+			}
+
+			if (pTarget->GetMap()->IsDungeon() || pPlayer->GetMap()->IsDungeon())
+			{
+				SendSysMessage("在副本內不能變更身份。");
+				return false;
+			}
+			pAI->m_role = role;
             pAI->ResetSpellData();
             pAI->PopulateSpellData();
-			//pAI->AutoEquipGear(PLAYER_BOT_AUTO_EQUIP_PREMADE_GEAR); //made bot auto change equipment when it assigned new role
+			pAI->AutoEquipGear(sWorld.getConfig(CONFIG_UINT32_PARTY_BOT_AUTO_EQUIP)); //made bot auto change equipment when it assigned new role
             PSendSysMessage("%s 現在隊伍身分是 %s.", pTarget->GetName(), roleStr.c_str());
             return true;
         }
@@ -954,6 +1026,7 @@ bool ChatHandler::HandlePartyBotSetRoleCommand(char* args)
     return false;
 }
 
+//機器人開始攻擊命令function
 bool ChatHandler::HandlePartyBotAttackStartCommand(char* args)
 {
     Player* pPlayer = GetSession()->GetPlayer();
@@ -995,6 +1068,82 @@ bool ChatHandler::HandlePartyBotAttackStartCommand(char* args)
     return true;
 }
 
+bool ChatHandler::HandlePartyBotTankPullCommand(char* args)
+{
+	Player* pPlayer = GetSession()->GetPlayer();
+	Unit* pTarget = GetSelectedUnit();
+	if (!pTarget || (pTarget == pPlayer))
+	{
+		SendSysMessage(LANG_SELECT_CHAR_OR_CREATURE);
+		SetSentErrorMessage(true);
+		return false;
+	}
+
+	Group* pGroup = pPlayer->GetGroup();
+	if (!pGroup)
+	{
+		SendSysMessage("你不在隊伍中。");
+		SetSentErrorMessage(true);
+		return false;
+	}
+
+	for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
+	{
+		if (Player* pMember = itr->getSource())
+		{
+			if (pMember == pPlayer)
+				continue;
+
+			if (pMember->AI())
+			{
+				if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pMember->AI()))
+				{
+					if (pMember->IsValidAttackTarget(pTarget))
+						pAI->TankPull(pTarget);
+				}
+			}
+		}
+	}
+	//前面若收到回傳true，表示隊伍有坦克且執行了攻擊，則程式繼續往下，使隊伍中其他DPS暫停動作
+	uint32 duration = 10 * IN_MILLISECONDS;
+/*	if (char* arg1 = ExtractArg(&args)) //如有輸入額外參數=all
+	{
+		if (!(all = (strcmp(arg1, "all") == 0)) && pause)
+			duration = atoi(arg1);
+
+		if (char* arg2 = ExtractArg(&args))
+		{
+			if (!duration && pause)
+				duration = atoi(arg2);
+			else if (!all)
+				all = strcmp(arg2, "all") == 0;
+		}
+	}*/
+/*
+	bool success = false;
+	CombatBotRoles botRole = ROLE_INVALID;
+	//botRole = CombatBotBaseAI::IsMeleeDamageClass(pMember->GetClass()) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
+	for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
+	{
+		if (Player* pMember = itr->getSource())
+		{
+			if (pMember == pPlayer)
+				continue;
+			botRole = CombatBotBaseAI::IsMeleeDamageClass(pMember->GetClass()) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
+			if ( botRole == ROLE_TANK || botRole == ROLE_HEALER)
+				continue;
+			if (HandlePartyBotDPSPauseApplyHelper(pMember, duration))
+				success = true;
+		}
+	}
+
+	if (success)
+	*/
+	PSendSysMessage("坦克開怪 %s ，DD們等待%u秒鐘再開打。", pTarget->GetName(), (duration / IN_MILLISECONDS));
+	return true;
+}
+
+//機器人停止攻擊命令助手function
 void StopPartyBotAttackHelper(PartyBotAI* pAI, Player* pBot)
 {
     pBot->AttackStop(true);
@@ -1007,6 +1156,7 @@ void StopPartyBotAttackHelper(PartyBotAI* pAI, Player* pBot)
         pAI->m_updateTimer.Reset(3000);
 }
 
+//機係人停止攻擊命令function
 bool ChatHandler::HandlePartyBotAttackStopCommand(char* args)
 {
     Player* pPlayer = GetSession()->GetPlayer();
@@ -1283,6 +1433,7 @@ bool ChatHandler::HandlePartyBotClearMarksCommand(char* args)
     return true;
 }
 
+//機器人回來命令助手function
 bool HandlePartyBotComeToMeHelper(Player* pBot, Player* pPlayer)
 {
     if (pBot->AI() && pBot->IsAlive() && pBot->IsInMap(pPlayer) && !pBot->HasUnitState(UNIT_STAT_NO_FREE_MOVE))
@@ -1314,7 +1465,7 @@ bool ChatHandler::HandlePartyBotComeToMeCommand(char* args)
     if (pTarget && pTarget != pPlayer)
     {
         if (ok = HandlePartyBotComeToMeHelper(pTarget, pPlayer))
-            PSendSysMessage("%s 將前往你的位置。", pTarget->GetName());
+            PSendSysMessage("%s 將回到你的位置。", pTarget->GetName());
         else
             PSendSysMessage("%s 非機器人或是無法移動。", pTarget->GetName());
         return ok;
@@ -1334,7 +1485,7 @@ bool ChatHandler::HandlePartyBotComeToMeCommand(char* args)
         }
 
         if (ok)
-            SendSysMessage("全隊機器人將前往你的位置。");
+            SendSysMessage("全隊機器人將回到你的位置。");
         else
             SendSysMessage("隊伍中無機器人或是無法移動。");
         return ok;
@@ -1362,6 +1513,7 @@ bool HandlePartyBotUseGObjectHelper(Player* pTarget, GameObject* pGo)
     return false;
 }
 
+//機器人使用物件命令function
 bool ChatHandler::HandlePartyBotUseGObjectCommand(char* args)
 {
     Player* pPlayer = GetSession()->GetPlayer();
@@ -1393,9 +1545,9 @@ bool ChatHandler::HandlePartyBotUseGObjectCommand(char* args)
         }
 
         if (ok)
-            SendSysMessage("全隊機器人使用了範圍可及的目標物件。");
+            SendSysMessage("全隊機器人使用了範圍可及的物件。");
         else
-            SendSysMessage("目標物件不在機器人所及範圍內。");
+            SendSysMessage("物件不在機器人所及範圍內。");
         return ok;
     }
 
@@ -1404,6 +1556,7 @@ bool ChatHandler::HandlePartyBotUseGObjectCommand(char* args)
     return false;
 }
 
+//機器人暫定動作應用function
 bool HandlePartyBotPauseApplyHelper(Player* pTarget, uint32 duration)
 {
     if (pTarget->AI())
@@ -1425,11 +1578,12 @@ bool HandlePartyBotPauseApplyHelper(Player* pTarget, uint32 duration)
     return false;
 }
 
+//機器人暫停動作命令助手function
 bool ChatHandler::HandlePartyBotPauseHelper(char* args, bool pause)
 {
     bool all = false;
     uint32 duration = 0;
-    if (char* arg1 = ExtractArg(&args))
+    if (char* arg1 = ExtractArg(&args)) //如有輸入額外參數=all
     {
         if (!(all = (strcmp(arg1, "all") == 0)) && pause)
             duration = atoi(arg1);
@@ -1539,6 +1693,7 @@ bool ChatHandler::HandlePartyBotRemoveCommand(char* args)
     return false;
 }
 
+//以下是戰場機器人命令
 bool ChatHandler::HandleBattleBotAddAlteracCommand(char* args)
 {
     return HandleBattleBotAddCommand(args, BATTLEGROUND_QUEUE_AV);
@@ -1554,7 +1709,7 @@ bool ChatHandler::HandleBattleBotAddWarsongCommand(char* args)
     return HandleBattleBotAddCommand(args, BATTLEGROUND_QUEUE_WS);
 }
 
-bool ChatHandler::HandleBattleBotAddCommand(char* args, uint8 bg)
+bool ChatHandler::HandleBattleBotAddCommand(char* args, uint8 bg) //輸入兩個參數：args陣營名稱、bg戰場名稱
 {
     Player* pPlayer = m_session->GetPlayer();
     if (!pPlayer)
@@ -1569,6 +1724,33 @@ bool ChatHandler::HandleBattleBotAddCommand(char* args, uint8 bg)
 
     Team botTeam = HORDE;
     uint32 botLevel = sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
+	uint32 playerLevel = pPlayer->GetLevel();
+
+	if (playerLevel >= 10 && playerLevel <= 19)
+	{
+		botLevel = urand(10, 19);
+	}
+	else if (playerLevel >= 20 && playerLevel <= 29)
+	{
+		botLevel = urand(20, 29);
+	}
+	else if (playerLevel >= 30 && playerLevel <= 39)
+	{
+		botLevel = urand(30, 39);
+	}
+	else if (playerLevel >= 40 && playerLevel <= 49)
+	{
+		botLevel = urand(40, 49);
+	}
+	else if (playerLevel >= 50 && playerLevel <= 59)
+	{
+		botLevel = urand(50, 59);
+	}
+	else if (playerLevel = 60)
+	{
+		botLevel = 60;
+	}
+
     std::string option;
     if (char* arg1 = ExtractArg(&args))
     {
@@ -1594,10 +1776,18 @@ bool ChatHandler::HandleBattleBotAddCommand(char* args, uint8 bg)
         dpsClasses.push_back(CLASS_PALADIN);
     uint8 botClass = SelectRandomContainerElement(dpsClasses);
     uint8 botRace = SelectRandomRaceForClass(botClass, botTeam);
-
-    // Spawn bot on GM Island
-    BattleBotAI* ai = new BattleBotAI(botRace, botClass, botLevel, 1, 0, 16224.356f, 16284.763f, 13.175f, 4.56f, bg);
-    sPlayerBotMgr.AddBot(ai);
+	if (botTeam == ALLIANCE)
+	{
+		// Spawn alliance battlebot on GM Island
+		BattleBotAI* ai = new BattleBotAI(botRace, botClass, botLevel, 1, 0, 16224.356f, 16284.763f, 13.175f, 4.56f, bg);
+		sPlayerBotMgr.AddBot(ai);
+	}
+	if (botTeam == HORDE)
+	{
+		// Spawn horde battlebot on GM Island
+		BattleBotAI* ai = new BattleBotAI(botRace, botClass, botLevel, 1, 0, 16227.326f, 16284.652f, 13.175f, 4.56f, bg);
+		sPlayerBotMgr.AddBot(ai);
+	}
 
     if (bg == BATTLEGROUND_QUEUE_WS)
         PSendSysMessage("戰歌峽谷，%s參戰！", option.c_str());

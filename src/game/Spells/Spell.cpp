@@ -4506,6 +4506,7 @@ void Spell::finish(bool ok)
     // other code related only to successfully finished spells
     if (!ok)
     {
+        m_caster->ResetGCD(m_spellInfo);
         if (m_caster->IsPlayer())
             m_caster->ToPlayer()->RestoreSpellMods(this);
         return;
