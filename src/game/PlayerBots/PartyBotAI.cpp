@@ -737,7 +737,7 @@ void PartyBotAI::OnPacketReceived(WorldPacket const* packet)
 void PartyBotAI::OnPlayerLogin()
 {
     if (!m_initialized)
-        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
 }
 
 //PARTYBOT更新AI FUNCTION
@@ -790,7 +790,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         PopulateSpellData(); //載入法術資料
         AddAllSpellReagents(); //加入施法材料
         me->UpdateSkillsToMaxSkillsForLevel(); //技能提升到MAX
-        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE); //移除不可攻擊標記
+        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING); //移除不可攻擊標記
         SummonPetIfNeeded(); //如果有需要則召喚寵物
         me->SetHealthPercent(100.0f); //設定生命值100%
         me->SetPowerPercent(me->GetPowerType(), 100.0f); //設定能量值100

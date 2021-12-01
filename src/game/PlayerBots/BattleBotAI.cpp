@@ -577,7 +577,7 @@ void BattleBotAI::OnPacketReceived(WorldPacket const* packet)
 void BattleBotAI::OnPlayerLogin()
 {
     if (!m_initialized)
-        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
 }
 
 void BattleBotAI::UpdateWaypointMovement()
@@ -754,7 +754,7 @@ void BattleBotAI::UpdateAI(uint32 const diff)
         AddAllSpellReagents();
         me->UpdateSkillsToMaxSkillsForLevel();
 		AddHKRanks(); //為Battlebot加上軍階
-        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
         SummonPetIfNeeded();
         me->SetHealthPercent(100.0f);
         me->SetPowerPercent(me->GetPowerType(), 100.0f);
