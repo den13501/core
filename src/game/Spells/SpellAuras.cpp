@@ -1698,7 +1698,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     case 8067:                              // Party Time!
                     {
                         m_isPeriodic = true;
-                        m_modifier.periodictime = 10 * IN_MILLISECONDS;;
+                        m_modifier.periodictime = 10 * IN_MILLISECONDS;
                         return;
                     }
                     case 10255:                             // Stoned
@@ -1736,7 +1736,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     case 16336: // Haunting Phantoms
                     {
                         m_isPeriodic = true;
-                        m_modifier.periodictime = urand(30, 90) * IN_MILLISECONDS;;
+                        m_modifier.periodictime = urand(30, 90) * IN_MILLISECONDS;
                         return;
                     }
                     case 26234:                             // Ragnaros Submerge Visual
@@ -2967,7 +2967,7 @@ void Aura::HandleAuraTrackStealthed(bool apply, bool /*Real*/)
     if (apply)
         GetTarget()->RemoveNoStackAurasDueToAuraHolder(GetHolder());
 
-    GetTarget()->ApplyModByteFlag(PLAYER_FIELD_BYTES, 0, PLAYER_FIELD_BYTE_TRACK_STEALTHED, apply);
+    GetTarget()->ApplyModByteFlag(PLAYER_FIELD_BYTES, PLAYER_FIELD_BYTES_OFFSET_FLAGS, PLAYER_FIELD_BYTE_TRACK_STEALTHED, apply);
 }
 
 void Aura::HandleAuraModScale(bool apply, bool /*Real*/)
@@ -3056,7 +3056,7 @@ void Unit::ModPossess(Unit* pTarget, bool apply, AuraRemoveMode m_removeMode)
         pTarget->RemoveAurasDueToSpell(6272);
         pTarget->RemoveAurasDueToSpell(11403);
 
-        FactionTemplateEntry const* origFactionTemplate = pTarget->getFactionTemplateEntry();
+        FactionTemplateEntry const* origFactionTemplate = pTarget->GetFactionTemplateEntry();
 
         pTarget->AddUnitState(UNIT_STAT_POSSESSED);
         pTarget->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_POSSESSED);
@@ -3269,7 +3269,7 @@ void Aura::HandleModCharm(bool apply, bool Real)
         if (!caster)
             return;
 
-        FactionTemplateEntry const* origFactionTemplate = target->getFactionTemplateEntry();
+        FactionTemplateEntry const* origFactionTemplate = target->GetFactionTemplateEntry();
 
         // Remove dummy auras from spells with EffectSummonPossessed
         target->RemoveAurasDueToSpell(126);
@@ -3702,7 +3702,7 @@ void Aura::HandleModStealth(bool apply, bool Real)
         {
             target->SetByteFlag(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_VIS_FLAG, UNIT_VIS_FLAGS_CREEP);
             if (target->GetTypeId() == TYPEID_PLAYER)
-                target->SetByteFlag(PLAYER_FIELD_BYTES2, 1, PLAYER_FIELD_BYTE2_STEALTH);
+                target->SetByteFlag(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_FLAGS, PLAYER_FIELD_BYTE2_STEALTH);
             // apply only if not in GM invisibility (and overwrite invisibility state)
             if (target->GetVisibility() != VISIBILITY_OFF)
             {
@@ -3741,7 +3741,7 @@ void Aura::HandleModStealth(bool apply, bool Real)
             {
                 target->RemoveByteFlag(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_VIS_FLAG, UNIT_VIS_FLAGS_CREEP);
                 if (target->GetTypeId() == TYPEID_PLAYER)
-                    target->RemoveByteFlag(PLAYER_FIELD_BYTES2, 1, PLAYER_FIELD_BYTE2_STEALTH);
+                    target->RemoveByteFlag(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_FLAGS, PLAYER_FIELD_BYTE2_STEALTH);
                 // restore invisibility if any
                 if (target->HasAuraType(SPELL_AURA_MOD_INVISIBILITY))
                 {
@@ -3767,7 +3767,7 @@ void Aura::HandleInvisibility(bool apply, bool Real)
         if (Real && target->GetTypeId() == TYPEID_PLAYER)
         {
             // apply glow vision
-            target->SetByteFlag(PLAYER_FIELD_BYTES2, 1, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
+            target->SetByteFlag(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_FLAGS, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
         }
 
         // apply only if not in GM invisibility and not stealth
@@ -3791,7 +3791,7 @@ void Aura::HandleInvisibility(bool apply, bool Real)
         {
             // remove glow vision
             if (target->GetTypeId() == TYPEID_PLAYER)
-                target->RemoveByteFlag(PLAYER_FIELD_BYTES2, 1, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
+                target->RemoveByteFlag(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_FLAGS, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
             // apply only if not in GM invisibility & not stealthed while invisible
             if (target->GetVisibility() != VISIBILITY_OFF)
             {
@@ -3826,7 +3826,7 @@ void Aura::HandleDetectAmore(bool apply, bool /*real*/)
     if (!GetTarget()->IsPlayer())
         return;
 
-    GetTarget()->ApplyModByteFlag(PLAYER_FIELD_BYTES2, 1, PLAYER_FIELD_BYTE2_DETECT_AMORE, apply);
+    GetTarget()->ApplyModByteFlag(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_FLAGS, PLAYER_FIELD_BYTE2_DETECT_AMORE, apply);
 }
 
 void Aura::HandleAuraModRoot(bool apply, bool Real)

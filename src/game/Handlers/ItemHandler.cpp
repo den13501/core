@@ -88,7 +88,7 @@ void WorldSession::HandleSwapInvItemOpcode(WorldPacket& recv_data)
         return;
     }
 
-    if ((_player->IsBankPos(INVENTORY_SLOT_BAG_0, srcslot) || _player->IsBankPos(INVENTORY_SLOT_BAG_0, dstslot)) && !CanUseBank())
+    if ((_player->IsBankPos(INVENTORY_SLOT_BAG_0, srcslot) || _player->IsBankPos(INVENTORY_SLOT_BAG_0, dstslot)) && !_player->CanUseBank())
     {
         ProcessAnticheatAction("ItemsCheck", "Attempt to cheat-bank items", CHEAT_ACTION_REPORT_GMS);
         return;
@@ -146,7 +146,7 @@ void WorldSession::HandleSwapItem(WorldPacket& recv_data)
         return;
     }
 
-    if ((_player->IsBankPos(srcbag, srcslot) || _player->IsBankPos(dstbag, dstslot)) && !CanUseBank())
+    if ((_player->IsBankPos(srcbag, srcslot) || _player->IsBankPos(dstbag, dstslot)) && !_player->CanUseBank())
     {
         ProcessAnticheatAction("ItemsCheck", "Attempt to cheat-bank items", CHEAT_ACTION_REPORT_GMS);
         return;
@@ -448,7 +448,7 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recv_data)
         if (pProto && !pProto->m_bDiscovered)
         {
             std::stringstream oss;
-            oss << "Requested info for undiscovered item " << pProto->ItemId;;
+            oss << "Requested info for undiscovered item " << pProto->ItemId;
             ProcessAnticheatAction("PassiveAnticheat", oss.str().c_str(), CHEAT_ACTION_LOG);
         }
         
@@ -830,7 +830,7 @@ void WorldSession::SendListInventory(ObjectGuid vendorguid, uint8 menu_type)
 
                     // when no faction required but rank > 0 will be used faction id from the vendor faction template to compare the rank
                     if (!pProto->RequiredReputationFaction && pProto->RequiredReputationRank > 0 &&
-                            ReputationRank(pProto->RequiredReputationRank) > _player->GetReputationRank(pCreature->getFactionTemplateEntry()->faction))
+                            ReputationRank(pProto->RequiredReputationRank) > _player->GetReputationRank(pCreature->GetFactionId()))
                         continue;
 
                     if (crItem->conditionId && !IsConditionSatisfied(crItem->conditionId, _player, pCreature->GetMap(), pCreature, CONDITION_FROM_VENDOR))
@@ -885,7 +885,7 @@ void WorldSession::HandleAutoStoreBagItemOpcode(WorldPacket& recv_data)
     // cheating: check if source bag / item or destination bag is in bank and player can't use bank
     if (_player->IsBankPos(srcbag, srcslot) || (dstbag >= BANK_SLOT_BAG_START && dstbag < BANK_SLOT_BAG_END))
     {
-        if (!CanUseBank())
+        if (!_player->CanUseBank())
             return;
     }
 
@@ -1005,7 +1005,7 @@ void WorldSession::HandleAutoBankItemOpcode(WorldPacket& recvPacket)
     if (!pItem)
         return;
 
-    if (!CanUseBank())
+    if (!_player->CanUseBank())
         return;
 
     ItemPosCountVec dest;
@@ -1040,7 +1040,7 @@ void WorldSession::HandleAutoStoreBankItemOpcode(WorldPacket& recvPacket)
     if (!pItem)
         return;
 
-    if (!CanUseBank())
+    if (!_player->CanUseBank())
         return;
 
     if (_player->IsBankPos(srcbag, srcslot))                // moving from bank to inventory
@@ -1277,22 +1277,4 @@ void WorldSession::HandleWrapItemOpcode(WorldPacket& recv_data)
 
     uint32 count = 1;
     _player->DestroyItemCount(gift, count, true);
-}
-
-bool WorldSession::CanUseBank(ObjectGuid bankerGUID) const
-{
-    // bankerGUID parameter is optional, set to 0 by default.
-    if (!bankerGUID)
-        bankerGUID = m_currentBankerGUID;
-
-    bool isUsingBankCommand = (bankerGUID == GetPlayer()->GetObjectGuid() && bankerGUID == m_currentBankerGUID);
-
-    if (!isUsingBankCommand)
-    {
-        Creature* creature = GetPlayer()->GetNPCIfCanInteractWith(bankerGUID, UNIT_NPC_FLAG_BANKER);
-        if (!creature)
-            return false;
-    }
-
-    return true;
 }
