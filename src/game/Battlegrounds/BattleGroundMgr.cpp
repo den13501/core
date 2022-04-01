@@ -958,14 +958,14 @@ void BattleGroundMgr::Update(uint32 diff)
     }
 }
 
-void BattleGroundMgr::BuildBattleGroundStatusPacket(WorldPacket* data, BattleGround *bg, uint8 QueueSlot, uint8 StatusID, uint32 Time1, uint32 Time2)
+void BattleGroundMgr::BuildBattleGroundStatusPacket(WorldPacket* data, BattleGround *bg, uint8 queueSlot, uint8 statusId, uint32 time1, uint32 time2)
 {
     // we can be in 3 queues in same time...
-    if (StatusID == 0 || !bg)
+    if (statusId == 0 || !bg)
     {
         data->Initialize(SMSG_BATTLEFIELD_STATUS, 4 * 2);
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
-        *data << uint32(QueueSlot);                         // queue id (0...2)
+        *data << uint32(queueSlot);                         // queue id (0...2)
 #endif
         *data << uint32(0);
         return;
@@ -973,25 +973,25 @@ void BattleGroundMgr::BuildBattleGroundStatusPacket(WorldPacket* data, BattleGro
 
     data->Initialize(SMSG_BATTLEFIELD_STATUS, (4 + 1 + 1 + 4 + 2 + 4 + 1 + 4 + 4 + 4));
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
-    *data << uint32(QueueSlot);                             // queue id (0...2) - player can be in 3 queues in time
+    *data << uint32(queueSlot);                             // queue id (0...2) - player can be in 3 queues in time
 #endif
     // uint64 in client
-    *data << uint32(bg->GetMapId());                        // MapID
-    *data << uint8(0);                                      // Unknown
+    *data << uint32(bg->GetMapId());
+    *data << uint8(bg->GetBracketId());
     *data << uint32(bg->GetClientInstanceID());
-    *data << uint32(StatusID);                              // status
-    switch (StatusID)
+    *data << uint32(statusId);
+    switch (statusId)
     {
         case STATUS_WAIT_QUEUE:                             // status_in_queue
-            *data << uint32(Time1);                         // average wait time, milliseconds
-            *data << uint32(Time2);                         // time in queue, updated every minute!, milliseconds
+            *data << uint32(time1);                         // average wait time, milliseconds
+            *data << uint32(time2);                         // time in queue, updated every minute!, milliseconds
             break;
         case STATUS_WAIT_JOIN:                              // status_invite
-            *data << uint32(Time1);                         // time to remove from queue, milliseconds
+            *data << uint32(time1);                         // time to remove from queue, milliseconds
             break;
         case STATUS_IN_PROGRESS:                            // status_in_progress
-            *data << uint32(Time1);                         // time to bg auto leave, 0 at bg start, 120000 after bg end, milliseconds
-            *data << uint32(Time2);                         // time from bg start, milliseconds
+            *data << uint32(time1);                         // time to bg auto leave, 0 at bg start, 120000 after bg end, milliseconds
+            *data << uint32(time2);                         // time from bg start, milliseconds
             break;
         default:
             sLog.outError("Unknown BG status!");
@@ -1140,22 +1140,21 @@ BattleGround * BattleGroundMgr::GetBattleGroundTemplate(BattleGroundTypeId bgTyp
 
 uint32 BattleGroundMgr::CreateClientVisibleInstanceId(BattleGroundTypeId bgTypeId, BattleGroundBracketId bracket_id)
 {
-    // we create here an instanceid, which is just for
-    // displaying this to the client and without any other use..
+    // here, we create an instanceid, which is just for
+    // displaying this to the client and without any other use.
     // the client-instanceIds are unique for each battleground-type
     // the instance-id just needs to be as low as possible, beginning with 1
     // the following works, because std::set is default ordered with "<"
-    // the optimalization would be to use as bitmask std::vector<uint32> - but that would only make code unreadable
-    uint32 lastId = 0;
+    // the optimization would be to use as bitmask std::vector<uint32> - but that would only make code unreadable
+    uint32 lastId = 1;
     ClientBattleGroundIdSet& ids = m_ClientBattleGroundIds[bgTypeId][bracket_id];
-    for (ClientBattleGroundIdSet::const_iterator itr = ids.begin(); itr != ids.end();)
-    {
-        if ((++lastId) != *itr)                             //if there is a gap between the ids, we will break..
-            break;
-        lastId = *itr;
+    for (auto id : ids) {
+        if (lastId == id)
+            lastId++;
+        break;
     }
-    ids.insert(lastId + 1);
-    return lastId + 1;
+    ids.insert(lastId);
+    return lastId;
 }
 
 // create a new battleground that will really be used to play
@@ -1349,7 +1348,7 @@ void BattleGroundMgr::BuildBattleGroundListPacket(WorldPacket* data, ObjectGuid 
     *data << guid; // battlemaster guid
 #endif
     *data << uint32(mapId);
-    *data << uint8(0x00); // unk
+    *data << uint8(plr->GetBattleGroundBracketIdFromLevel(bgTypeId));
 
     size_t countPos = data->wpos();
     uint32 count = 0;
