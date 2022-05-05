@@ -266,7 +266,7 @@ public:
         return nullptr;
     }
 
-    SpellEntry const* m_resurrectionSpell = nullptr;
+    SpellEntry const* m_resurrectionSpell = nullptr; //定義復活法術
     std::vector<SpellEntry const*> spellListTaunt; //陣列：嘲諷技能
     std::set<SpellEntry const*, HealAuraCompare> spellListPeriodicHeal;
     std::set<SpellEntry const*, HealSpellCompare> spellListDirectHeal;

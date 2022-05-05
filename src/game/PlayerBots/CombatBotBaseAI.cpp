@@ -1914,8 +1914,8 @@ void CombatBotBaseAI::PopulateSpellData()
                 case SPELL_EFFECT_ATTACK_ME: //單體嘲諷SPELL.DBC SPELL_EFFECT ID 114
                     spellListTaunt.push_back(pSpellEntry);
                     break;
-                case SPELL_EFFECT_RESURRECT:
-                case SPELL_EFFECT_RESURRECT_NEW:
+                case SPELL_EFFECT_RESURRECT: //參照dbc 復活效果
+                case SPELL_EFFECT_RESURRECT_NEW: //參照dbc 復活(新)效果
                     m_resurrectionSpell = pSpellEntry;
                     break;
                 case SPELL_EFFECT_APPLY_AURA: //範圍上AURA SPELL_EFFECT ID 6

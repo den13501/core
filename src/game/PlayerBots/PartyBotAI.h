@@ -59,7 +59,7 @@ public:
 	bool TankPull(Unit* pVictim);//坦克開怪命令
     Unit* SelectAttackTarget(Player* pLeader) const;
     Unit* SelectPartyAttackTarget() const;
-    Player* SelectResurrectionTarget() const;
+    Player* SelectResurrectionTarget() const; //選擇復活目標
     Player* SelectShieldTarget() const;
     Unit* GetMarkedTarget(RaidTargetIcon mark) const;
     bool CanUseCrowdControl(SpellEntry const* pSpellEntry, Unit* pTarget) const;

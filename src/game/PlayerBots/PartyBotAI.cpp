@@ -213,7 +213,7 @@ bool PartyBotAI::DrinkAndEat()
     return needToEat || needToDrink;
 }
 
-//應該自動復活function
+//應自動復活function
 bool PartyBotAI::ShouldAutoRevive() const
 {
     if (me->GetDeathState() == DEAD)
@@ -575,16 +575,37 @@ Unit* PartyBotAI::SelectPartyAttackTarget() const
 //選擇要復活的目標
 Player* PartyBotAI::SelectResurrectionTarget() const
 {
-    Group* pGroup = me->GetGroup();
+	uint64 m_uiLeaderGUID;
+	/*
+	//測試，優先辨識隊長(玩家)若非存活死亡則回傳為復活對象
+	Player* pLeader = GetPartyLeader();
+	{
+		if (pLeader->IsDead())
+			return pLeader;
+	}
+	*/
+	//Group* pGroup = me->GetGroup();
+	
+	Player* pLeader = GetPartyLeader();
+	m_uiLeaderGUID = pLeader->GetGUID();
+	Group* pGroup = pLeader->GetGroup();
     for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
     {
-        if (Player* pMember = itr->getSource())
+		Player* pMember = itr->getSource();
+		
+		if (pMember && pMember->IsDead())
         {
-            // Can't resurrect self.
+			if (pLeader->IsDead()) {
+				m_uiLeaderGUID = pLeader->GetGUID();
+				return pLeader;
+			}
+			
+			// Can't resurrect self.
             if (pMember == me)
                 continue;
 
             if (pMember->GetDeathState() == CORPSE)
+				m_uiLeaderGUID = pMember->GetGUID();
                 return pMember;
         }
     }
@@ -854,7 +875,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
 
     if (me->IsDead())
     {
-        if (me->InBattleGround())
+        if (me->InBattleGround()) //如果在戰場中
         {
             if (me->GetDeathState() == CORPSE)
             {
@@ -862,9 +883,9 @@ void PartyBotAI::UpdateAI(uint32 const diff)
                 me->RepopAtGraveyard();
             }
         }
-        else
+        else //如果不在戰場中
         {
-            if (ShouldAutoRevive())
+            if (ShouldAutoRevive()) //如果應自動復活成立
             {
                 me->ResurrectPlayer(0.5f); //復活後生命值50%
                 me->SpawnCorpseBones(); //產生地上的骷髏

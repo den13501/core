@@ -548,7 +548,7 @@ float HonorMaintenancer::CalculateRpEarning(float cp, HonorScores sc)
 float HonorMaintenancer::CalculateRpDecay(float rpEarning, float rp)
 {
     //float decay = floor((0.2f * rp) + 0.5f); //原版公式一週掉20%RP
-	float decay = floor((0.0f * rp) + 0.0f); //修改為不減%
+	float decay = floor((0.0f * rp) + 0.5f); //修改為不減%
 	float delta = rpEarning - decay;
 
     if (delta < 0)
