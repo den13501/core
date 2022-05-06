@@ -4,6 +4,9 @@
 # Progressive Vanilla
 This project is an independent continuation of the Elysium / LightsHope codebases, focused on delivering the most complete and accurate content progression system possible, including support for the patch appropriate game clients.
 
+## 基於官方Vmangos，於實際遊玩後改良PartyBOT/BattleBot相關程式碼以提升遊戲體驗
+## 聲明：本人沒有紮實的程式語言基礎，因此請各路好手不吝提出指正邏輯的謬誤，亦歡迎Pull request，一起讓開源的vmangos更好！
+
 ### Currently supported builds
 - 1.12.1.5875+
 - 1.11.2.5464
