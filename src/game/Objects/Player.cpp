@@ -12234,6 +12234,8 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
                 case GOSSIP_OPTION_BATTLEFIELD:
                     if (!pCreature->CanInteractWithBattleMaster(this, false))
                         hasMenuItem = false;
+					pMenu->GetGossipMenu().AddMenuItem(8, "聯盟戰歌+1", GetLevel() * 5, 63, "", false);
+					pMenu->GetGossipMenu().AddMenuItem(8, "部落戰歌+1", GetLevel() * 5, 64, "", false);
                     break;
                 case GOSSIP_OPTION_STABLEPET:
                     if (GetClass() != CLASS_HUNTER)
@@ -12475,6 +12477,14 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId)
             GetSession()->SendBattleGroundList(guid, bgTypeId);
             break;
         }
+		case 63:
+			//PlayerTalkClass->CloseGossip();
+			ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+			return;
+		case 64:
+			//PlayerTalkClass->CloseGossip();
+			ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+			return;
     }
 
     if (pMenuData.m_gAction_script)
