@@ -12234,8 +12234,8 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
                 case GOSSIP_OPTION_BATTLEFIELD:
                     if (!pCreature->CanInteractWithBattleMaster(this, false))
                         hasMenuItem = false;
-					pMenu->GetGossipMenu().AddMenuItem(8, "聯盟戰歌+1", GetLevel() * 5, 63, "", false);
-					pMenu->GetGossipMenu().AddMenuItem(8, "部落戰歌+1", GetLevel() * 5, 64, "", false);
+					pMenu->GetGossipMenu().AddMenuItem(8, "聯盟戰歌+1", GetLevel(), 63, "", false);
+					pMenu->GetGossipMenu().AddMenuItem(8, "部落戰歌+1", GetLevel(), 64, "", false);
                     break;
                 case GOSSIP_OPTION_STABLEPET:
                     if (GetClass() != CLASS_HUNTER)
@@ -13252,7 +13252,7 @@ void Player::RemoveQuestAtSlot(uint32 slot)
     }
 }
 
-void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questEnder, bool announce)
+void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questEnder, bool announce) //任務獎勵函式
 {
     uint32 quest_id = pQuest->GetQuestId();
 
@@ -13307,7 +13307,7 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questE
     q_status.m_reward_choice = pQuest->RewChoiceItemId[reward];
 
     // Used for client inform but rewarded only in case not max level
-    uint32 xp = uint32(pQuest->XPValue(this) * (GetPersonalXpRate() >= 0.0f ? GetPersonalXpRate() : sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST)));
+    uint32 xp = uint32(pQuest->XPValue(this) * (GetPersonalXpRate() >= 0.0f ? GetPersonalXpRate() : sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST))); //計算任務所得經驗
 
     if (GetLevel() < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
         GiveXP(xp , nullptr);
@@ -19820,14 +19820,23 @@ void Player::RewardSinglePlayerAtKill(Unit* pVictim)
         RewardReputation(pVictim, 1);
         GiveXP(xp, pVictim);
 
-        // Pet should only gain XP if mob is not grey to Owner.
+		//只要玩家擊殺怪物獲得任驗，寵物也會得到經驗
+		if (xp)
+		{
+			if (Pet* pet = GetPet())
+				pet->GivePetXP(xp);
+		}
+
+		/*
+        // Pet should only gain XP if mob is not grey to Owner. 官方為玩家擊殺非灰色怪才有
         if (xp)
         {
             if (Pet* pet = GetPet())
                 pet->GivePetXP(MaNGOS::XP::Gain(pet, static_cast<Creature*>(pVictim)));
         }
+		*/
 
-        // normal creature (not pet/etc) can be only in !PvP case
+		// normal creature (not pet/etc) can be only in !PvP case
         if (pVictim->GetTypeId() == TYPEID_UNIT)
             KilledMonster(((Creature*)pVictim)->GetCreatureInfo(), pVictim->GetObjectGuid());
     }
