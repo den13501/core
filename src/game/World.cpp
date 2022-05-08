@@ -1146,6 +1146,9 @@ void World::LoadConfigSettings(bool reload)
     // Smartlog data
     sLog.InitSmartlogEntries(sConfig.GetStringDefault("Smartlog.ExtraEntries", ""));
     sLog.InitSmartlogGuids(sConfig.GetStringDefault("Smartlog.ExtraGuids", ""));
+
+	// Switch for Hunter's pet xp gaining method
+	setConfig(CONFIG_BOOL_PET_XPGAIN_QUEST, "PetXPGain.Quest.Enabled", false);
 }
 
 void charactersDatabaseWorkerThread()

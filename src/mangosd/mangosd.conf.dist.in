@@ -2880,3 +2880,7 @@ DynamicRespawn.AffectLevelBelow         = 0
 DynamicRespawn.PlayersThreshold         = 0
 DynamicRespawn.PlayersMaxLevelDiff      = 0
 
+###################################################################################################################
+#    Custom - Hunter's pet can get xp from quest
+###################################################################################################################
+PetXPGain.Quest.Enabled                 = 0

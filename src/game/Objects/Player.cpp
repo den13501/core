@@ -13317,8 +13317,16 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questE
     // Used for client inform but rewarded only in case not max level
     uint32 xp = uint32(pQuest->XPValue(this) * (GetPersonalXpRate() >= 0.0f ? GetPersonalXpRate() : sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST))); //計算任務所得經驗
 
-    if (GetLevel() < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
-        GiveXP(xp , nullptr);
+	if (GetLevel() < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL)) {
+		GiveXP(xp , nullptr);
+		if (xp)
+		{
+			xp = xp / 10;
+			if (Pet* pet = GetPet())
+				if (sWorld.getConfig(CONFIG_BOOL_PET_XPGAIN_QUEST))
+					pet->GivePetXP(xp); //只要玩家任務獲得任驗同時，寵物也會得到經驗
+		}
+	}
     else if (int32 money = pQuest->GetRewMoneyMaxLevelAtComplete())
         LogModifyMoney(money, "QuestMaxLevel", questEnder->GetObjectGuid(), quest_id);
 
