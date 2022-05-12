@@ -941,6 +941,12 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.mage.pCombustion->Id < pSpellEntry->Id)
                         m_spells.mage.pCombustion = pSpellEntry;
                 }
+				else if (pSpellEntry->SpellName[0].find("Portal: Ironforge") != std::string::npos) //傳送門： 鐵爐堡
+				{
+					if (!m_spells.mage.pPortalIronforge ||
+						m_spells.mage.pPortalIronforge->Id < pSpellEntry->Id)
+						m_spells.mage.pPortalIronforge = pSpellEntry;
+				}
                 break;
             }
             case CLASS_PRIEST:

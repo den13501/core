@@ -57,6 +57,7 @@ public:
     Player* GetPartyLeader() const;
     bool AttackStart(Unit* pVictim);
 	bool TankPull(Unit* pVictim);//坦克開怪命令
+	bool MageOpenPortal();//法師開傳送門
     Unit* SelectAttackTarget(Player* pLeader) const;
     Unit* SelectPartyAttackTarget() const;
     Player* SelectResurrectionTarget() const; //選擇復活目標
@@ -66,6 +67,8 @@ public:
     bool DrinkAndEat();
     bool ShouldAutoRevive() const;
     bool RunAwayFromTarget(Unit* pTarget);
+	bool MageRunAwayFromTarget(Unit* pTarget);
+	bool HunterRunAwayFromTarget(Unit* pTarget);
     bool CrowdControlMarkedTargets();
     bool EnterCombatDruidForm();
     bool ShouldEnterStealth() const;

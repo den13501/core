@@ -149,6 +149,7 @@ class ChatHandler
 		bool HandlePartyBotPauseCommand(char * args);
 		bool HandlePartyBotUnpauseCommand(char * args);
 		bool HandlePartyBotRemoveCommand(char * args);
+		bool HandleMageBotPortalCommand(char * args); //擴充命令-開傳送門
 		bool HandleBattleBotAddCommand(char* args, uint8 bg);
 		bool HandleBattleBotAddAlteracCommand(char* args);
 		bool HandleBattleBotAddArathiCommand(char* args);

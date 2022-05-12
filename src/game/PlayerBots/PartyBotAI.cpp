@@ -43,6 +43,11 @@ enum PartyBotSpells //此處的法術定義是給機器人使用和施放用的�
 	PB_SPELL_THROW = 2764, //投擲武器
 };
 
+enum MageBotSpells //此處的法術定義是給法師機器人使用和施放用的
+{
+	PB_SPELL_PORTAL_IRON_FORGE = 11416, //傳送門：鐵爐堡
+};
+
 enum WarlockBotPetSpells //此處的法術定義是給術士機器人寵物使用和施放用的
 {
 	PB_SPELL_FIREBOLT_RANK1 = 3110, //火焰箭R1 需要等級1
@@ -161,7 +166,57 @@ bool PartyBotAI::RunAwayFromTarget(Unit* pTarget)
     return me->GetMotionMaster()->MoveDistance(pTarget, 15.0f);
 }
 
-bool PartyBotAI::DrinkAndEat()
+//法師專用從目標逃開邏輯function
+bool PartyBotAI::MageRunAwayFromTarget(Unit* pTarget)
+{
+	if (Player* pLeader = GetPartyLeader())
+	{
+		if (pLeader->GetMap()->IsDungeon())
+		{
+			me->MonsterMove(pLeader->GetPositionX(), pLeader->GetPositionY(), pLeader->GetPositionZ());
+			return true;
+		}
+		else if (pLeader->IsInWorld() && pLeader->GetMap() == me->GetMap())
+		{
+			float const distance = me->GetDistance(pLeader);
+			if (distance >= 15.0f && distance <= 30.0f &&
+				pLeader->GetDistance(pTarget) >= 15.0f)
+			{
+				me->MonsterMove(pLeader->GetPositionX(), pLeader->GetPositionY(), pLeader->GetPositionZ());
+				return true;
+			}
+		}
+	}
+
+	return me->GetMotionMaster()->MoveDistance(pTarget, 15.0f);
+}
+
+//獵人專用從目標逃開邏輯function
+bool PartyBotAI::HunterRunAwayFromTarget(Unit* pTarget)
+{
+	if (Player* pLeader = GetPartyLeader())
+	{
+		if (pLeader->GetMap()->IsDungeon())
+		{
+			me->MonsterMove(pLeader->GetPositionX(), pLeader->GetPositionY(), pLeader->GetPositionZ());
+			return true;
+		}
+		else if (pLeader->IsInWorld() && pLeader->GetMap() == me->GetMap())
+		{
+			float const distance = me->GetDistance(pLeader);
+			if (distance >= 15.0f && distance <= 30.0f &&
+				pLeader->GetDistance(pTarget) >= 15.0f)
+			{
+				me->MonsterMove(pLeader->GetPositionX(), pLeader->GetPositionY(), pLeader->GetPositionZ());
+				return true;
+			}
+		}
+	}
+
+	return me->GetMotionMaster()->MoveDistance(pTarget, 15.0f);
+}
+
+bool PartyBotAI::DrinkAndEat() //吃喝邏輯
 {
     if (m_isBuffing)
         return false;
@@ -225,7 +280,7 @@ bool PartyBotAI::ShouldAutoRevive() const
     {
         if (Player* pMember = itr->getSource())
         {
-            if (pMember == me)
+            if (pMember == me) //如果成員為我(指機器人本身)
                 continue;
 
             if (pMember->IsInCombat())
@@ -245,7 +300,7 @@ bool PartyBotAI::ShouldAutoRevive() const
     return alivePlayerNearby;
 }
 
-bool PartyBotAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const
+bool PartyBotAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const //可嘗試施法Function
 {
     if (pSpellEntry->IsAreaOfEffectSpell() && !m_marksToCC.empty())
         return false;
@@ -253,7 +308,7 @@ bool PartyBotAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpell
     return CombatBotBaseAI::CanTryToCastSpell(pTarget, pSpellEntry);
 }
 
-bool PartyBotAI::CanUseCrowdControl(SpellEntry const* pSpellEntry, Unit* pTarget) const
+bool PartyBotAI::CanUseCrowdControl(SpellEntry const* pSpellEntry, Unit* pTarget) const //可使用控場Function
 {
     if (pSpellEntry->HasAuraInterruptFlag(AURA_INTERRUPT_DAMAGE_CANCELS) &&
         AreOthersOnSameTarget(pTarget->GetObjectGuid()))
@@ -486,6 +541,23 @@ bool PartyBotAI::TankPull(Unit* pVictim)
 	return false;
 }
 
+//[WIP]法師開傳送門Function
+bool PartyBotAI::MageOpenPortal()
+{
+	if (me->GetMotionMaster()->GetCurrentMovementGeneratorType())
+	{
+		me->StopMoving();
+		me->GetMotionMaster()->Clear(false, true);
+		me->GetMotionMaster()->MoveIdle();
+	}
+	if (SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_PORTAL_IRON_FORGE))
+	{
+		me->CastSpell(me, pSpellEntry, true);
+		me->RemoveSpellCooldown(*pSpellEntry);
+	}
+	return true;
+}
+
 Unit* PartyBotAI::GetMarkedTarget(RaidTargetIcon mark) const
 {
     ObjectGuid targetGuid = me->GetGroup()->GetTargetWithIcon(mark);
@@ -684,7 +756,7 @@ void PartyBotAI::AddToPlayerGroup()
     group->AddMember(me->GetObjectGuid(), me->GetName());
 }
 
-void PartyBotAI::OnWhisper(Player* pWho, std::string text)
+void PartyBotAI::OnWhisper(Player* pWho, std::string text) //接受密語Function
 {
     uint32 spellId = atoi(text.c_str());
     if (spellId)
@@ -887,7 +959,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         {
             if (ShouldAutoRevive()) //如果應自動復活成立
             {
-                me->ResurrectPlayer(0.5f); //復活後生命值50%
+                me->ResurrectPlayer(0.5f); //復活自己後生命值50%
                 me->SpawnCorpseBones(); //產生地上的骷髏
                 me->CastSpell(me, PB_SPELL_HONORLESS_TARGET, true); //非榮譽目標法術
             }
@@ -973,7 +1045,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
 
         if (pVictim && !me->HasInArc(pVictim, 2 * M_PI_F / 3) && !me->IsMoving())
         {
-            me->SetInFront(pVictim);
+            me->SetInFront(pVictim); //面向目標
             me->SendMovementPacket(MSG_MOVE_SET_FACING, false);
         }
     }
@@ -1547,7 +1619,7 @@ void PartyBotAI::UpdateInCombatAI_Shaman()
 void PartyBotAI::UpdateOutOfCombatAI_Hunter()
 {
 	if (m_spells.hunter.pAspectOfTheHawk &&
-        CanTryToCastSpell(me, m_spells.hunter.pAspectOfTheHawk)) //鷹眼術
+        CanTryToCastSpell(me, m_spells.hunter.pAspectOfTheHawk)) //雄鷹守護
     {
         if (DoCastSpell(me, m_spells.hunter.pAspectOfTheHawk) == SPELL_CAST_OK)
             return;
@@ -1572,10 +1644,9 @@ void PartyBotAI::UpdateOutOfCombatAI_Hunter()
             }
         }
 
-        UpdateInCombatAI_Hunter();
+        UpdateInCombatAI_Hunter(); //進入獵人戰鬥函式
     }
-    else //反之，非戰鬥中則進行判斷寵物召喚或復活
-		if (Pet* pPet = me->GetPet())
+    else if (Pet* pPet = me->GetPet()) //反之，非戰鬥中則進行判斷寵物召喚或復活
 		{
 			if (!pPet->IsAlive()  &&
 				CanTryToCastSpell(pPet, m_spells.hunter.pRevivePet))
@@ -1583,8 +1654,8 @@ void PartyBotAI::UpdateOutOfCombatAI_Hunter()
 				if (DoCastSpell(pPet, m_spells.hunter.pRevivePet) == SPELL_CAST_OK)
 					return;
 			}
-			SummonPetIfNeeded(); //沒有敵人則召喚寵物
 		}
+	SummonPetIfNeeded(); //沒有敵人則召喚寵物
 		
 }
 
@@ -1734,12 +1805,12 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
         if (!me->HasUnitState(UNIT_STAT_ROOT) &&
             (me->GetCombatDistance(pVictim) < 8.0f) &&
             (m_role != ROLE_MELEE_DPS) &&
-             me->GetMotionMaster()->GetCurrentMovementGeneratorType() != DISTANCING_MOTION_TYPE)
+             me->GetMotionMaster()->GetCurrentMovementGeneratorType() != DISTANCING_MOTION_TYPE) //當獵人是「站立狀態」且「與被攻擊目標距離小於8碼」且「身分非進戰DD」且「未知條件?」
         {
-            if (!me->IsStopped())
-                me->StopMoving();
-            me->GetMotionMaster()->Clear();
-            if (RunAwayFromTarget(pVictim))
+			if (!me->IsStopped()) //如果本身動作未停止
+                me->StopMoving(); //則停止移動
+            me->GetMotionMaster()->Clear(); //清除移動狀態
+            if (HunterRunAwayFromTarget(pVictim))
                 return;
         }
     }
@@ -1862,19 +1933,24 @@ void PartyBotAI::UpdateInCombatAI_Mage()
                         return;
                 }
 
-                if (!me->HasUnitState(UNIT_STAT_CAN_NOT_MOVE))
+                if (!me->HasUnitState(UNIT_STAT_CAN_NOT_MOVE)) //當法師是「非」「不可移動以外的狀態」(其實就等於不可移動的狀態)時
                 {
-                    if (m_spells.mage.pFrostNova &&
+                    //施放冰霜新星條件=1.被攻擊目標狀態非定身 2.被攻擊目標狀態「非」「不可反應或失去控制」
+					if (m_spells.mage.pFrostNova &&
                        !pVictim->HasUnitState(UNIT_STAT_ROOT) &&
                        !pVictim->HasUnitState(UNIT_STAT_CAN_NOT_REACT_OR_LOST_CONTROL) &&
                         CanTryToCastSpell(me, m_spells.mage.pFrostNova))
                     {
                         DoCastSpell(me, m_spells.mage.pFrostNova);
                     }
-
-                    if (RunAwayFromTarget(pVictim))
+					//定腳目標後逃開的行為模式
+                    if (MageRunAwayFromTarget(pVictim))
                     {
-                        me->SetCasterChaseDistance(25.0f);
+						if (me->GetMap()->IsDungeon()){
+							me->SetCasterChaseDistance(10.0f);
+							return;
+						}
+						else me->SetCasterChaseDistance(25.0f);
                         return;
                     }
                 }

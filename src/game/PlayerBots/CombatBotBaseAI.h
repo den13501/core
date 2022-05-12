@@ -372,6 +372,7 @@ public:
             SpellEntry const* pBlizzard;
             SpellEntry const* pBlastWave;
             SpellEntry const* pCombustion;
+			SpellEntry const* pPortalIronforge; //傳送門：鐵爐堡
         } mage;
         struct
         {

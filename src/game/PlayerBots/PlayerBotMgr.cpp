@@ -1161,7 +1161,7 @@ void StopPartyBotAttackHelper(PartyBotAI* pAI, Player* pBot)
         pAI->m_updateTimer.Reset(3000);
 }
 
-//機係人停止攻擊命令function
+//機器人停止攻擊命令function
 bool ChatHandler::HandlePartyBotAttackStopCommand(char* args)
 {
     Player* pPlayer = GetSession()->GetPlayer();
@@ -1203,7 +1203,7 @@ bool ChatHandler::HandlePartyBotAttackStopCommand(char* args)
     return true;
 }
 
-bool ChatHandler::HandlePartyBotAoECommand(char* args)
+bool ChatHandler::HandlePartyBotAoECommand(char* args) //處理BOT AOE法術命令
 {
     Player* pPlayer = GetSession()->GetPlayer();
     Unit* pTarget = GetSelectedUnit();
@@ -1501,7 +1501,7 @@ bool ChatHandler::HandlePartyBotComeToMeCommand(char* args)
     return false;
 }
 
-bool HandlePartyBotUseGObjectHelper(Player* pTarget, GameObject* pGo)
+bool HandlePartyBotUseGObjectHelper(Player* pTarget, GameObject* pGo) //機器人使用物件助手Function
 {
     if (pTarget->AI())
     {
@@ -1641,8 +1641,8 @@ bool ChatHandler::HandlePartyBotPauseHelper(char* args, bool pause)
     }
     else
     {
-        Player* pTarget = GetSelectedPlayer();//對著指定的機器人下達暫停指令
-        if (!pTarget)
+        Player* pTarget = GetSelectedPlayer();//目標=點選的玩家
+        if (!pTarget) //如果沒有目標
         {
             SendSysMessage(LANG_NO_CHAR_SELECTED);
             SetSentErrorMessage(true);
@@ -1697,6 +1697,65 @@ bool ChatHandler::HandlePartyBotRemoveCommand(char* args)
     SetSentErrorMessage(true);
     return false;
 }
+
+/*
+//[WIP]機器人開傳送應用function
+bool HandleMageBotPortalHelper(PartyBotAI* pAI, Player* pBot)
+{
+	if (pBot->AI())
+	{
+		if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pBot->AI()))
+		{
+			pBot->StopMoving();
+			pBot->GetMotionMaster()->MoveIdle();
+			pBot->MageOpenPortal();
+			pBot->GetMotionMaster()->MoveIdle();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool ChatHandler::HandleMageBotPortalCommand(char* args) //[WIP]處理MAGE BOT 開傳送門法術命令
+{
+	Player* pPlayer = GetSession()->GetPlayer();
+	Unit* pTarget = GetSelectedUnit();
+	if (!pTarget || !pPlayer->IsValidAttackTarget(pTarget, true))
+	{
+		SendSysMessage(LANG_SELECT_CHAR_OR_CREATURE);
+		SetSentErrorMessage(true);
+		return false;
+	}
+
+	Group* pGroup = pPlayer->GetGroup();
+	if (!pGroup)
+	{
+		SendSysMessage("你不在隊伍中。");
+		SetSentErrorMessage(true);
+		return false;
+	}
+
+	Player* pTarget = GetSelectedPlayer();//目標=點選的玩家
+	if (!pTarget) //如果沒有目標
+	{
+		SendSysMessage(LANG_NO_CHAR_SELECTED);
+		SetSentErrorMessage(true);
+		return false;
+	}
+
+	if (HandleMageBotPortalHelper(pTarget))
+	{
+		if (pause)
+			PSendSysMessage("%s 暫停動作 %u 秒。", pTarget->GetName(), (duration / IN_MILLISECONDS));
+		else
+			PSendSysMessage("%s 解除暫停。", pTarget->GetName());
+	}
+
+	else
+		SendSysMessage("目標並非機器人。");
+}
+*/
 
 //以下是戰場機器人命令
 bool ChatHandler::HandleBattleBotAddAlteracCommand(char* args)
