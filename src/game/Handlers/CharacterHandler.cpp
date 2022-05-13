@@ -729,7 +729,21 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
 
     m_playerLoading = false;
     m_clientMoverGuid = pCurrChar->GetObjectGuid();
-    delete holder;
+
+	//Start Solocraft Functions 單人單刷模式
+	bool SoloCraftEnable = sWorld.getConfig(CONFIG_BOOL_SOLOCRAFT_ENABLED);
+	bool SoloCraftAnnounceModule = sWorld.getConfig(CONFIG_BOOL_SOLOCRAFT_ANNOUNCE);
+
+	if (SoloCraftEnable)
+	{
+		if (SoloCraftAnnounceModule)
+		{
+			ChatHandler(pCurrChar->GetSession()).SendSysMessage("This server is running |cff4CFF00SPP SoloCraft Custom |rmodule.");
+		}
+	}
+	//End Solocraft Functions
+	
+	delete holder;
     if (alreadyOnline)
     {
         pCurrChar->UpdateControl();
