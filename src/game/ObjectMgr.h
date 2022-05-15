@@ -565,6 +565,8 @@ class ObjectMgr
         ObjectMgr();
         ~ObjectMgr();
 
+		std::string GetPlayerNameLink(Player* player); //世界聊天WorldChat用途
+
         // Stores all existing ids in the database, not necessarily valid or loaded.
         void LoadAllIdentifiers();
         bool IsExistingItemId(uint32 id) const { return (m_ItemIdSet.find(id) != m_ItemIdSet.end()); }

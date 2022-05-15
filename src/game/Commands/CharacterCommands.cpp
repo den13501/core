@@ -38,6 +38,16 @@
 
 #include <regex>
 
+#define TEXT_Warrior									  "|cffC79C6E"
+#define TEXT_Paladin									  "|cffF58CBA"
+#define TEXT_Hunter										  "|cffABD473"
+#define TEXT_Rogue										  "|cffFFF569"
+#define TEXT_Priest										  "|cffFFFFFF"
+#define TEXT_Shaman										  "|cff0070DE"
+#define TEXT_Mage										  "|cff69CCF0"
+#define TEXT_Warlock									  "|cff9482C9"
+#define TEXT_Druid										  "|cffFF7d0A"
+
 bool ChatHandler::HandleCharacterAIInfoCommand(char* /*args*/)
 {
     Player* pTarget = GetSelectedPlayer();
@@ -5584,4 +5594,41 @@ bool ChatHandler::HandleGroupSummonCommand(char* args)
 
     PSendSysMessage("Sent summon request to all group members.");
     return true;
+}
+
+//世界聊天
+bool ChatHandler::HandleWorldChat(char* args)
+{
+	std::string argstr = (char*)args;
+	if (argstr == "")
+		return false;
+
+	Player *player = m_session->GetPlayer();
+
+	//聊天消耗金錢設置
+	if (player->GetMoney() < sWorld.getConfig(CONFIG_UINT32_WORLDCHAT_COST))
+	//if (player->GetMoney() < 100000)
+	{
+		PSendSysMessage("您的金幣不夠，世界聊天一次消耗%u銅。", sWorld.getConfig(CONFIG_UINT32_WORLDCHAT_COST));
+		//ChatHandler(player).SendSysMessage("你的金币不够，世界聊天10金/次。");
+		return false;
+	}
+
+	//設置世界聊天等级
+	if (m_session->GetPlayer()->GetLevel() < sWorld.getConfig(CONFIG_UINT32_WORLDCHAT_MIN_LEVEL))
+	{
+		PSendSysMessage("需要至少%u級才能發送世界聊天。", sWorld.getConfig(CONFIG_UINT32_WORLDCHAT_MIN_LEVEL));
+		return false;
+	}
+
+	//在世界聊天加上陣營圖示		
+	std::string msg = "|cff00ff00[世界]|r";
+
+	msg += sObjectMgr.GetPlayerNameLink(player);
+	msg += " |cffF4A460";
+	msg += args;
+	sWorld.SendServerMessage(SERVER_MSG_CUSTOM, msg.c_str());
+	player->ModifyMoney(uint32(-sWorld.getConfig(CONFIG_UINT32_WORLDCHAT_COST))); //從玩家身上扣除1G
+
+	return true;
 }

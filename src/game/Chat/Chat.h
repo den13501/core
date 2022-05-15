@@ -663,6 +663,7 @@ class ChatHandler
         bool HandleModifyMountCommand(char* args);
         bool HandleModifyFactionCommand(char* args);
         bool HandleModifyTalentCommand(char* args);
+		bool HandleWorldChat(char* args); //世界聊天
         bool HandleModifyHonorCommand(char* args);
         bool HandleModifyRepCommand(char* args);
         bool HandleModifyGenderCommand(char* args);

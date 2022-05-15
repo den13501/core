@@ -1250,7 +1250,8 @@ ChatCommand * ChatHandler::getCommandTable()
         { "spamer",         SEC_MODERATOR,      true, nullptr,                                         "", spamerCommandTable },
         { "antispam",       SEC_TICKETMASTER,   true, nullptr,                                         "", AntiSpamCommandTable },
         { "gold",           SEC_BASIC_ADMIN,    true, nullptr,                                         "", goldCommandTable },
-        { nullptr,          0,                  false, nullptr,                                        "", nullptr }
+		{ "ww",      SEC_PLAYER,         true,  &ChatHandler::HandleWorldChat,                  "", nullptr }, //玩家世界聊天指令
+		{ nullptr,          0,                  false, nullptr,                                        "", nullptr }
     };
 
     if (load_command_table)
