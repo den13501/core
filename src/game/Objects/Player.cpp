@@ -12236,8 +12236,8 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
                 case GOSSIP_OPTION_BATTLEFIELD:
                     if (!pCreature->CanInteractWithBattleMaster(this, false))
                         hasMenuItem = false;
-					pMenu->GetGossipMenu().AddMenuItem(8, "聯盟戰歌+1", GetLevel(), 63, "", false);
-					pMenu->GetGossipMenu().AddMenuItem(8, "部落戰歌+1", GetLevel(), 64, "", false);
+					//pMenu->GetGossipMenu().AddMenuItem(8, "聯盟戰歌+1", GetLevel(), 63, "", false);
+					//pMenu->GetGossipMenu().AddMenuItem(8, "部落戰歌+1", GetLevel(), 64, "", false);
                     break;
                 case GOSSIP_OPTION_STABLEPET:
                     if (GetClass() != CLASS_HUNTER)
@@ -12466,7 +12466,7 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId)
             PrepareGossipMenu(pSource);
             SendPreparedGossip(pSource);
             break;
-        case GOSSIP_OPTION_BATTLEFIELD:
+        case GOSSIP_OPTION_BATTLEFIELD: //NPC對話-戰場選單
         {
             BattleGroundTypeId bgTypeId = sBattleGroundMgr.GetBattleMasterBG(pSource->GetEntry());
 
@@ -12477,9 +12477,24 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId)
             }
 
             GetSession()->SendBattleGroundList(guid, bgTypeId);
-            break;
+			// [WIP]Auto queue for battlebot
+			if (bgTypeId == BATTLEGROUND_WS)
+			{
+				ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+				ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+				ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+				ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+				ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+			}
+
+			break;
         }
-		case 63:
+		/*case 63:
 			//PlayerTalkClass->CloseGossip();
 			ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
 			return;
@@ -12487,6 +12502,7 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId)
 			//PlayerTalkClass->CloseGossip();
 			ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
 			return;
+		*/
     }
 
     if (pMenuData.m_gAction_script)
