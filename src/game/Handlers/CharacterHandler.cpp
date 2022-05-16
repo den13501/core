@@ -730,7 +730,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
     m_playerLoading = false;
     m_clientMoverGuid = pCurrChar->GetObjectGuid();
 
-	//Start Solocraft Functions 單人單刷模式
+	//Start Solocraft Functions 單人單刷模式啟用通告
 	bool SoloCraftEnable = sWorld.getConfig(CONFIG_BOOL_SOLOCRAFT_ENABLED);
 	bool SoloCraftAnnounceModule = sWorld.getConfig(CONFIG_BOOL_SOLOCRAFT_ANNOUNCE);
 
@@ -742,7 +742,20 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
 		}
 	}
 	//End Solocraft Functions
-	
+
+	//Start WorldChat Functions 世界聊天功能啟用通告
+	bool WorldChatEnable = sWorld.getConfig(CONFIG_BOOL_WORLDCHAT_ENABLED);
+	bool WorldChatAnnounceModule = sWorld.getConfig(CONFIG_BOOL_WORLDCHAT_ANNOUNCE);
+
+	if (WorldChatEnable)
+	{
+		if (WorldChatAnnounceModule)
+		{
+			ChatHandler(pCurrChar->GetSession()).SendSysMessage("This server is running |cff4CFF00SPP WorldChat Custom |rmodule.");
+		}
+	}
+	//End WorldChat Functions
+
 	delete holder;
     if (alreadyOnline)
     {

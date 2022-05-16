@@ -3246,12 +3246,25 @@ Solocraft.StratholmeRaid.Level = 60
 ###################################################################################################################
 # WORLDCHAT CONFIGURATION
 #
-#    WorldChat.Cost
-#        Cost of worldchat, basic unit is coper
-#        Default: 0
-#    WorldChat.Min.Level
-#        Min level for using worldchat
-#        Default: 1
+#   WorldChat.Enable
+#       Enable WorldChat module
+#       Default: 1 (Enabled)
+#                0 (Disabled)
+#
+#   WorldChat.Announce
+#       Announce the module when the player logs in?
+#       Default: 1 (Enabled)
+#                0 (Disabled)
+#
+#   WorldChat.Cost
+#       Cost of worldchat, basic unit is coper
+#       Default: 0
+#
+#   WorldChat.Min.Level
+#       Min level for using worldchat
+#       Default: 1
 ###################################################################################################################
+WorldChat.Enable = 1
+WorldChat.Announce = 1
 WorldChat.Cost = 0
 WorldChat.Min.Level = 1
