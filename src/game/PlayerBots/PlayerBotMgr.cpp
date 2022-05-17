@@ -883,7 +883,6 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
 		}
 
         //ExtractUInt32(&args, botLevel); //prevent player add level argument禁止使用第二個參數=botlevel
-
 		// Prevent setting a custom level for bots unless the account is a GM or skipping checks is enabled.
 		if (GetSession()->GetSecurity() > SEC_PLAYER || sWorld.getConfig(CONFIG_BOOL_PARTY_BOT_SKIP_CHECKS))
 			ExtractUInt32(&args, botLevel);
