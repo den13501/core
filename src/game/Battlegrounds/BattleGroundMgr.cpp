@@ -153,6 +153,21 @@ GroupQueueInfo* BattleGroundQueue::AddGroup(Player* leader, Group* grp, BattleGr
     ginfo->removeInviteTime          = 0;
     ginfo->groupTeam                 = leader->GetTeam();
     ginfo->desiredInstanceId         = instanceId;
+	/*[WIP]CFBG
+	// queue battleground 混排戰場
+	// change team to stay balance
+	uint32 uHorde = 0;
+	uint32 uAlliance = 0;
+	GroupsQueueType::const_iterator itr;
+	for (itr = m_queuedGroups[bracketId][BG_QUEUE_NORMAL_ALLIANCE].begin(); itr != m_queuedGroups[bracketId][BG_QUEUE_NORMAL_ALLIANCE].end(); ++itr)
+		if (!(*itr)->isInvitedToBgInstanceGuid)
+			uAlliance += (*itr)->players.size();
+	for (itr = m_queuedGroups[bracketId][BG_QUEUE_NORMAL_HORDE].begin(); itr != m_queuedGroups[bracketId][BG_QUEUE_NORMAL_HORDE].end(); ++itr)
+		if (!(*itr)->isInvitedToBgInstanceGuid)
+			uHorde += (*itr)->players.size();
+	if (uHorde != uAlliance) // IF not balance, change the team
+		ginfo->groupTeam = (uAlliance > uHorde) ? HORDE : ALLIANCE;
+	*/
     ginfo->players.clear();
 
     //compute index (if group is premade or joined a rated match) to queues
