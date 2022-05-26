@@ -30,8 +30,8 @@
 
 enum PartyBotSpells //此處的法術定義是給機器人使用和施放用的，通常是較通用的法術，非特定職業的法術
 {
-    PB_SPELL_FOOD = 1131,
-    PB_SPELL_DRINK = 1137,
+    PB_SPELL_FOOD = 1131, //lv55
+    PB_SPELL_DRINK = 1137, //lv55
     PB_SPELL_AUTO_SHOT = 75,
     PB_SPELL_SHOOT_WAND = 5019,
     PB_SPELL_HONORLESS_TARGET = 2479,

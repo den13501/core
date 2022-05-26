@@ -1791,9 +1791,10 @@ bool ChatHandler::HandleBattleBotAddCommand(char* args, uint8 bg) //輸入兩個
     }
 
     Team botTeam = HORDE;
-    uint32 botLevel = sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
+    uint32 botLevel = sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); //讀取conf參數，battlebot等級等於Conf設定的遊戲最高人物等級
 	uint32 playerLevel = pPlayer->GetLevel();
 
+	//battlebot等級產生方式依照玩家人物等級隨機分配玩家該10個等級區間
 	if (playerLevel >= 10 && playerLevel <= 19)
 	{
 		botLevel = urand(10, 19);
