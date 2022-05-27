@@ -224,8 +224,8 @@ bool PartyBotAI::DrinkAndEat() //吃喝邏輯
     if (me->GetVictim())
         return false;
 
-    bool const needToEat = me->GetHealthPercent() < 100.0f;
-    bool const needToDrink = (me->GetPowerType() == POWER_MANA) && (me->GetPowerPercent(POWER_MANA) < 100.0f);
+    bool const needToEat = me->GetHealthPercent() < 90.0f;
+    bool const needToDrink = (me->GetPowerType() == POWER_MANA) && (me->GetPowerPercent(POWER_MANA) < 85.0f);
 
     if (!needToEat && !needToDrink)
         return false;
