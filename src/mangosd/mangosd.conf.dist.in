@@ -3268,3 +3268,10 @@ WorldChat.Enable = 1
 WorldChat.Announce = 1
 WorldChat.Cost = 0
 WorldChat.Min.Level = 1
+
+###################################################################################################################
+# DualSpecTimeDelta 
+# 	 time duration to switch dual talent, dual spec command .swapspec
+###################################################################################################################
+
+DualSpecTimeDelta = 300

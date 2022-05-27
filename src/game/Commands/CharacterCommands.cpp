@@ -5634,3 +5634,24 @@ bool ChatHandler::HandleWorldChat(char* args)
 	PSendSysMessage("世界聊天功能目前關閉。");
 	return false;
 }
+
+// dual spec
+bool ChatHandler::HandleSwapSpec(char* /*args*/)
+{
+	uint32 res = m_session->GetPlayer()->SwapSpec();
+	switch (res) {
+	case 3: {
+		PSendSysMessage("Oh, wait a bit, please!");
+		break;
+	}
+	case 2: {
+		PSendSysMessage("Too low level");
+		break;
+	}
+	case 1: {
+		PSendSysMessage("Talent Swapped!");
+		break;
+	}
+	}
+	return true;
+}

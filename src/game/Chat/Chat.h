@@ -1011,6 +1011,9 @@ class ChatHandler
         bool HandleStableCommand(char* args);
         bool HandleQuitCommand(char* args);
 
+        //dual spec 雙天賦
+        bool HandleSwapSpec(char* args);
+
         //! Development Commands
         bool HandleSaveAllCommand(char* args);
         bool HandleDebugMoveCommand(char* args);
