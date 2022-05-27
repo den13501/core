@@ -659,7 +659,7 @@ Player* PartyBotAI::SelectResurrectionTarget() const
         if (pMember && pMember->IsDead())
         {
             // resurrect leader if possible. 測試優先辨識隊長(玩家)若非存活死亡則回傳為復活對象
-	    if ((pLeader->GetDeathState() == CORPSE) && (m_session->me->GetMapId() == pLeader->GetMapId())) 
+	    if ((pLeader->GetDeathState() == CORPSE) && (me->GetMapId() == pLeader->GetMapId())) 
 	    {
 		m_uiLeaderGUID = pLeader->GetGUID();
 		return pLeader;
