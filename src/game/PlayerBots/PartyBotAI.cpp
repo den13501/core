@@ -224,8 +224,8 @@ bool PartyBotAI::DrinkAndEat() //吃喝邏輯
     if (me->GetVictim())
         return false;
 
-    bool const needToEat = me->GetHealthPercent() < 100.0f;
-    bool const needToDrink = (me->GetPowerType() == POWER_MANA) && (me->GetPowerPercent(POWER_MANA) < 100.0f);
+    bool const needToEat = me->GetHealthPercent() < 90.0f;
+    bool const needToDrink = (me->GetPowerType() == POWER_MANA) && (me->GetPowerPercent(POWER_MANA) < 85.0f);
 
     if (!needToEat && !needToDrink)
         return false;
@@ -647,37 +647,29 @@ Unit* PartyBotAI::SelectPartyAttackTarget() const
 //選擇要復活的目標
 Player* PartyBotAI::SelectResurrectionTarget() const
 {
-	uint64 m_uiLeaderGUID;
-	/*
-	//測試，優先辨識隊長(玩家)若非存活死亡則回傳為復活對象
-	Player* pLeader = GetPartyLeader();
-	{
-		if (pLeader->IsDead())
-			return pLeader;
-	}
-	*/
-	//Group* pGroup = me->GetGroup();
-	
-	Player* pLeader = GetPartyLeader();
-	m_uiLeaderGUID = pLeader->GetGUID();
-	Group* pGroup = pLeader->GetGroup();
+    uint64 m_uiLeaderGUID;
+
+    Player* pLeader = GetPartyLeader();
+    m_uiLeaderGUID = pLeader->GetGUID();
+    Group* pGroup = me->GetGroup();
     for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
     {
-		Player* pMember = itr->getSource();
+        Player* pMember = itr->getSource();
 		
-		if (pMember && pMember->IsDead())
+        if (pMember && pMember->IsDead())
         {
-			if (pLeader->IsDead()) {
-				m_uiLeaderGUID = pLeader->GetGUID();
-				return pLeader;
-			}
-			
-			// Can't resurrect self.
+            // resurrect leader if possible. 測試優先辨識隊長(玩家)若非存活死亡則回傳為復活對象
+	    if ((pLeader->GetDeathState() == CORPSE) && (m_session->me->GetMapId() == pLeader->GetMapId())) 
+	    {
+		m_uiLeaderGUID = pLeader->GetGUID();
+		return pLeader;
+	    }
+            // Can't resurrect self.
             if (pMember == me)
                 continue;
 
             if (pMember->GetDeathState() == CORPSE)
-				m_uiLeaderGUID = pMember->GetGUID();
+		m_uiLeaderGUID = pMember->GetGUID();
                 return pMember;
         }
     }
