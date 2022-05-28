@@ -5640,17 +5640,39 @@ bool ChatHandler::HandleSwapSpec(char* /*args*/)
 {
 	uint32 res = m_session->GetPlayer()->SwapSpec();
 	switch (res) {
+	case 5: {
+		//PSendSysMessage("Oh, wait a bit, please!");
+        PSendSysMessage("系統不允許頻繁切換天賦，稍等片刻！");
+        break;
+	}
+	case 4: {
+        //PSendSysMessage("Can not swap spec while moving or combating.");
+        PSendSysMessage("移動或戰鬥中不能切換天賦。");
+        break;
+	}
 	case 3: {
-		PSendSysMessage("Oh, wait a bit, please!");
-		break;
+        //PSendSysMessage("Player can not switch spec in death status or in battleground.");
+        PSendSysMessage("戰場和死亡狀態時不能切換天賦。");
+        break;
 	}
 	case 2: {
-		PSendSysMessage("Too low level");
-		break;
+		//PSendSysMessage("Too low level, you can only use swapspec when you reach level 11 at least.");
+        PSendSysMessage("您等級須達11級才可以使用雙天賦功能。");
+        break;
 	}
 	case 1: {
-		PSendSysMessage("Talent Swapped!");
-		break;
+		//雙天賦切換消耗金錢設置
+		Player *player = m_session->GetPlayer();
+        if (player->GetMoney() < sWorld.getConfig(CONFIG_UINT32_DUALSPECSWAP_COST))
+		{
+			//PSendSysMessage("Your money is not enough, swap spec need %u coppers", sWorld.getConfig(CONFIG_UINT32_DUALSPECSWAP_COST));
+            PSendSysMessage("您的金幣不夠，切換天賦一次消耗%u銅。", sWorld.getConfig(CONFIG_UINT32_DUALSPECSWAP_COST));
+            return false;
+		}
+        player->ModifyMoney(uint32(-sWorld.getConfig(CONFIG_UINT32_DUALSPECSWAP_COST))); //從玩家身上扣除費用
+		//PSendSysMessage("Talent swapped! Cost %u coppers。", sWorld.getConfig(CONFIG_UINT32_DUALSPECSWAP_COST));
+		PSendSysMessage("天賦切換成功！消耗 %u 銅。", sWorld.getConfig(CONFIG_UINT32_DUALSPECSWAP_COST));
+        break;
 	}
 	}
 	return true;

@@ -1226,13 +1226,14 @@ void World::LoadConfigSettings(bool reload)
 	setConfig(CONFIG_FLOAT_AHNQIRAJ_DIFF, "Solocraft.AhnQiraj", 20.0);
 	setConfig(CONFIG_FLOAT_AHNQIRAJTEMPLE_DIFF, "Solocraft.AhnQirajTemple", 40.0);
 	setConfig(CONFIG_FLOAT_STRATHOLMERAID_DIFF, "Solocraft.StratholmeRaid", 40.0);
-	//End Solocraft Config
-	// Start WorldChat Config
-	setConfig(CONFIG_BOOL_WORLDCHAT_ENABLED, "WorldChat.Enable", true);
-	setConfig(CONFIG_BOOL_WORLDCHAT_ANNOUNCE, "WorldChat.Announce", true);
-	setConfig(CONFIG_UINT32_WORLDCHAT_COST, "WorldChat.Cost", 0); //世界聊天消耗金幣
-	setConfig(CONFIG_UINT32_WORLDCHAT_MIN_LEVEL, "WorldChat.Min.Level", 1); //世界聊天要求等級
+    //End Solocraft Config
+    // Start WorldChat Config
+    setConfig(CONFIG_BOOL_WORLDCHAT_ENABLED, "WorldChat.Enable", true);
+    setConfig(CONFIG_BOOL_WORLDCHAT_ANNOUNCE, "WorldChat.Announce", true);
+    setConfig(CONFIG_UINT32_WORLDCHAT_COST, "WorldChat.Cost", 0); //世界聊天消耗金幣
+    setConfig(CONFIG_UINT32_WORLDCHAT_MIN_LEVEL, "WorldChat.Min.Level", 1); //世界聊天要求等級
     //End WorldChat Config
+    setConfig(CONFIG_UINT32_DUALSPECSWAP_COST, "DualSpecSwap.Cost", 0); //Dual Swap cost 雙天賦花費
 }
 
 void charactersDatabaseWorkerThread()

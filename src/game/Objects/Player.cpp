@@ -22251,6 +22251,7 @@ void Player::_SaveAlternativeSpec()
 //dual spec 雙天賦
 uint32 Player::SwapSpec()
 {
+	Player* pPlayer = m_session->GetPlayer();
 	/*
 	Error codes:
 	2 - Too low level
@@ -22263,12 +22264,18 @@ uint32 Player::SwapSpec()
 	*/
 
 	//Level check
-	if (GetLevel() <= 10)
-		return 2;
+    if (GetLevel() <= 10)
+        return 2;
+
+    if (pPlayer->InBattleGround() || pPlayer->IsDead())
+        return 3;
+
+    if (pPlayer->IsMoving() || pPlayer->IsInCombat())
+        return 4;
 
 	//Time check
 	if (uint32(time(NULL) - m_altspec_lastswap) < sWorld.getConfig(CONFIG_DUAL_SPEC_TIME_DELTA))
-		return 3;
+        return 5;
 
 	/*********************************************************/
 	/***                   SAVE KEYS                       ***/
