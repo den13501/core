@@ -1446,7 +1446,7 @@ bool ChatHandler::HandlePartyBotClearMarksCommand(char* args)
 //機器人回來命令助手function
 bool HandlePartyBotComeToMeHelper(Player* pBot, Player* pPlayer)
 {
-    if (pBot->AI() && pBot->IsAlive() && pBot->IsInMap(pPlayer) && !pBot->HasUnitState(UNIT_STAT_NO_FREE_MOVE))
+    if (pBot->AI() && pBot->IsAlive() && pBot->IsInMap(pPlayer) && !pBot->HasUnitState(UNIT_STAT_NO_FREE_MOVE) && !pBot->IsWithinDistInMap(pPlayer, 10.0f))
     {
         if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pBot->AI()))
         {
