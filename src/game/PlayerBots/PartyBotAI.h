@@ -50,6 +50,7 @@ public:
     void OnPacketReceived(WorldPacket const* packet) final;
     void SendFakePacket(uint16 opcode) final;
 
+	uint32 GetMountSpellId() const;
     void CloneFromPlayer(Player const* pPlayer);
     void AddToPlayerGroup();
 
@@ -66,9 +67,10 @@ public:
     bool CanUseCrowdControl(SpellEntry const* pSpellEntry, Unit* pTarget) const;
     bool DrinkAndEat();
     bool ShouldAutoRevive() const;
-    bool RunAwayFromTarget(Unit* pTarget);
-	bool MageRunAwayFromTarget(Unit* pTarget);
+    void RunAwayFromTarget(Unit* pTarget);
+	void MageRunAwayFromTarget(Unit* pTarget);
 	bool HunterRunAwayFromTarget(Unit* pTarget);
+	void MoveToTarget(Unit* pTarget);
     bool CrowdControlMarkedTargets();
     bool EnterCombatDruidForm();
     bool ShouldEnterStealth() const;

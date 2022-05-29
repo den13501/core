@@ -32,6 +32,7 @@ enum CombatBotSpells //此處的法術定義不是施放或使用，主要用於
     SPELL_SUMMON_FELHUNTER = 691, //召喚惡魔獵犬
     SPELL_SUMMON_SUCCUBUS = 712, //召喚媚魔
     SPELL_TAME_BEAST = 13481, //馴服野獸
+    SPELL_PET_REVIVE = 982, //復活寵物
 
     PET_WOLF    = 565,	//瘋狂的恐狼
 	PET_LUPOS   = 521, //魯伯斯
@@ -1451,7 +1452,7 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.warrior.pPiercingHowl->Id < pSpellEntry->Id)
                         m_spells.warrior.pPiercingHowl = pSpellEntry;
                 }
-				else if (pSpellEntry->SpellName[0].find("Revenge") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Revenge") != std::string::npos)
 				{
 					if (!m_spells.warrior.pRevenge ||
 						m_spells.warrior.pRevenge->Id < pSpellEntry->Id)
@@ -2245,9 +2246,11 @@ bool CombatBotBaseAI::HealInjuredTarget(Unit* pTarget)
         if (HealInjuredTargetPeriodic(pTarget))
             return true;
     }
-
-    if (HealInjuredTargetDirect(pTarget))
-        return true;
+    else if (pTarget->GetHealthPercent() < 80.0f)
+    {
+        if (HealInjuredTargetDirect(pTarget))
+            return true;
+    }
 
     return false;
 }
@@ -2520,7 +2523,19 @@ void CombatBotBaseAI::SummonPetIfNeeded()
     if (me->GetClass() == CLASS_HUNTER)
     {
         if (me->GetPetGuid())
-            return;
+		{
+			if (me->GetPet()->IsAlive())
+				return;
+			else
+			{
+				if (me->HasSpell(SPELL_PET_REVIVE))
+				{
+					me->CastSpell(me, SPELL_PET_REVIVE, true);
+					return;
+				}
+
+			}
+		}
 
         if (me->GetLevel() < 10)
             return;
@@ -3179,6 +3194,18 @@ bool CombatBotBaseAI::IsWearingShield() const
         return true;
 
     return false;
+}
+
+bool CombatBotBaseAI::IsDualWielding() const
+{
+	Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+	if (!pItem)
+		return false;
+
+	if (pItem->GetProto()->InventoryType == INVTYPE_WEAPON)
+		return true;
+
+	return false;
 }
 
 //送出假封包opcode

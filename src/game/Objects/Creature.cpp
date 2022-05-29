@@ -1503,7 +1503,7 @@ void Creature::SaveToDB(uint32 mapid)
                         ? IDLE_MOTION_TYPE : GetDefaultMovementType();
     data.spawn_flags = m_isActiveObject ? SPAWN_FLAG_ACTIVE : 0;
 
-    float const wander_distance = GetDefaultMovementType() == RANDOM_MOTION_TYPE ? m_wanderDistance : 0.0f;
+    //float const wander_distance = GetDefaultMovementType() == RANDOM_MOTION_TYPE ? m_wanderDistance : 0.0f;
 
     // updated in DB
     WorldDatabase.BeginTransaction();
@@ -1524,7 +1524,7 @@ void Creature::SaveToDB(uint32 mapid)
        << data.position.o << ","
        << data.spawntimesecsmin << ","
        << data.spawntimesecsmax << ","
-       << wander_distance << ","
+       << data.wander_distance << ","
        << data.health_percent << ","
        << data.mana_percent << ","
        << uint32(data.movement_type) << ","

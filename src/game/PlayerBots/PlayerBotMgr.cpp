@@ -760,6 +760,9 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
     if (!pPlayer)
         return false;
 
+	/*if (!pPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING))
+	return false;*/
+
     if (!PartyBotAddRequirementCheck(pPlayer, nullptr))
     {
         SetSentErrorMessage(true);
@@ -778,11 +781,11 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
 		return false;
 	}
 
-	/*if (pPlayer->GetMap()->IsDungeon())
+	if (pPlayer->GetMap()->IsDungeon())
 	{
 		SendSysMessage("在副本內不能加入機器人。");
 		return false;
-	}*/
+	}
 
     if (!args)
     {
@@ -792,7 +795,7 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
     }
 
     uint8 botClass = 0;
-    uint32 botLevel = pPlayer->GetLevel();  //讀取玩家等級，如沒額外輸入第二參數，預設機器人等級就是玩家等級
+    uint32 botLevel = pPlayer->GetLevel() + urand(-1, 1);  //讀取玩家等級，如沒額外輸入第二參數，預設機器人等級就是玩家等級+-1
 	uint32 botGender = urand(0, 1); //加入性別屬性供定義
 	CombatBotRoles botRole = ROLE_INVALID;
 
@@ -903,6 +906,9 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
 		SetSentErrorMessage(true);
 		return false;
 	}
+
+    if (botClass && botRole == ROLE_INVALID)
+        botRole = CombatBotBaseAI::IsMeleeWeaponClass(botClass) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
 
     uint8 botRace = SelectRandomRaceForClass(botClass, pPlayer->GetTeam()); //種族用亂數選擇
 
@@ -1061,7 +1067,7 @@ bool ChatHandler::HandlePartyBotAttackStartCommand(char* args)
             {
                 if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pMember->AI()))
                 {
-                    if (pMember->IsValidAttackTarget(pTarget))
+                    if (pMember->IsValidAttackTarget(pTarget) && pAI->m_role != ROLE_HEALER)
                         pAI->AttackStart(pTarget);
                 }
             }            
@@ -1451,7 +1457,8 @@ bool HandlePartyBotComeToMeHelper(Player* pBot, Player* pPlayer)
                 pBot->SetStandState(UNIT_STAND_STATE_STAND);
 
             pBot->InterruptSpellsWithInterruptFlags(SPELL_INTERRUPT_FLAG_MOVEMENT);
-            pBot->MonsterMove(pPlayer->GetPositionX(), pPlayer->GetPositionY(), pPlayer->GetPositionZ());
+            //pBot->MonsterMove(pPlayer->GetPositionX(), pPlayer->GetPositionY(), pPlayer->GetPositionZ());
+            pAI->MoveToTarget(pPlayer);
             return true;
         }
     }
@@ -1523,17 +1530,19 @@ bool ChatHandler::HandlePartyBotUseGObjectCommand(char* args)
     Player* pPlayer = GetSession()->GetPlayer();
     Player* pTarget = GetSelectedPlayer();
 
-    GameObject* pGo = getSelectedGameObject();
-    if (!pGo)
-    {
-        HandleGameObjectSelectCommand(args);
-        return false;
+	GameObject* pGo;
+	uint32 objentry;
+
+    if (ExtractUInt32(&args, objentry))
+        pGo = pTarget->FindNearestGameObject(objentry, 10.0f);
+    else
         pGo = getSelectedGameObject();
-        if (!pGo){
-            SendSysMessage(LANG_COMMAND_NOGAMEOBJECTFOUND);
-            return false;
-        }
-    }
+
+	if (!pGo)
+	{
+		SendSysMessage(LANG_COMMAND_NOGAMEOBJECTFOUND);
+		return false;
+	}
 
     bool ok = false;
 
@@ -1836,6 +1845,12 @@ bool ChatHandler::HandleBattleBotAddCommand(char* args, uint8 bg) //輸入兩個
         }
 
         ExtractUInt32(&args, botLevel);
+		//以下是另一種實現battlebot等級隨機產生在玩家坐落的10等級區間
+		/*if (!ExtractUInt32(&args, botLevel))
+		{
+			if (botLevel < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+				botLevel = ((botLevel / 10) * 10) + urand(7, 9);
+		}*/
     }
 
     std::vector<uint32> dpsClasses = { CLASS_WARRIOR, CLASS_HUNTER, CLASS_ROGUE, CLASS_MAGE, CLASS_WARLOCK, CLASS_PRIEST, CLASS_DRUID };

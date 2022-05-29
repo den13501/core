@@ -27,6 +27,7 @@
 #define BG_WS_MAX_TEAM_SCORE      3
 #define BG_WS_FLAG_RESPAWN_TIME   (23*IN_MILLISECONDS)
 #define BG_WS_FLAG_DROP_TIME      (10*IN_MILLISECONDS)
+#define BG_WS_MAX_BG_TIME         (900*IN_MILLISECONDS)
 
 enum BG_WS_Sound
 {
@@ -175,6 +176,7 @@ class BattleGroundWS : public BattleGround
         uint8 m_flagState[BG_TEAMS_COUNT];
         int32 m_flagsTimer[BG_TEAMS_COUNT];
         int32 m_flagsDropTimer[BG_TEAMS_COUNT];
+		int32 m_BattleTimer;
 
         uint32 m_reputationCapture;
         uint32 m_honorWinKills;

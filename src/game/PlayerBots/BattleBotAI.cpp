@@ -1892,7 +1892,7 @@ void BattleBotAI::UpdateInCombatAI_Priest()
 
     // Heal
     if (me->GetShapeshiftForm() == FORM_NONE &&
-        FindAndHealInjuredAlly(40.0f))
+		FindAndHealInjuredAlly(60.0f, 60.0f))
         return;
 
     // Dispels
@@ -2888,7 +2888,7 @@ void BattleBotAI::UpdateInCombatAI_Druid()
         }
 
         // Heal
-        if (FindAndHealInjuredAlly(80.0f))
+        if (FindAndHealInjuredAlly(60.0f,60.0f))
             return;
 
         // Dispels

@@ -148,7 +148,7 @@ void PetAI::UpdateAI(uint32 const diff)
     }
     else if (!playerControlled)
     {
-        if (m_creature->HasReactState(REACT_AGGRESSIVE) || m_creature->GetCharmInfo()->IsAtStay())
+        if (m_creature->HasReactState(REACT_AGGRESSIVE) || m_creature->HasReactState(REACT_DEFENSIVE) || m_creature->GetCharmInfo()->IsAtStay())
         {
             // Every update we need to check targets only in certain cases
             // Aggressive - Allow auto select if owner or pet don't have a target
