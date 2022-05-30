@@ -32,6 +32,7 @@ enum PartyBotSpells //此處的法術定義是給機器人使用和施放用的�
 {
     PB_SPELL_FOOD = 1131, //lv55
     PB_SPELL_DRINK = 1137, //lv55
+    PB_SPELL_DRINK_50 = 25696, //lv
     PB_SPELL_AUTO_SHOT = 75,
     PB_SPELL_SHOOT_WAND = 5019,
     PB_SPELL_HONORLESS_TARGET = 2479,
@@ -267,7 +268,7 @@ bool PartyBotAI::DrinkAndEat() //吃喝邏輯
         return false;
 
     bool const isEating = me->HasAura(PB_SPELL_FOOD);
-    bool const isDrinking = me->HasAura(PB_SPELL_DRINK);
+    bool const isDrinking = me->HasAura(PB_SPELL_DRINK) || me->HasAura(PB_SPELL_DRINK_50);
 
     if (!isEating && needToEat)
     {
@@ -293,12 +294,19 @@ bool PartyBotAI::DrinkAndEat() //吃喝邏輯
             me->GetMotionMaster()->Clear(false, true);
             me->GetMotionMaster()->MoveIdle();
         }
-        if (SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_DRINK))
-        {
-            me->CastSpell(me, pSpellEntry, true);
-            me->RemoveSpellCooldown(*pSpellEntry);
-        }
-        return true;
+		if (me->GetLevel() >= 50)
+			if (SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_DRINK_50))
+			{
+				me->CastSpell(me, pSpellEntry, true);
+				me->RemoveSpellCooldown(*pSpellEntry);
+			}
+		else
+			if (SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_DRINK))
+			{
+				me->CastSpell(me, pSpellEntry, true);
+				me->RemoveSpellCooldown(*pSpellEntry);
+			}
+		return true;
     }
 
     return needToEat || needToDrink;
