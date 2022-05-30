@@ -3038,7 +3038,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
 		if (m_spells.warrior.pSunderArmor &&
 			m_role == ROLE_TANK &&
-			CanTryToCastSpell(pVictim, m_spells.warrior.pSunderArmor)) //破甲
+			CanTryToCastStackSpell(pVictim, m_spells.warrior.pSunderArmor, 2)) //破甲，堆疊上限為2
 		{
 			if (DoCastSpell(pVictim, m_spells.warrior.pSunderArmor) == SPELL_CAST_OK)
 				return;

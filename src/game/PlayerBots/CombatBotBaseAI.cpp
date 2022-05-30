@@ -2962,6 +2962,68 @@ bool CombatBotBaseAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* p
     return true;
 }
 
+//可以嘗試使用法術的判斷function
+bool CombatBotBaseAI::CanTryToCastStackSpell(Unit const* pTarget, SpellEntry const* pSpellEntry, uint32 maxStack) const
+{
+	if (!me->IsSpellReady(pSpellEntry->Id))
+		return false;
+
+	if (me->HasGCD(pSpellEntry))
+		return false;
+
+	if (pSpellEntry->TargetAuraState &&
+		!pTarget->HasAuraState(AuraState(pSpellEntry->TargetAuraState)))
+		return false;
+
+	if (pSpellEntry->CasterAuraState &&
+		!me->HasAuraState(AuraState(pSpellEntry->CasterAuraState)))
+		return false;
+
+	uint32 const powerCost = Spell::CalculatePowerCost(pSpellEntry, me);
+	Powers const powerType = Powers(pSpellEntry->powerType);
+
+	if (powerType == POWER_HEALTH)
+	{
+		if (me->GetHealth() <= powerCost)
+			return false;
+		return true;
+	}
+
+	if (me->GetPower(powerType) < powerCost)
+		return false;
+
+	if (pTarget->IsImmuneToSpell(pSpellEntry, false))
+		return false;
+
+	if (pSpellEntry->GetErrorAtShapeshiftedCast(me->GetShapeshiftForm()) != SPELL_CAST_OK)
+		return false;
+
+	if (pSpellEntry->IsSpellAppliesAura())
+	{
+		if (SpellAuraHolder* pSpellAuraHolder = pTarget->GetSpellAuraHolder(pSpellEntry->Id))
+		{
+			if (pSpellAuraHolder->GetStackAmount() >= maxStack) //可堆疊效果的法術
+				return false;
+		}
+		else if (pTarget->HasAura(pSpellEntry->Id))
+			return false;
+	}
+
+	SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(pSpellEntry->rangeIndex);
+	if (me != pTarget && pSpellEntry->EffectImplicitTargetA[0] != TARGET_UNIT_CASTER)
+	{
+		float const dist = me->GetCombatDistance(pTarget);
+
+		if (dist > srange->maxRange)
+			return false;
+		if (srange->minRange && dist < srange->minRange)
+			return false;
+	}
+
+	return true;
+}
+
+
 //施法的判斷funnction
 SpellCastResult CombatBotBaseAI::DoCastSpell(Unit* pTarget, SpellEntry const* pSpellEntry)
 {
