@@ -344,6 +344,7 @@ public:
 			SpellEntry const* pFreezingTrap;
 			SpellEntry const* pExplosiveTrap;
 			SpellEntry const* pImmolationTrap;
+            SpellEntry const* pDeterrence;
 			SpellEntry const* pRevivePet;
 			SpellEntry const* pRapidFire;
         } hunter;

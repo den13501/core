@@ -758,6 +758,12 @@ void CombatBotBaseAI::PopulateSpellData()
 						m_spells.hunter.pImmolationTrap->Id < pSpellEntry->Id)
 						m_spells.hunter.pImmolationTrap = pSpellEntry;
 				}
+                else if (pSpellEntry->SpellName[0].find("Deterrence") != std::string::npos) //威攝
+                {
+                    if (!m_spells.hunter.pDeterrence ||
+                        m_spells.hunter.pDeterrence->Id < pSpellEntry->Id)
+                        m_spells.hunter.pDeterrence = pSpellEntry;
+                }
 				else if (pSpellEntry->SpellName[0].find("Revive Pet") != std::string::npos) //復活寵物
 				{
 					if (!m_spells.hunter.pRevivePet ||

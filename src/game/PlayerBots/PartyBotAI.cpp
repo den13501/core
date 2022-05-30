@@ -59,6 +59,9 @@ enum PartyBotSpells //此處的法術定義是給機器人使用和施放用的�
 	PB_SPELL_MOUNT_40_WARLOCK = 5784,
 	PB_SPELL_MOUNT_60_WARLOCK = 23161,
 
+    PB_SPELL_SHIELD_SLAM = 23922, //盾牌猛擊
+    PB_SPELL_HOLY_SHIELD = 20925, //神聖之盾
+
 	PB_SPELL_GOBLIN_SAPPER_CHARGE = 13241, //哥布林工事炸藥(對自己放)
 	PB_SPELL_IRON_GRENADE = 4068, //鐵皮手雷(對敵人放)
 	PB_SPELL_SHOOT_GUN = 7918, //槍射擊
@@ -643,7 +646,7 @@ Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
     // Who is the leader attacking. 隊長攻擊的目標
     if (Unit* pVictim = pLeader->GetVictim())
     {
-        if (IsValidHostileTarget(pVictim))
+        if (pLeader->IsInCombat() && IsValidHostileTarget(pVictim))
             return pVictim;
     }
 
@@ -679,6 +682,24 @@ Unit* PartyBotAI::SelectPartyAttackTarget() const
             // We already checked self.
             if (pMember == me)
                 continue;
+
+			if (m_role == ROLE_TANK)
+			{
+				// Do not attack other tanks tagert 多坦的條件下，不會互搶目標
+				if (pMember->AI())
+				{
+					if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pMember->AI()))
+					{
+						if (pAI->m_role == ROLE_TANK)
+							continue;
+					}
+				}
+				else if (pMember->HasSpell(PB_SPELL_SHIELD_SLAM) ||
+					pMember->HasSpell(PB_SPELL_HOLY_SHIELD) ||
+					pMember->GetShapeshiftForm() == FORM_BEAR ||
+					pMember->GetShapeshiftForm() == FORM_DIREBEAR)
+					continue;
+			}
 
             for (const auto pAttacker : pMember->GetAttackers())
             {
@@ -1128,7 +1149,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     Unit* pVictim = me->GetVictim();
     bool const isOnTransport = me->GetTransport() != nullptr;
 
-    if (m_role != ROLE_HEALER && !isOnTransport) //如果身分非治療且不在交通工具上
+    if (m_role != ROLE_HEALER && (!isOnTransport || !pLeader->IsMounted())) //如果身分非治療且不在「交通工具或坐騎上」
     {
         if (!pVictim || pVictim->IsDead() || pVictim->HasBreakableByDamageCrowdControlAura())
         {
@@ -1791,12 +1812,47 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
             me->GetMotionMaster()->MoveChase(pVictim, 25.0f); //則往敵人移動距離25碼
         }
 
-		if (m_spells.hunter.pFrostTrap &&
-			me->GetDistance(pVictim) <= 25.0f &&
-			CanTryToCastSpell(me, m_spells.hunter.pFrostTrap))
+		if (!me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
 		{
-			if (DoCastSpell(me, m_spells.hunter.pFrostTrap) == SPELL_CAST_OK)
-				return;
+			switch (urand(0, 3))
+			{
+			case 0:
+				if (m_spells.hunter.pFrostTrap &&
+					me->GetDistance(pVictim) <= 25.0f &&
+					CanTryToCastSpell(me, m_spells.hunter.pFrostTrap)) //冰霜陷阱
+				{
+					if (DoCastSpell(me, m_spells.hunter.pFrostTrap) == SPELL_CAST_OK)
+						return;
+				}
+				break;
+			case 1:
+				if (m_spells.hunter.pFreezingTrap &&
+					me->GetDistance(pVictim) <= 25.0f &&
+					CanTryToCastSpell(me, m_spells.hunter.pFreezingTrap)) //冰凍陷阱
+				{
+					if (DoCastSpell(me, m_spells.hunter.pFreezingTrap) == SPELL_CAST_OK)
+						return;
+				}
+				break;
+			case 2:
+				if (m_spells.hunter.pImmolationTrap &&
+					me->GetDistance(pVictim) <= 25.0f &&
+					CanTryToCastSpell(me, m_spells.hunter.pImmolationTrap)) //獻祭陷阱
+				{
+					if (DoCastSpell(me, m_spells.hunter.pImmolationTrap) == SPELL_CAST_OK)
+						return;
+				}
+				break;
+			case 3:
+				if (m_spells.hunter.pExplosiveTrap &&
+					me->GetDistance(pVictim) <= 25.0f &&
+					CanTryToCastSpell(me, m_spells.hunter.pExplosiveTrap)) //爆炸陷阱
+				{
+					if (DoCastSpell(me, m_spells.hunter.pExplosiveTrap) == SPELL_CAST_OK)
+						return;
+				}
+				break;
+			}
 		}
 
 		if (me->HasSpell(PB_SPELL_AUTO_SHOT) &&
@@ -1871,30 +1927,38 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
         {
             Unit* pAttacker = *me->GetAttackers().begin();
 
-            if (m_spells.hunter.pScareBeast &&
-                CanTryToCastSpell(pAttacker, m_spells.hunter.pScareBeast))
-            {
-                if (DoCastSpell(pAttacker, m_spells.hunter.pScareBeast) == SPELL_CAST_OK)
-                    return;
-            }
-
             if (m_spells.hunter.pDisengage &&
-                CanTryToCastSpell(pAttacker, m_spells.hunter.pDisengage))
+                CanTryToCastSpell(pAttacker, m_spells.hunter.pDisengage)) //逃脫
             {
                 if (DoCastSpell(pAttacker, m_spells.hunter.pDisengage) == SPELL_CAST_OK)
                     return;
             }
 
             if (m_spells.hunter.pAspectOfTheMonkey &&
-                CanTryToCastSpell(me, m_spells.hunter.pAspectOfTheMonkey))
+                CanTryToCastSpell(me, m_spells.hunter.pAspectOfTheMonkey)) //靈猴守護
             {
                 if (DoCastSpell(me, m_spells.hunter.pAspectOfTheMonkey) == SPELL_CAST_OK)
                     return;
             }
 
+			if (m_spells.hunter.pScareBeast &&
+				CanTryToCastSpell(pAttacker, m_spells.hunter.pScareBeast))
+			{
+				if (DoCastSpell(pAttacker, m_spells.hunter.pScareBeast) == SPELL_CAST_OK)
+					return;
+			}
+
+			if (m_spells.hunter.pDeterrence &&
+				(me->GetHealthPercent() < 50.0f) &&
+				CanTryToCastSpell(me, m_spells.hunter.pDeterrence)) //威攝
+			{
+				if (DoCastSpell(me, m_spells.hunter.pDeterrence) == SPELL_CAST_OK)
+					return;
+			}
+
             if (m_spells.hunter.pFeignDeath &&
                (me->GetHealthPercent() < 20.0f) &&
-                CanTryToCastSpell(me, m_spells.hunter.pFeignDeath))
+                CanTryToCastSpell(me, m_spells.hunter.pFeignDeath)) //假死
             {
                 if (DoCastSpell(me, m_spells.hunter.pFeignDeath) == SPELL_CAST_OK)
                     return;
@@ -2932,7 +2996,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 
         if (m_spells.warrior.pDemoralizingShout &&
 			m_role == ROLE_TANK &&
-			me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 2 &&
+			me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 1 &&
 			CanTryToCastSpell(pVictim, m_spells.warrior.pDemoralizingShout)) //挫志怒吼
         {
 			if (DoCastSpell(pVictim, m_spells.warrior.pDemoralizingShout) == SPELL_CAST_OK)
@@ -2980,27 +3044,36 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 				return;
 		}
 
-		if (m_spells.warrior.pThunderClap &&
-            me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 1 &&
-			CanTryToCastSpell(pVictim, m_spells.warrior.pThunderClap)) //雷霆一擊
+		if (me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 1) //bot攻擊目標周圍8碼內敵方>1時
 		{
-			if (DoCastSpell(pVictim, m_spells.warrior.pThunderClap) == SPELL_CAST_OK)
-				return;
-		}
+			if (m_spells.warrior.pThunderClap &&
+				CanTryToCastSpell(pVictim, m_spells.warrior.pThunderClap)) //雷霆一擊
+			{
+				if (DoCastSpell(pVictim, m_spells.warrior.pThunderClap) == SPELL_CAST_OK)
+					return;
+			}
 
-		if (m_spells.warrior.pDemoralizingShout &&
-			m_role == ROLE_TANK &&
-			CanTryToCastSpell(pVictim, m_spells.warrior.pDemoralizingShout))
-		{
-			if (DoCastSpell(pVictim, m_spells.warrior.pDemoralizingShout) == SPELL_CAST_OK)
-				return;
+			if (m_spells.warrior.pWhirlwind &&
+				CanTryToCastSpell(pVictim, m_spells.warrior.pWhirlwind)) //旋風斬
+			{
+				if (DoCastSpell(pVictim, m_spells.warrior.pWhirlwind) == SPELL_CAST_OK)
+					return;
+			}
+
+			if (m_spells.warrior.pCleave &&
+				m_role != ROLE_TANK &&
+				CanTryToCastSpell(pVictim, m_spells.warrior.pCleave)) //順批斬
+			{
+				if (DoCastSpell(pVictim, m_spells.warrior.pCleave) == SPELL_CAST_OK)
+					return;
+			}
 		}
 
 		if (m_spells.warrior.pHamstring &&
 			pVictim->IsMoving() &&
 			!pVictim->HasUnitState(UNIT_STAT_ROOT) &&
 			!pVictim->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) &&
-			CanTryToCastSpell(pVictim, m_spells.warrior.pHamstring))
+			CanTryToCastSpell(pVictim, m_spells.warrior.pHamstring)) //斷筋
 		{
 			if (DoCastSpell(pVictim, m_spells.warrior.pHamstring) == SPELL_CAST_OK)
 				return;
@@ -3076,14 +3149,14 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 			!me->IsImmuneToMechanic(MECHANIC_FEAR))
 		{
 			if (m_spells.warrior.pRecklessness &&
-				CanTryToCastSpell(me, m_spells.warrior.pRecklessness))
+				CanTryToCastSpell(me, m_spells.warrior.pRecklessness)) //魯莽
 			{
 				if (DoCastSpell(me, m_spells.warrior.pRecklessness) == SPELL_CAST_OK)
 					return;
 			}
 
 			if (m_spells.warrior.pDeathWish &&
-				CanTryToCastSpell(me, m_spells.warrior.pDeathWish))
+				CanTryToCastSpell(me, m_spells.warrior.pDeathWish)) //死亡意志
 			{
 				if (DoCastSpell(me, m_spells.warrior.pDeathWish) == SPELL_CAST_OK)
 					return;
@@ -3095,24 +3168,6 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 		{
 			if (DoCastSpell(pVictim, m_spells.warrior.pIntercept) == SPELL_CAST_OK)
 				return;
-		}
-
-		if (me->GetEnemyCountInRadiusAround(pVictim, 8.0f) >= 2)
-		{
-
-			if (m_spells.warrior.pWhirlwind &&
-				CanTryToCastSpell(pVictim, m_spells.warrior.pWhirlwind))
-			{
-				if (DoCastSpell(pVictim, m_spells.warrior.pWhirlwind) == SPELL_CAST_OK)
-					return;
-			}
-
-			if (m_spells.warrior.pCleave &&
-				CanTryToCastSpell(pVictim, m_spells.warrior.pCleave))
-			{
-				if (DoCastSpell(pVictim, m_spells.warrior.pCleave) == SPELL_CAST_OK)
-					return;
-			}
 		}
 
 		if (m_spells.warrior.pHeroicStrike &&
@@ -3491,13 +3546,6 @@ void PartyBotAI::UpdateOutOfCombatAI_Druid()
         }
     }
 
-    if (m_spells.druid.pNaturesGrasp &&
-        CanTryToCastSpell(me, m_spells.druid.pNaturesGrasp)) ////自然之握
-    {
-        if (DoCastSpell(me, m_spells.druid.pNaturesGrasp) == SPELL_CAST_OK)
-            return;
-    }
-
     if (m_isBuffing &&
        (!m_spells.druid.pMarkoftheWild ||
         !me->HasGCD(m_spells.druid.pMarkoftheWild)))
@@ -3830,6 +3878,13 @@ void PartyBotAI::UpdateInCombatAI_Druid()
                 me->SetCasterChaseDistance(25.0f);
 				RunAwayFromTarget(pVictim);
                 return;
+            }
+
+            if (m_spells.druid.pNaturesGrasp &&
+                CanTryToCastSpell(me, m_spells.druid.pNaturesGrasp)) //自然之握
+            {
+                if (DoCastSpell(me, m_spells.druid.pNaturesGrasp) == SPELL_CAST_OK)
+					return;
             }
 
             if (m_spells.druid.pFaerieFire &&
