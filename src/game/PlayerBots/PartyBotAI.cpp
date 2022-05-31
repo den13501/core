@@ -1077,15 +1077,24 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         return;
     }
 
-    if (me->HasUnitState(UNIT_STAT_FEIGN_DEATH) && me->HasAuraType(SPELL_AURA_FEIGN_DEATH) &&
+    /*if (me->HasUnitState(UNIT_STAT_FEIGN_DEATH) && me->HasAuraType(SPELL_AURA_FEIGN_DEATH) &&
        !me->IsInCombat() && (!me->GetPet() || !me->GetPet()->IsInCombat()) &&
        !me->SelectRandomUnfriendlyTarget(nullptr, 20.0f, false, true))
-        me->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
+        me->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH); 此為VM原版代碼，先註解慢慢研究
+    */
+
+    if (me->HasAuraType(SPELL_AURA_FEIGN_DEATH))
+	{
+        if (me->GetEnemyCountInRadiusAround(me, 15.0f) > 0)
+            return;
+        else
+            me->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
+    }
 
     if (me->HasUnitState(UNIT_STAT_CAN_NOT_REACT_OR_LOST_CONTROL))
         return;
 
-    if (me->IsDead() && !me->HasAuraType(SPELL_AURA_FEIGN_DEATH))
+    if (me->IsDead())
     {
         if (me->InBattleGround()) //如果在戰場中
         {
@@ -1145,9 +1154,6 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             ChatHandler(me).HandleGonameCommand(name);
             return;
         }
-
-        if (me->HasAuraType(SPELL_AURA_FEIGN_DEATH))
-            me->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
 
         if (!me->IsMounted())
         {
