@@ -1085,7 +1085,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     if (me->HasUnitState(UNIT_STAT_CAN_NOT_REACT_OR_LOST_CONTROL))
         return;
 
-    if (me->IsDead())
+    if (me->IsDead() && !me->HasAuraType(SPELL_AURA_FEIGN_DEATH))
     {
         if (me->InBattleGround()) //如果在戰場中
         {
@@ -1117,11 +1117,11 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         {
             if (me->GetCombatDistance(me->GetVictim()) < 8.0f) //如果與敵人距離小於8碼則停止自動射擊
                 me->InterruptSpell(CURRENT_AUTOREPEAT_SPELL, true);
-            else
-                UpdateInCombatAI_Hunter();
+            //else
+            //    UpdateInCombatAI_Hunter();
         }
 
-        return;
+        //return;
     }
 
     if (me->IsNonMeleeSpellCasted(false, false, true))
@@ -1145,20 +1145,23 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             ChatHandler(me).HandleGonameCommand(name);
             return;
         }
-    }
 
-    if (!me->IsInCombat() && !me->IsMounted())
-    {
-        if (DrinkAndEat())
-            return;
+        if (me->HasAuraType(SPELL_AURA_FEIGN_DEATH))
+            me->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
 
-		UpdateOutOfCombatAI();
+        if (!me->IsMounted())
+        {
+            if (DrinkAndEat())
+                return;
 
-        if (m_isBuffing)
-            return;
+            UpdateOutOfCombatAI();
 
-        if (me->IsNonMeleeSpellCasted())
-            return;
+            if (m_isBuffing)
+                return;
+
+            if (me->IsNonMeleeSpellCasted())
+                return;
+        }
     }
 
     if (me->GetStandState() != UNIT_STAND_STATE_STAND)
@@ -1945,6 +1948,22 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
         {
             Unit* pAttacker = *me->GetAttackers().begin();
 
+			if (m_spells.hunter.pDeterrence &&
+				(me->GetHealthPercent() < 50.0f) &&
+				CanTryToCastSpell(me, m_spells.hunter.pDeterrence)) //威攝
+			{
+				if (DoCastSpell(me, m_spells.hunter.pDeterrence) == SPELL_CAST_OK)
+					return;
+			}
+
+			if (m_spells.hunter.pFeignDeath &&
+				(me->GetHealthPercent() < 15.0f) &&
+				CanTryToCastSpell(me, m_spells.hunter.pFeignDeath)) //假死
+			{
+				if (DoCastSpell(me, m_spells.hunter.pFeignDeath) == SPELL_CAST_OK)
+					return;
+			}
+
             if (m_spells.hunter.pDisengage &&
                 CanTryToCastSpell(pAttacker, m_spells.hunter.pDisengage)) //逃脫
             {
@@ -1966,21 +1985,6 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 					return;
 			}
 
-			if (m_spells.hunter.pDeterrence &&
-				(me->GetHealthPercent() < 50.0f) &&
-				CanTryToCastSpell(me, m_spells.hunter.pDeterrence)) //威攝
-			{
-				if (DoCastSpell(me, m_spells.hunter.pDeterrence) == SPELL_CAST_OK)
-					return;
-			}
-
-            if (m_spells.hunter.pFeignDeath &&
-               (me->GetHealthPercent() < 20.0f) &&
-                CanTryToCastSpell(me, m_spells.hunter.pFeignDeath)) //假死
-            {
-                if (DoCastSpell(me, m_spells.hunter.pFeignDeath) == SPELL_CAST_OK)
-                    return;
-            }
         }
 
         if (pVictim->CanReachWithMeleeAutoAttack(me))
@@ -3062,19 +3066,19 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 				return;
 		}
 
-		if (me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 1) //bot攻擊目標周圍8碼內敵方>1時
+		if (m_role != ROLE_TANK && me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 1) //bot攻擊目標周圍8碼內敵方>1時
 		{
-			if (m_spells.warrior.pThunderClap &&
-				CanTryToCastSpell(pVictim, m_spells.warrior.pThunderClap)) //雷霆一擊
-			{
-				if (DoCastSpell(pVictim, m_spells.warrior.pThunderClap) == SPELL_CAST_OK)
-					return;
-			}
-
 			if (m_spells.warrior.pWhirlwind &&
 				CanTryToCastSpell(pVictim, m_spells.warrior.pWhirlwind)) //旋風斬
 			{
 				if (DoCastSpell(pVictim, m_spells.warrior.pWhirlwind) == SPELL_CAST_OK)
+					return;
+			}
+
+			if (m_spells.warrior.pThunderClap &&
+				CanTryToCastSpell(pVictim, m_spells.warrior.pThunderClap)) //雷霆一擊
+			{
+				if (DoCastSpell(pVictim, m_spells.warrior.pThunderClap) == SPELL_CAST_OK)
 					return;
 			}
 
