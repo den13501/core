@@ -3536,6 +3536,8 @@ void PartyBotAI::UpdateOutOfCombatAI_Druid()
         {
             if (CanTryToCastSpell(pTarget, m_spells.druid.pGiftoftheWild))
             {
+                if (me->GetShapeshiftForm() != FORM_NONE)
+                    me->RemoveSpellsCausingAura(SPELL_AURA_MOD_SHAPESHIFT); //若為變身狀態則變回人形使用野性賜福
                 if (DoCastSpell(pTarget, m_spells.druid.pGiftoftheWild) == SPELL_CAST_OK)
                 {
                     m_isBuffing = true;
@@ -3550,6 +3552,8 @@ void PartyBotAI::UpdateOutOfCombatAI_Druid()
         {
             if (CanTryToCastSpell(pTarget, m_spells.druid.pMarkoftheWild))
             {
+                if (me->GetShapeshiftForm() != FORM_NONE)
+                    me->RemoveSpellsCausingAura(SPELL_AURA_MOD_SHAPESHIFT); //若為變身狀態則變回人形使用野性印記
                 if (DoCastSpell(pTarget, m_spells.druid.pMarkoftheWild) == SPELL_CAST_OK)
                 {
                     m_isBuffing = true;
@@ -3565,6 +3569,8 @@ void PartyBotAI::UpdateOutOfCombatAI_Druid()
         {
             if (CanTryToCastSpell(pTarget, m_spells.druid.pThorns))
             {
+                if (me->GetShapeshiftForm() != FORM_NONE)
+                    me->RemoveSpellsCausingAura(SPELL_AURA_MOD_SHAPESHIFT); //若為變身狀態則變回人形使用荊棘術
                 if (DoCastSpell(pTarget, m_spells.druid.pThorns) == SPELL_CAST_OK)
                 {
                     m_isBuffing = true;

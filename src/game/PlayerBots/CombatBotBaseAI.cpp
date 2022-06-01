@@ -51,7 +51,13 @@ enum CombatBotSpells //此處的法術定義不是施放或使用，主要用於
     PET_SERPENT = 3247,
     PET_RAPTOR  = 3254,
     PET_TURTLE  = 3461,
+	PET_FROSTSABER = 7434,
+	PET_FROSTSABERSTK = 7432,
+	PET_SHARDTOOTH = 7445,
     PET_HYENA   = 4127,
+	PET_HAKKAR = 11357,
+	PET_BROKENTOOTH = 2850,
+	PET_BLOODAXEWORG = 9696,
 };
 
 void CombatBotBaseAI::AutoAssignRole()
@@ -2526,12 +2532,20 @@ Player* CombatBotBaseAI::SelectDispelTarget(SpellEntry const* pSpellEntry) const
 //決定是否需要召喚寵物function
 void CombatBotBaseAI::SummonPetIfNeeded()
 {
-    if (me->GetClass() == CLASS_HUNTER)
+    if (me->GetClass() == CLASS_HUNTER) //獵人寵物
     {
         if (me->GetPetGuid())
 		{
 			if (me->GetPet()->IsAlive())
-				return;
+            {
+				if (!me->GetPet()->AllSpellsLearned())
+				{
+                    me->GetPet()->LearnAllPetSpells();
+                    me->GetPet()->SetPower(POWER_HAPPINESS, me->GetPet()->GetMaxPower(POWER_HAPPINESS));
+                    me->GetPet()->SetLoyaltyLevel(BEST_FRIEND);
+                }
+                return;
+            }
 			else
 			{
 				if (me->HasSpell(SPELL_PET_REVIVE))
@@ -2547,12 +2561,13 @@ void CombatBotBaseAI::SummonPetIfNeeded()
             return;
 
 		//隨機挑選一種獵人寵物
-        /*VM原始定義，從多種動物中隨機挑一個出來
-		uint32 petId = PickRandomValue( PET_WOLF, PET_LUPOS, PET_CAT, PET_BEAR, PET_CRAB, PET_GORILLA, PET_BIRD,
-                                        PET_BOAR, PET_BAT, PET_CROC, PET_SPIDER, PET_OWL, PET_STRIDER,
-                                        PET_SCORPID, PET_SERPENT, PET_RAPTOR, PET_TURTLE, PET_HYENA );
-		*/
-		uint32 petId = PET_LUPOS;//測試，獵人只使用魯伯斯
+        //VM原始定義，從多種動物中隨機挑一個出來
+		uint32 petId = PickRandomValue(PET_WOLF, PET_CAT, PET_BEAR, PET_CRAB, PET_GORILLA, PET_BIRD,
+                                       PET_BOAR, PET_BAT, PET_CROC, PET_SPIDER, PET_OWL, PET_STRIDER,
+                                       PET_SCORPID, PET_SERPENT, PET_RAPTOR, PET_TURTLE, PET_HYENA,
+                                       PET_FROSTSABER, PET_FROSTSABERSTK, PET_SHARDTOOTH,
+                                       PET_HYENA, PET_HAKKAR, PET_BROKENTOOTH, PET_BLOODAXEWORG,PET_LUPOS);
+
         if (Creature* pCreature = me->SummonCreature(petId,
             me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0.0f,
             TEMPSUMMON_TIMED_COMBAT_OR_DEAD_DESPAWN, 3000, false, 3000))
@@ -2564,7 +2579,11 @@ void CombatBotBaseAI::SummonPetIfNeeded()
     else if (me->GetClass() == CLASS_WARLOCK)
     {
         if (me->GetPetGuid())
+        {
+            if (me->GetPet()->AllSpellsLearned())
+                me->GetPet()->LearnAllPetSpells();
             return;
+        }
 
         std::vector<uint32> vSummons;
         if (me->HasSpell(SPELL_SUMMON_IMP))

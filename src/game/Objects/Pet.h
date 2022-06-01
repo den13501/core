@@ -249,6 +249,8 @@ class Pet : public Creature
         int32 GetDispTP() const;
         uint32 GetSkillIdForPetTraining() const;
         bool CanLearnPetSpell(uint32 spellId) const;
+        bool LearnAllPetSpells(); // 學習所有寵物技能
+        bool AllSpellsLearned() { return m_allSpellsLearned; }
 
         int32   m_TrainingPoints;
         uint32  m_resetTalentsCost;
@@ -275,6 +277,7 @@ class Pet : public Creature
         bool    m_loading;
         CharacterPetCache* m_pTmpCache;
         bool    m_unSummoned;                               // If this pet has already been unsummoned
+        bool    m_allSpellsLearned; //學習所有寵物技能
 
     private:
         bool m_enabled;

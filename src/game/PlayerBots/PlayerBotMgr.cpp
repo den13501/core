@@ -795,7 +795,7 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
     }
 
     uint8 botClass = 0;
-    uint32 botLevel = pPlayer->GetLevel() >= 60 ? pPlayer->GetLevel() : pPlayer->GetLevel() + urand(-1,1);  //讀取玩家等級，如沒額外輸入第二參數，預設機器人等級就是玩家等級+-1
+    uint32 botLevel = pPlayer->GetLevel() >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) ? pPlayer->GetLevel() : pPlayer->GetLevel() + urand(-1,1);  //讀取玩家等級，如沒額外輸入第二參數，預設機器人等級就是玩家等級+-1
 	uint32 botGender = urand(0, 1); //加入性別屬性供定義
 	CombatBotRoles botRole = ROLE_INVALID;
 
