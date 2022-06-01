@@ -692,7 +692,10 @@ Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
 //選擇隊伍攻擊的目標function
 Unit* PartyBotAI::SelectPartyAttackTarget() const
 {
+    // Random retries so not everyone selects the same target 隨機選定目標，這樣每個成員不會都選同個目標
+    int retries = urand(1, 3);
     Group* pGroup = me->GetGroup();
+
     for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
     {
         if (Player* pMember = itr->getSource())
@@ -723,7 +726,10 @@ Unit* PartyBotAI::SelectPartyAttackTarget() const
             {
                 if (IsValidHostileTarget(pAttacker) &&
                     me->IsWithinDist(pAttacker, 50.0f))
-                    return pAttacker;
+                {
+                    if (--retries <= 0)
+                        return pAttacker;
+                }
             }
         }
     }
@@ -1071,7 +1077,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     {
         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType())
         {
-            me->GetMotionMaster()->Clear(false, true);
+            //me->GetMotionMaster()->Clear(false, true);
             me->GetMotionMaster()->MoveIdle();
         }
         return;
@@ -1085,7 +1091,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
 
     if (me->HasAuraType(SPELL_AURA_FEIGN_DEATH))
 	{
-        if (me->GetEnemyCountInRadiusAround(me, 15.0f) > 0)
+        if (me->GetEnemyCountInRadiusAround(me, 20.0f) > 0)
             return;
         else
             me->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);

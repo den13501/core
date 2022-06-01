@@ -2305,8 +2305,11 @@ Unit* CombatBotBaseAI::SelectHealTarget(float selfHealPercent, float groupHealPe
     if (me->GetHealthPercent() < selfHealPercent)
         return me;
 
+    std::vector<Unit*> vPlayerTargets; //玩家目標
+    std::vector<Unit*> vPetTargets; //寵物目標
+
     Unit* pTarget = nullptr;
-    float healthPercent = 100.0f;
+    //float healthPercent = 100.0f;
 
     if (Group* pGroup = me->GetGroup()) //迴圈抓出隊伍成員
     {
@@ -2318,12 +2321,20 @@ Unit* CombatBotBaseAI::SelectHealTarget(float selfHealPercent, float groupHealPe
                 if (pMember == me)
                     continue;
 
-                // Avoid all healers picking same target. 避免多位補師重複選取同樣目標
+                /* VM原版
+				// Avoid all healers picking same target. 避免多位補師重複選取同樣目標
                 if (pTarget && !IsTankClass(pMember->GetClass()) && AreOthersOnSameTarget(pMember->GetObjectGuid(), false, true))
                     continue;
+				*/
 
                 // Check if we should heal party member. 檢查我們是否應治療隊伍成員
-                if ((IsValidHealTarget(pMember, groupHealPercent) &&
+				if (IsValidHealTarget(pMember, groupHealPercent))
+					vPlayerTargets.push_back(pMember);
+				// Also check pets. 並且也檢查寵物
+				if ((pMember = pMember->GetPet()) && IsValidHealTarget(pMember, groupHealPercent))
+					vPetTargets.push_back(pMember);
+                /* VM原版
+				if ((IsValidHealTarget(pMember, groupHealPercent) &&
                     healthPercent > pMember->GetHealthPercent()) ||
                     // Or a pet if there are no injured players. //如果沒有受傷的玩家則治療寵物
                     (!pTarget && (pMember = pMember->GetPet()) &&
@@ -2331,13 +2342,18 @@ Unit* CombatBotBaseAI::SelectHealTarget(float selfHealPercent, float groupHealPe
                 {
                     healthPercent = pMember->GetHealthPercent(); //取得成員的生命百分比
                     pTarget = pMember;
-                }
+					
+                }*/
             }
         }
     }
 
-    if (healthPercent == 100.0f)
-        return nullptr;
+    /*if (healthPercent == 100.0f)
+        return nullptr;*/
+    if (!vPlayerTargets.empty())
+        pTarget = SelectRandomContainerElement(vPlayerTargets);
+    else if (!vPetTargets.empty())
+        pTarget = SelectRandomContainerElement(vPetTargets);
 
     return pTarget;
 }
@@ -2347,6 +2363,10 @@ Unit* CombatBotBaseAI::SelectPeriodicHealTarget(float selfHealPercent, float gro
     if (me->GetHealthPercent() < selfHealPercent &&
        !me->HasAuraType(SPELL_AURA_PERIODIC_HEAL))
         return me;
+
+    std::vector<Unit*> vPlayerTargets;
+
+    Unit* pTarget = nullptr;
 
     if (Group* pGroup = me->GetGroup())
     {
@@ -2360,13 +2380,20 @@ Unit* CombatBotBaseAI::SelectPeriodicHealTarget(float selfHealPercent, float gro
 
                 // Check if we should heal party member.
                 if (IsValidHealTarget(pMember, groupHealPercent) &&
+                   /* VM原版
                    !pMember->HasAuraType(SPELL_AURA_PERIODIC_HEAL))
-                    return pMember;
+                   return pMember;
+					*/
+                    !pMember->HasAuraType(SPELL_AURA_PERIODIC_HEAL)) //優化版
+                    vPlayerTargets.push_back(pMember);
             }
         }
     }
 
-    return nullptr;
+    if (!vPlayerTargets.empty())
+        pTarget = SelectRandomContainerElement(vPlayerTargets);
+    //return nullptr; VM原版
+	return pTarget;
 }
 
 //Function 判斷是否為適合的仇恨對象
