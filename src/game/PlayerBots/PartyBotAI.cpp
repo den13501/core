@@ -1548,11 +1548,15 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
 
         bool const hasSeal = m_spells.paladin.pSeal && me->HasAura(m_spells.paladin.pSeal->Id);
 
-        if (!hasSeal &&
-            m_spells.paladin.pSeal &&
-            CanTryToCastSpell(me, m_spells.paladin.pSeal))
+        if (!hasSeal)
         {
-            me->CastSpell(me, m_spells.paladin.pSeal, false);
+            if (me->GetPowerPercent(POWER_MANA) < 15.0f &&
+                m_spells.paladin.pSealOfWisdom &&
+                CanTryToCastSpell(me, m_spells.paladin.pSealOfWisdom))
+                me->CastSpell(me, m_spells.paladin.pSealOfWisdom, false);
+            else if (m_spells.paladin.pSeal &&
+                CanTryToCastSpell(me, m_spells.paladin.pSeal))
+                me->CastSpell(me, m_spells.paladin.pSeal, false);
         }
 
         if (m_role == ROLE_TANK && me->GetHealthPercent() < 35.0f)
@@ -3020,6 +3024,13 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 				return;
 		}
 
+        if (m_spells.warrior.pBerserkerRage &&
+            CanTryToCastSpell(me, m_spells.warrior.pBerserkerRage)) //狂暴之怒
+        {
+            if (DoCastSpell(me, m_spells.warrior.pBerserkerRage) == SPELL_CAST_OK)
+                return;
+        }
+
 		if (m_spells.warrior.pLastStand &&
 			me->GetHealthPercent() < 20.0f &&
 			CanTryToCastSpell(me, m_spells.warrior.pLastStand)) //破釜沉舟
@@ -3113,8 +3124,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 				return;
 		}
 
-		if (me->GetShapeshiftForm() == FORM_DEFENSIVESTANCE &&
-			IsWearingShield())
+        if (me->GetShapeshiftForm() == FORM_DEFENSIVESTANCE && IsWearingShield())
 		{
 			if (!me->GetAttackers().empty())
 			{
@@ -3201,6 +3211,14 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 			CanTryToCastSpell(pVictim, m_spells.warrior.pIntercept)) //攔截
 		{
 			if (DoCastSpell(pVictim, m_spells.warrior.pIntercept) == SPELL_CAST_OK)
+				return;
+		}
+
+		if (me->GetShapeshiftForm() == FORM_BERSERKERSTANCE &&
+			m_spells.warrior.pSlam &&
+			CanTryToCastSpell(pVictim, m_spells.warrior.pSlam)) //狂暴之怒
+		{
+			if (DoCastSpell(pVictim, m_spells.warrior.pSlam) == SPELL_CAST_OK)
 				return;
 		}
 

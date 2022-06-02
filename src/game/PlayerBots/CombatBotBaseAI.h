@@ -282,6 +282,7 @@ public:
         {
             SpellEntry const* pAura;
             SpellEntry const* pSeal;
+			SpellEntry const* pSealOfWisdom; //智慧祝福
             SpellEntry const* pBlessingBuff;
             SpellEntry const* pBlessingOfProtection;
             SpellEntry const* pBlessingOfFreedom;
@@ -300,6 +301,7 @@ public:
             SpellEntry const* pHolyWrath;
             SpellEntry const* pTurnEvil;
             SpellEntry const* pHolyShield;
+			SpellEntry const* pRepentance; //懺悔
         } paladin;
         struct
         {
@@ -471,6 +473,7 @@ public:
             SpellEntry const* pPiercingHowl; //刺耳怒吼
 			SpellEntry const* pRevenge; //復仇
 			SpellEntry const* pChallengingShout; //挑戰怒吼
+			SpellEntry const* pSlam; //猛擊
         } warrior;
         struct
         {

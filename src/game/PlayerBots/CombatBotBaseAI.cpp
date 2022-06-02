@@ -243,6 +243,12 @@ void CombatBotBaseAI::PopulateSpellData()
                         pSealOfCommand->Id < pSpellEntry->Id)
                         pSealOfCommand = pSpellEntry;
                 }
+                else if (pSpellEntry->SpellName[0].find("Seal of Wisdom") != std::string::npos) //智慧聖印
+                {
+                    if (!m_spells.paladin.pSealOfWisdom ||
+                        m_spells.paladin.pSealOfWisdom->Id < pSpellEntry->Id)
+                        m_spells.paladin.pSealOfWisdom = pSpellEntry;
+                }
                 else if (pSpellEntry->SpellName[0].find("Judgement") != std::string::npos)
                 {
                     if (!m_spells.paladin.pJudgement ||
@@ -422,6 +428,12 @@ void CombatBotBaseAI::PopulateSpellData()
                     if (!m_spells.paladin.pHolyShield ||
                         m_spells.paladin.pHolyShield->Id < pSpellEntry->Id)
                         m_spells.paladin.pHolyShield = pSpellEntry;
+                }
+                else if (pSpellEntry->SpellName[0].find("Repentance") != std::string::npos)
+                {
+                    if (!m_spells.paladin.pRepentance ||
+                        m_spells.paladin.pRepentance->Id < pSpellEntry->Id)
+                        m_spells.paladin.pRepentance = pSpellEntry;
                 }
                 break;
             }
@@ -1465,10 +1477,16 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.warrior.pPiercingHowl = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Revenge") != std::string::npos)
+                {
+                    if (!m_spells.warrior.pRevenge ||
+                        m_spells.warrior.pRevenge->Id < pSpellEntry->Id)
+                        m_spells.warrior.pRevenge = pSpellEntry;
+                }
+				else if (pSpellEntry->SpellName[0]._Equal("Slam")) //猛擊
 				{
-					if (!m_spells.warrior.pRevenge ||
-						m_spells.warrior.pRevenge->Id < pSpellEntry->Id)
-						m_spells.warrior.pRevenge = pSpellEntry;
+					if (!m_spells.warrior.pSlam ||
+						m_spells.warrior.pSlam->Id < pSpellEntry->Id)
+						m_spells.warrior.pSlam = pSpellEntry;
 				}
 				else if (pSpellEntry->SpellName[0].find("Challenging Shout") != std::string::npos)
 				{
@@ -1993,12 +2011,12 @@ void CombatBotBaseAI::PopulateSpellData()
                 auras.push_back(pRetributionAura);
             if (pSanctityAura)
                 auras.push_back(pSanctityAura);
-            if (pShadowResistanceAura)
+            /*if (pShadowResistanceAura)
                 auras.push_back(pShadowResistanceAura);
             if (pFrostResistanceAura)
                 auras.push_back(pFrostResistanceAura);
             if (pFireResistanceAura)
-                auras.push_back(pFireResistanceAura);
+                auras.push_back(pFireResistanceAura);*/
             if (!auras.empty())
                 m_spells.paladin.pAura = SelectRandomContainerElement(auras);
 
