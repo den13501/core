@@ -3072,11 +3072,13 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 		}
 		else if (me->GetHealthPercent() > 60.0f)
 		{
-			if (IsDualWielding() && m_spells.warrior.pBerserkerStance &&
-				CanTryToCastSpell(me, m_spells.warrior.pBerserkerStance)) //狂暴姿態
-			{
-				DoCastSpell(me, m_spells.warrior.pBerserkerStance);
-			}
+			//if (IsDualWielding() && m_spells.warrior.pBerserkerStance &&
+            if (m_spells.warrior.pBloodthirst &&
+                m_spells.warrior.pBerserkerStance &&
+                CanTryToCastSpell(me, m_spells.warrior.pBerserkerStance)) //血性狂暴+狂暴姿態
+            {
+                DoCastSpell(me, m_spells.warrior.pBerserkerStance);
+            }
 			else if (m_spells.warrior.pBattleStance &&
 				CanTryToCastSpell(me, m_spells.warrior.pBattleStance)) //戰鬥姿態
 			{
@@ -3295,21 +3297,30 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 			if (DoCastSpell(pVictim, m_spells.warrior.pIntercept) == SPELL_CAST_OK)
 				return;
 		}
-
+/*
 		if (me->GetShapeshiftForm() == FORM_BERSERKERSTANCE &&
 			m_spells.warrior.pSlam &&
-			CanTryToCastSpell(pVictim, m_spells.warrior.pSlam)) //狂暴之怒
+			CanTryToCastSpell(pVictim, m_spells.warrior.pSlam)) //猛擊
 		{
 			if (DoCastSpell(pVictim, m_spells.warrior.pSlam) == SPELL_CAST_OK)
 				return;
 		}
-
+*/
 		if (m_spells.warrior.pHeroicStrike &&
 			CanTryToCastSpell(pVictim, m_spells.warrior.pHeroicStrike)) //英勇打擊
 		{
 			if (DoCastSpell(pVictim, m_spells.warrior.pHeroicStrike) == SPELL_CAST_OK)
 				return;
 		}
+
+        // Slam only good for two handed weapon and improved Slam Talent
+        /*if (me->GetShapeshiftForm() == FORM_BERSERKERSTANCE &&
+            m_spells.warrior.pSlam &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pSlam))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pSlam) == SPELL_CAST_OK)
+                return;
+        }*/
 
 		/*if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
 			&& !me->CanReachWithMeleeAutoAttack(pVictim))
