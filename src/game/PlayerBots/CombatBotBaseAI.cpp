@@ -26,6 +26,7 @@ enum CombatBotSpells //此處的法術定義不是施放或使用，主要用於
 	SPELL_STORMSTRIKE = 17364,
 	SPELL_MOONKIN_FORM = 24858,
 	SPELL_LEADER_OF_THE_PACK = 17007,
+	SPELL_CHALLENGING_SHOUT = 1161, //挑戰怒吼
 
     SPELL_SUMMON_IMP = 688, //召喚小鬼
     SPELL_SUMMON_VOIDWALKER = 697, //召喚虛空行者
@@ -1524,7 +1525,7 @@ void CombatBotBaseAI::PopulateSpellData()
 						m_spells.warrior.pSlam->Id < pSpellEntry->Id)
 						m_spells.warrior.pSlam = pSpellEntry;
 				}
-				else if (pSpellEntry->SpellName[0].find("Challenging Shout") != std::string::npos)
+				else if (pSpellEntry->SpellName[0].find("Challenging Shout") != std::string::npos) //挑戰怒吼
 				{
 					if (!m_spells.warrior.pChallengingShout ||
 						m_spells.warrior.pChallengingShout->Id < pSpellEntry->Id)
@@ -2011,8 +2012,11 @@ void CombatBotBaseAI::PopulateSpellData()
                             spellListPeriodicHeal.insert(pSpellEntry);
                             break;
                         case SPELL_AURA_MOD_TAUNT: //群體嘲諷
-                            spellListTaunt.push_back(pSpellEntry);
+                        {
+                            if (pSpellEntry->Id != SPELL_CHALLENGING_SHOUT)
+                                spellListTaunt.push_back(pSpellEntry);
                             break;
+                        }
                     }
                     break;
                 }
@@ -2680,20 +2684,23 @@ void CombatBotBaseAI::SummonPetIfNeeded()
 
         if (m_spells.warlock.pDemonicSacrifice) //惡魔犧牲
         {
-            if (!me->HasAura(m_spells.warlock.pDemonicSacrifice->Id))
-                me->CastSpell(me, SPELL_SUMMON_SUCCUBUS, true);
+            me->CastSpell(me, SPELL_SUMMON_SUCCUBUS, true); //召喚魅魔
             return;
         }
 
         std::vector<uint32> vSummons;
         if (me->HasSpell(SPELL_SUMMON_IMP))
-            vSummons.push_back(SPELL_SUMMON_IMP); //為試做術士寵物也能丟法術，先暫時限制只能用小鬼
-        /*if (me->HasSpell(SPELL_SUMMON_VOIDWALKER))
+        {
+            vSummons.push_back(SPELL_SUMMON_IMP);
+            vSummons.push_back(SPELL_SUMMON_IMP);
+            vSummons.push_back(SPELL_SUMMON_IMP);
+        }
+        if (me->HasSpell(SPELL_SUMMON_VOIDWALKER))
             vSummons.push_back(SPELL_SUMMON_VOIDWALKER);
         if (me->HasSpell(SPELL_SUMMON_FELHUNTER))
             vSummons.push_back(SPELL_SUMMON_FELHUNTER);
         if (me->HasSpell(SPELL_SUMMON_SUCCUBUS))
-            vSummons.push_back(SPELL_SUMMON_SUCCUBUS);*/
+            vSummons.push_back(SPELL_SUMMON_SUCCUBUS);
         if (!vSummons.empty())
             me->CastSpell(me, SelectRandomContainerElement(vSummons), true);
     }
