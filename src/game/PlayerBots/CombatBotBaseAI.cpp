@@ -2634,8 +2634,8 @@ void CombatBotBaseAI::SummonPetIfNeeded()
 				if (!me->GetPet()->AllSpellsLearned())
 				{
                     me->GetPet()->LearnAllPetSpells();
-                    me->GetPet()->SetPower(POWER_HAPPINESS, me->GetPet()->GetMaxPower(POWER_HAPPINESS));
-                    me->GetPet()->SetLoyaltyLevel(BEST_FRIEND);
+                    me->GetPet()->SetPower(POWER_HAPPINESS, me->GetPet()->GetMaxPower(POWER_HAPPINESS)); //設為最開心
+                    me->GetPet()->SetLoyaltyLevel(BEST_FRIEND); //直接設為最高友好度
                 }
                 return;
             }
@@ -2674,7 +2674,7 @@ void CombatBotBaseAI::SummonPetIfNeeded()
         if (me->GetPetGuid())
         {
             if (me->GetPet()->AllSpellsLearned())
-                me->GetPet()->LearnAllPetSpells();
+                me->GetPet()->LearnAllPetSpells(); //術士寵物習得所有法術
             return;
         }
 

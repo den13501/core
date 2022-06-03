@@ -2499,7 +2499,7 @@ bool ChatHandler::HandleHonorSetRPCommand(char *args)
 
 bool ChatHandler::HandleLearnAllCommand(char* /*args*/)
 {
-    Pet* pPet = GetSelectedPet();
+    Pet* pPet = GetSelectedPet(); // .Learn 可以用在寵物身上
     if (pPet)
     {
         pPet->LearnAllPetSpells();

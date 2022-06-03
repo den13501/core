@@ -3075,12 +3075,15 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 			//if (IsDualWielding() && m_spells.warrior.pBerserkerStance &&
             if (m_spells.warrior.pBloodthirst &&
                 m_spells.warrior.pBerserkerStance &&
+                me->GetShapeshiftForm() != FORM_BERSERKERSTANCE &&
                 CanTryToCastSpell(me, m_spells.warrior.pBerserkerStance)) //血性狂暴+狂暴姿態
             {
                 DoCastSpell(me, m_spells.warrior.pBerserkerStance);
             }
-			else if (m_spells.warrior.pBattleStance &&
-				CanTryToCastSpell(me, m_spells.warrior.pBattleStance)) //戰鬥姿態
+            else if (m_spells.warrior.pMortalStrike &&
+                m_spells.warrior.pBattleStance &&
+                me->GetShapeshiftForm() != FORM_BATTLESTANCE &&
+				CanTryToCastSpell(me, m_spells.warrior.pBattleStance)) //如戰士有致死打擊、戰鬥姿態且目前姿態非戰鬥姿態，則切換至戰鬥姿態
 			{
 				DoCastSpell(me, m_spells.warrior.pBattleStance);
 			}
@@ -3784,6 +3787,7 @@ void PartyBotAI::UpdateInCombatAI_Druid()
         if (Unit* pTarget = SelectHealTarget(70.0f, 70.0f))
         {
             if (m_spells.druid.pSwiftmend &&
+                pTarget->GetHealthPercent() < 50.0f &&
                 pTarget->HasAuraType(SPELL_AURA_PERIODIC_HEAL) &&
                 CanTryToCastSpell(pTarget, m_spells.druid.pSwiftmend)) //如果被治療對象身上有Hot就使用迅捷治癒
             {
