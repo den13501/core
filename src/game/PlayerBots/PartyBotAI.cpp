@@ -3693,6 +3693,20 @@ void PartyBotAI::UpdateOutOfCombatAI_Druid()
         }
     }
 
+    if (m_spells.druid.pOmenOfClarity) //清晰預兆
+    {
+        if (CanTryToCastSpell(me, m_spells.druid.pOmenOfClarity))
+        {
+            if (me->GetShapeshiftForm() != FORM_NONE) //有變身情形下擊變回人形使用清晰預兆
+                me->RemoveSpellsCausingAura(SPELL_AURA_MOD_SHAPESHIFT);
+            if (DoCastSpell(me, m_spells.druid.pOmenOfClarity) == SPELL_CAST_OK)
+            {
+                m_isBuffing = true;
+                return;
+            }
+        }
+    }
+
     if (m_isBuffing &&
        (!m_spells.druid.pMarkoftheWild ||
         !me->HasGCD(m_spells.druid.pMarkoftheWild)))
@@ -3756,9 +3770,19 @@ void PartyBotAI::UpdateInCombatAI_Druid()
 				return;
 
 		// Direct heal.
-		if (Unit* pTarget = SelectHealTarget(70.0f, 70.0f))
-			if (HealInjuredTargetDirect(pTarget))
-				return;
+        if (Unit* pTarget = SelectHealTarget(70.0f, 70.0f))
+        {
+            if (m_spells.druid.pSwiftmend &&
+                pTarget->HasAuraType(SPELL_AURA_PERIODIC_HEAL) &&
+                CanTryToCastSpell(pTarget, m_spells.druid.pSwiftmend)) //如果被治療對象身上有Hot就使用迅捷治癒
+            {
+                if (DoCastSpell(pTarget, m_spells.druid.pSwiftmend) == SPELL_CAST_OK)
+                    return;
+            }
+
+            if (HealInjuredTargetDirect(pTarget))
+                return;
+        }
 	}
     else
 	{

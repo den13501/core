@@ -1966,11 +1966,23 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.druid.pFeralCharge->Id < pSpellEntry->Id)
                         m_spells.druid.pFeralCharge = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Prowl") != std::string::npos)
+                else if (pSpellEntry->SpellName[0].find("Prowl") != std::string::npos) //潛伏
                 {
                     if (!m_spells.druid.pProwl ||
                         m_spells.druid.pProwl->Id < pSpellEntry->Id)
                         m_spells.druid.pProwl = pSpellEntry;
+                }
+                else if (pSpellEntry->SpellName[0].find("Swiftmend") != std::string::npos) //迅捷治癒
+                {
+                if (!m_spells.druid.pSwiftmend ||
+                    m_spells.druid.pSwiftmend->Id < pSpellEntry->Id)
+                    m_spells.druid.pSwiftmend = pSpellEntry;
+                }
+                else if (pSpellEntry->SpellName[0].find("Omen of Clarity") != std::string::npos) //清晰預兆
+                {
+                if (!m_spells.druid.pOmenOfClarity ||
+                    m_spells.druid.pOmenOfClarity->Id < pSpellEntry->Id)
+                    m_spells.druid.pOmenOfClarity = pSpellEntry;
                 }
                 break;
             }
@@ -2663,6 +2675,13 @@ void CombatBotBaseAI::SummonPetIfNeeded()
         {
             if (me->GetPet()->AllSpellsLearned())
                 me->GetPet()->LearnAllPetSpells();
+            return;
+        }
+
+        if (m_spells.warlock.pDemonicSacrifice) //惡魔犧牲
+        {
+            if (!me->HasAura(m_spells.warlock.pDemonicSacrifice->Id))
+                me->CastSpell(me, SPELL_SUMMON_SUCCUBUS, true);
             return;
         }
 
