@@ -75,6 +75,7 @@ ChatCommand * ChatHandler::getCommandTable()
     {
         { "reload",     SEC_ADMINISTRATOR,    true,  &ChatHandler::HandleAHBotReloadCommand,           "Reload table and config", nullptr},
         { "update",     SEC_ADMINISTRATOR,    true,  &ChatHandler::HandleAHBotUpdateCommand,           "Add items for sale", nullptr},
+        { "create",     SEC_ADMINISTRATOR,    true,  &ChatHandler::HandleAHBotCreateCommand,           "Create new auction template", nullptr},
         { nullptr,      0,                    false, nullptr,                                          "", nullptr }
     };
 
