@@ -93,6 +93,13 @@ enum WarlockBotPetSpells //此處的法術定義是給術士機器人寵物使�
 	PB_SPELL_BLOODPACT_RANK5 = 11767, //血之契印R5 需要等級50
 };
 
+enum PartyBotSpecs //Partybot法師天賦
+{
+    PB_SPEC_MAGE_ARCANE = 81,
+    PB_SPEC_MAGE_FIRE = 82,
+    PB_SPEC_MAGE_FROST = 83,
+};
+
 #define PB_UPDATE_INTERVAL 1000
 #define PB_MIN_FOLLOW_DIST 3.0f
 #define PB_MAX_FOLLOW_DIST 6.0f
@@ -1924,39 +1931,57 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 				return;
 		}
 
-        if (m_spells.hunter.pConcussiveShot &&
-            pVictim->IsMoving() && (pVictim->GetVictim() == me) &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pConcussiveShot)) //如果有震盪射擊法術且敵人移動中且敵人的目標是我，則使用震盪射擊
+        if (pVictim->IsMoving() &&
+            !pVictim->HasUnitState(UNIT_STAT_ROOT) &&
+            !pVictim->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED)) //若敵方移動且未定身且身上無減速debuff則使用以下技能
         {
-            if (DoCastSpell(pVictim, m_spells.hunter.pConcussiveShot) == SPELL_CAST_OK)
-                return;
+            if (m_spells.hunter.pConcussiveShot &&
+                CanTryToCastSpell(pVictim, m_spells.hunter.pConcussiveShot)) //震盪射擊
+            {
+                if (DoCastSpell(pVictim, m_spells.hunter.pConcussiveShot) == SPELL_CAST_OK)
+                    return;
+            }
+
+            if (m_spells.hunter.pIntimidation &&
+                CanTryToCastSpell(pVictim, m_spells.hunter.pIntimidation)) //脅迫
+            {
+                if (DoCastSpell(pVictim, m_spells.hunter.pIntimidation) == SPELL_CAST_OK)
+                    return;
+            }
         }
 
-        if (m_spells.hunter.pAimedShot &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pAimedShot))
-        {
-            if (DoCastSpell(pVictim, m_spells.hunter.pAimedShot) == SPELL_CAST_OK)
-                return;
-        }
+		if (m_spells.hunter.pBestialWrath &&
+			CanTryToCastSpell(pVictim, m_spells.hunter.pBestialWrath)) //狂野怒火
+		{
+			if (DoCastSpell(pVictim, m_spells.hunter.pBestialWrath) == SPELL_CAST_OK)
+				return;
+		}
 
         if (m_spells.hunter.pArcaneShot &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pArcaneShot))
+            CanTryToCastSpell(pVictim, m_spells.hunter.pArcaneShot)) //秘法射擊
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pArcaneShot) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.hunter.pSerpentSting &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pSerpentSting))
+            CanTryToCastSpell(pVictim, m_spells.hunter.pSerpentSting)) //毒蛇釘刺
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pSerpentSting) == SPELL_CAST_OK)
                 return;
         }
 
         if (m_spells.hunter.pMultiShot &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pMultiShot))
+            CanTryToCastSpell(pVictim, m_spells.hunter.pMultiShot)) //多重射擊
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pMultiShot) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (m_spells.hunter.pAimedShot &&
+            CanTryToCastSpell(pVictim, m_spells.hunter.pAimedShot)) //瞄準射擊
+        {
+            if (DoCastSpell(pVictim, m_spells.hunter.pAimedShot) == SPELL_CAST_OK)
                 return;
         }
 
@@ -1995,7 +2020,7 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
             }
 
 			if (m_spells.hunter.pScareBeast &&
-				CanTryToCastSpell(pAttacker, m_spells.hunter.pScareBeast))
+				CanTryToCastSpell(pAttacker, m_spells.hunter.pScareBeast)) //恐嚇野獸
 			{
 				if (DoCastSpell(pAttacker, m_spells.hunter.pScareBeast) == SPELL_CAST_OK)
 					return;
@@ -2003,24 +2028,33 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 
         }
 
-        if (pVictim->CanReachWithMeleeAutoAttack(me))
+        if (pVictim->CanReachWithMeleeAutoAttack(me)) //獵人與敵方處於近身的情形
         {
-            if (m_spells.hunter.pWingClip &&
-                CanTryToCastSpell(pVictim, m_spells.hunter.pWingClip))
+            if (m_spells.hunter.pCounterattack &&
+                CanTryToCastSpell(pVictim, m_spells.hunter.pCounterattack)) //反擊
             {
-                DoCastSpell(pVictim, m_spells.hunter.pWingClip);
+                if (DoCastSpell(pVictim, m_spells.hunter.pCounterattack))
+                    return;
+            }
+            if (m_spells.hunter.pWingClip &&
+                CanTryToCastSpell(pVictim, m_spells.hunter.pWingClip)) //摔拌
+            {
+                if (DoCastSpell(pVictim, m_spells.hunter.pWingClip))
+                    return;
             }
 
             if (m_spells.hunter.pMongooseBite &&
-                CanTryToCastSpell(pVictim, m_spells.hunter.pMongooseBite))
+                CanTryToCastSpell(pVictim, m_spells.hunter.pMongooseBite)) //貓鼬撕咬
             {
-                DoCastSpell(pVictim, m_spells.hunter.pMongooseBite);
+                if (DoCastSpell(pVictim, m_spells.hunter.pMongooseBite))
+                    return;
             }
 
             if (m_spells.hunter.pRaptorStrike &&
-                CanTryToCastSpell(pVictim, m_spells.hunter.pRaptorStrike))
+                CanTryToCastSpell(pVictim, m_spells.hunter.pRaptorStrike)) //猛禽一擊
             {
-                DoCastSpell(pVictim, m_spells.hunter.pRaptorStrike);
+                if (DoCastSpell(pVictim, m_spells.hunter.pRaptorStrike))
+                    return;
             }
         }
         else
@@ -2107,8 +2141,14 @@ void PartyBotAI::UpdateOutOfCombatAI_Mage()
         UpdateInCombatAI_Mage();
 }
 
-void PartyBotAI::UpdateInCombatAI_Mage()
+void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
 {
+    int16 spec = PB_SPEC_MAGE_FROST; //法師天賦選擇，預設為冰法
+    if (m_spells.mage.pArcanePower) //如果法師擁有秘法強化技能則設為秘法天賦
+        spec = PB_SPEC_MAGE_ARCANE;
+    else if (m_spells.mage.pCombustion) //如果擁有燃燒技能則設為火法
+        spec = PB_SPEC_MAGE_FIRE;
+
     if (Unit* pVictim = me->GetVictim())
     {
         if (m_spells.mage.pCombustion &&
@@ -2150,8 +2190,7 @@ void PartyBotAI::UpdateInCombatAI_Mage()
                     return;
             }
 
-            if ((m_role != ROLE_MELEE_DPS) &&
-                (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != DISTANCING_MOTION_TYPE))
+            if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != DISTANCING_MOTION_TYPE)
             {
                 if (m_spells.mage.pBlink &&
                     (me->HasUnitState(UNIT_STAT_CAN_NOT_MOVE) ||
@@ -2212,7 +2251,7 @@ void PartyBotAI::UpdateInCombatAI_Mage()
 
         if (m_spells.mage.pCounterspell &&
             pVictim->IsNonMeleeSpellCasted(false, false, true) &&
-            CanTryToCastSpell(pVictim, m_spells.mage.pCounterspell))
+            CanTryToCastSpell(pVictim, m_spells.mage.pCounterspell)) //法術反制
         {
             if (DoCastSpell(pVictim, m_spells.mage.pCounterspell) == SPELL_CAST_OK)
                 return;
@@ -2220,19 +2259,36 @@ void PartyBotAI::UpdateInCombatAI_Mage()
 
         if (m_spells.mage.pRemoveLesserCurse &&
             CanTryToCastSpell(me, m_spells.mage.pRemoveLesserCurse) &&
-            IsValidDispelTarget(me, m_spells.mage.pRemoveLesserCurse))
+            IsValidDispelTarget(me, m_spells.mage.pRemoveLesserCurse)) //解除次級詛咒
         {
             if (DoCastSpell(me, m_spells.mage.pRemoveLesserCurse) == SPELL_CAST_OK)
                 return;
         }
 
-        if (m_spells.mage.pBlizzard &&
-           (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2 && pVictim->GetHealthPercent() < 75.0f) &&
-            CanTryToCastSpell(pVictim, m_spells.mage.pBlizzard))
+        if (m_spells.mage.pCombustion &&
+            CanTryToCastSpell(pVictim, m_spells.mage.pCombustion)) //燃燒
         {
-            if (DoCastSpell(pVictim, m_spells.mage.pBlizzard) == SPELL_CAST_OK)
+            if (DoCastSpell(pVictim, m_spells.mage.pCombustion) == SPELL_CAST_OK)
                 return;
-        }
+         }
+
+        if (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 3 && pVictim->GetHealthPercent() < 75.0f) //交戰敵方目標周圍10碼若>3人，且交戰目標生命<75%
+        {
+            if (spec == PB_SPEC_MAGE_FIRE &&
+                m_spells.mage.pFlamestrike &&
+                CanTryToCastSpell(pVictim, m_spells.mage.pFlamestrike)) //如果是天賦火法則用烈焰風暴
+            {
+                if (DoCastSpell(pVictim, m_spells.mage.pFlamestrike) == SPELL_CAST_OK)
+                    return;
+            }
+
+            if (m_spells.mage.pBlizzard &&
+                CanTryToCastSpell(pVictim, m_spells.mage.pBlizzard)) //暴風雪
+            {
+                if (DoCastSpell(pVictim, m_spells.mage.pBlizzard) == SPELL_CAST_OK)
+                    return;
+             }
+         }
 
         if (m_spells.mage.pPolymorph)
         {
@@ -2258,39 +2314,53 @@ void PartyBotAI::UpdateInCombatAI_Mage()
 
         if (m_spells.mage.pPresenceOfMind &&
            (me->GetPowerPercent(POWER_MANA) > 50.0f) &&
-            CanTryToCastSpell(me, m_spells.mage.pPresenceOfMind))
+            CanTryToCastSpell(me, m_spells.mage.pPresenceOfMind)) //氣定神閒
         {
             if (DoCastSpell(me, m_spells.mage.pPresenceOfMind) == SPELL_CAST_OK)
                 return;
         } 
 
-        if (m_spells.mage.pScorch &&
-           (pVictim->GetHealthPercent() < 20.0f) &&
-            CanTryToCastSpell(pVictim, m_spells.mage.pScorch))
+        if (spec == PB_SPEC_MAGE_FROST) //如為冰法天賦
         {
-            if (DoCastSpell(pVictim, m_spells.mage.pScorch) == SPELL_CAST_OK)
-                return;
+            if (m_spells.mage.pFrostbolt &&
+                CanTryToCastSpell(pVictim, m_spells.mage.pFrostbolt)) //寒冰箭
+            {
+                if (DoCastSpell(pVictim, m_spells.mage.pFrostbolt) == SPELL_CAST_OK)
+                    return;
+            }
         }
-
-        if (m_spells.mage.pFrostbolt &&
-            CanTryToCastSpell(pVictim, m_spells.mage.pFrostbolt))
+        else if (spec == PB_SPEC_MAGE_ARCANE) //如為秘法天賦
         {
-            if (DoCastSpell(pVictim, m_spells.mage.pFrostbolt) == SPELL_CAST_OK)
-                return;
+            if (m_spells.mage.pArcaneMissiles &&
+                CanTryToCastSpell(pVictim, m_spells.mage.pArcaneMissiles)) //秘法飛彈
+            {
+                if (DoCastSpell(pVictim, m_spells.mage.pArcaneMissiles) == SPELL_CAST_OK)
+                    return;
+            }
         }
-
-        if (m_spells.mage.pFireBlast &&
-            CanTryToCastSpell(pVictim, m_spells.mage.pFireBlast))
+        else if (spec == PB_SPEC_MAGE_FIRE) //如為火法天賦
         {
-            if (DoCastSpell(pVictim, m_spells.mage.pFireBlast) == SPELL_CAST_OK)
-                return;
-        }
+            if (m_spells.mage.pFireBlast &&
+                CanTryToCastSpell(pVictim, m_spells.mage.pFireBlast)) //火焰衝擊
+            {
+                if (DoCastSpell(pVictim, m_spells.mage.pFireBlast) == SPELL_CAST_OK)
+                    return;
+            }
 
-        if (m_spells.mage.pFireball &&
-            CanTryToCastSpell(pVictim, m_spells.mage.pFireball))
-        {
-            if (DoCastSpell(pVictim, m_spells.mage.pFireball) == SPELL_CAST_OK)
-                return;
+            if (m_spells.mage.pScorch &&
+                (pVictim->GetHealthPercent() < 20.0f) &&
+                CanTryToCastSpell(pVictim, m_spells.mage.pScorch)) //灼燒
+            {
+                if (DoCastSpell(pVictim, m_spells.mage.pScorch) == SPELL_CAST_OK)
+                    return;
+            }
+
+            if (m_spells.mage.pFireball &&
+                CanTryToCastSpell(pVictim, m_spells.mage.pFireball)) //火球術
+            {
+                if (DoCastSpell(pVictim, m_spells.mage.pFireball) == SPELL_CAST_OK)
+                    return;
+            }
         }
 
         if (m_spells.mage.pEvocation &&
@@ -2517,54 +2587,66 @@ void PartyBotAI::UpdateInCombatAI_Priest() //牧師戰鬥中AI
         }
 
         if (m_spells.priest.pVampiricEmbrace &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pVampiricEmbrace))
+            CanTryToCastSpell(pVictim, m_spells.priest.pVampiricEmbrace)) //吸血鬼的擁抱
         {
             if (DoCastSpell(pVictim, m_spells.priest.pVampiricEmbrace) == SPELL_CAST_OK)
                 return;
         }
 
-        if (m_spells.priest.pMindBlast &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pMindBlast))
+        if (m_spells.priest.pTouchOfWeakness &&
+            CanTryToCastSpell(pVictim, m_spells.priest.pTouchOfWeakness)) //虛弱之觸
         {
-            if (DoCastSpell(pVictim, m_spells.priest.pMindBlast) == SPELL_CAST_OK)
+            if (DoCastSpell(pVictim, m_spells.priest.pTouchOfWeakness) == SPELL_CAST_OK)
                 return;
         }
 
-        if (m_spells.priest.pShadowWordPain &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pShadowWordPain))
-        {
-            if (DoCastSpell(pVictim, m_spells.priest.pShadowWordPain) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (m_spells.priest.pDevouringPlague &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pDevouringPlague))
-        {
-            if (DoCastSpell(pVictim, m_spells.priest.pDevouringPlague) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (m_spells.priest.pPsychicScream &&
-            GetAttackersInRangeCount(10.0f) &&
-            CanTryToCastSpell(me, m_spells.priest.pPsychicScream)) //使用心靈尖嘯
-        {
-			if (DoCastSpell(me, m_spells.priest.pPsychicScream) == SPELL_CAST_OK)
-                return;
-        }
-		
         if (m_spells.priest.pManaBurn &&
-           (pVictim->GetPowerType() == POWER_MANA) &&
+            me->GetPowerPercent(POWER_MANA) < 50.0f &&
+            pVictim->GetPowerType() == POWER_MANA &&
+            pVictim->GetPowerPercent(POWER_MANA) > 10.0f &&
             CanTryToCastSpell(pVictim, m_spells.priest.pManaBurn)) //法力燃燒
         {
             if (DoCastSpell(pVictim, m_spells.priest.pManaBurn) == SPELL_CAST_OK)
                 return;
         }
 
-        if (m_spells.priest.pMindFlay &&
-           (!GetAttackersInRangeCount(10.0f) || me->HasAuraType(SPELL_AURA_SCHOOL_ABSORB)) &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pMindFlay)) ////心靈鞭笞
+        if (m_spells.priest.pMindBlast &&
+            CanTryToCastSpell(pVictim, m_spells.priest.pMindBlast)) //心靈震爆
         {
-            if (DoCastSpell(pVictim, m_spells.priest.pMindFlay) == SPELL_CAST_OK)
+            if (DoCastSpell(pVictim, m_spells.priest.pMindBlast) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (pVictim->GetHealthPercent() < 95.0f) //如果敵方生命<95%
+        {
+            if (m_spells.priest.pShadowWordPain &&
+                CanTryToCastSpell(pVictim, m_spells.priest.pShadowWordPain)) //暗言術：痛
+            {
+                if (DoCastSpell(pVictim, m_spells.priest.pShadowWordPain) == SPELL_CAST_OK)
+                    return;
+            }
+
+            if (m_spells.priest.pDevouringPlague &&
+                CanTryToCastSpell(pVictim, m_spells.priest.pDevouringPlague)) //嗜靈瘟疫
+            {
+                if (DoCastSpell(pVictim, m_spells.priest.pDevouringPlague) == SPELL_CAST_OK)
+                    return;
+            }
+
+            if (m_spells.priest.pMindFlay &&
+                !pVictim->CanReachWithMeleeAutoAttack(me) &&
+                CanTryToCastSpell(pVictim, m_spells.priest.pMindFlay)) //心靈鞭笞
+            {
+                if (DoCastSpell(pVictim, m_spells.priest.pMindFlay) == SPELL_CAST_OK)
+                    return;
+            }
+        }
+
+        if (m_spells.priest.pPsychicScream &&
+            GetAttackersInRangeCount(10.0f) &&
+            CanTryToCastSpell(me, m_spells.priest.pPsychicScream)) //周圍10碼有敵人使用心靈尖嘯
+        {
+			if (DoCastSpell(me, m_spells.priest.pPsychicScream) == SPELL_CAST_OK)
                 return;
         }
 
@@ -3476,8 +3558,15 @@ void PartyBotAI::UpdateInCombatAI_Rogue()
             }
         }
 
+        if (m_spells.rogue.pRiposte &&
+            CanTryToCastSpell(pVictim, m_spells.rogue.pRiposte)) //還擊
+        {
+            if (DoCastSpell(pVictim, m_spells.rogue.pRiposte) == SPELL_CAST_OK)
+                return;
+        }
+
         if (m_spells.rogue.pBackstab &&
-            CanTryToCastSpell(pVictim, m_spells.rogue.pBackstab))
+            CanTryToCastSpell(pVictim, m_spells.rogue.pBackstab)) //背刺
         {
             if (DoCastSpell(pVictim, m_spells.rogue.pBackstab) == SPELL_CAST_OK)
                 return;

@@ -349,7 +349,10 @@ public:
 			SpellEntry const* pImmolationTrap;
             SpellEntry const* pDeterrence;
 			SpellEntry const* pRevivePet;
-			SpellEntry const* pRapidFire;
+            SpellEntry const* pRapidFire;
+            SpellEntry const* pCounterattack;
+            SpellEntry const* pIntimidation;
+            SpellEntry const* pBestialWrath;
         } hunter;
         struct
         {
@@ -377,6 +380,8 @@ public:
             SpellEntry const* pBlizzard;
             SpellEntry const* pBlastWave;
             SpellEntry const* pCombustion;
+            SpellEntry const* pFlamestrike; //烈焰風暴
+            SpellEntry const* pArcaneMissiles; //祕法飛彈
 			SpellEntry const* pPortalIronforge; //傳送門：鐵爐堡
         } mage;
         struct
@@ -403,8 +408,9 @@ public:
             SpellEntry const* pVampiricEmbrace;
             SpellEntry const* pSilence;
             SpellEntry const* pFade;
-            SpellEntry const* pShackleUndead;
-            SpellEntry const* pSmite;
+            SpellEntry const* pShackleUndead; //束縛不死生物
+            SpellEntry const* pSmite; //懲擊
+            SpellEntry const* pTouchOfWeakness; //虛弱之觸
         } priest;
         struct
         {
@@ -530,6 +536,8 @@ public:
             SpellEntry const* pNaturesSwiftness;
             SpellEntry const* pEntanglingRoots;
             SpellEntry const* pHibernate;
+            SpellEntry const* pSwiftmend; //迅捷治療
+            SpellEntry const* pOmenOfClarity; //清晰預兆
             // Cat
             SpellEntry const* pProwl;
             SpellEntry const* pPounce;
