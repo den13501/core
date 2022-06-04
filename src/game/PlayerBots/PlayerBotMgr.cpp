@@ -1036,9 +1036,31 @@ bool ChatHandler::HandlePartyBotSetRoleCommand(char* args)
     return false;
 }
 
-//機器人開始攻擊命令function
+//機器人開始攻擊命令function，可指定發動攻擊的BOT腳色
 bool ChatHandler::HandlePartyBotAttackStartCommand(char* args)
 {
+	CombatBotRoles role1 = ROLE_INVALID;
+	CombatBotRoles role2 = ROLE_INVALID;
+
+	if (args)
+	{
+		std::string roleStr = args;
+
+		if (roleStr == "tank")
+			role1 = ROLE_TANK;
+		else if (roleStr == "dps")
+		{
+			role1 = ROLE_MELEE_DPS;
+			role2 = ROLE_RANGE_DPS;
+		}
+		else if (roleStr == "meleedps")
+			role1 = ROLE_MELEE_DPS;
+		else if (roleStr == "rangedps")
+			role1 = ROLE_RANGE_DPS;
+		else if (roleStr == "healer")
+			role1 = ROLE_HEALER;
+	}
+
     Player* pPlayer = GetSession()->GetPlayer();
     Unit* pTarget = GetSelectedUnit();
     if (!pTarget || (pTarget == pPlayer))
@@ -1067,14 +1089,17 @@ bool ChatHandler::HandlePartyBotAttackStartCommand(char* args)
             {
                 if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pMember->AI()))
                 {
-                    if (pMember->IsValidAttackTarget(pTarget) && pAI->m_role != ROLE_HEALER)
-                        pAI->AttackStart(pTarget);
+                    if (role1 == ROLE_INVALID || pAI->m_role == role1 || pAI->m_role == role2)
+                    {
+                        if (pMember->IsValidAttackTarget(pTarget) && pAI->m_role != ROLE_HEALER)
+                            pAI->AttackStart(pTarget);
+                    }
                 }
             }            
         }
     }
     
-    PSendSysMessage("全隊機器人開始攻擊目標 %s。", pTarget->GetName());
+    PSendSysMessage("機器人開始攻擊目標 %s。", pTarget->GetName());
     return true;
 }
 
@@ -1443,26 +1468,46 @@ bool ChatHandler::HandlePartyBotClearMarksCommand(char* args)
     return true;
 }
 
-//機器人回來命令助手function
-bool HandlePartyBotComeToMeHelper(Player* pBot, Player* pPlayer)
+//機器人回來命令助手function，可以另外指定回來的BOT身分
+bool HandlePartyBotComeToMeHelper(Player* pBot, Player* pPlayer, std::string role)
 {
+
+    CombatBotRoles role1 = ROLE_INVALID;
+    CombatBotRoles role2 = ROLE_INVALID;
+
+    if (role == "tank")
+        role1 = ROLE_TANK;
+    else if (role == "dps")
+    {
+        role1 = ROLE_MELEE_DPS;
+        role2 = ROLE_RANGE_DPS;
+    }
+    else if (role == "meleedps")
+        role1 = ROLE_MELEE_DPS;
+    else if (role == "rangedps")
+        role1 = ROLE_RANGE_DPS;
+    else if (role == "healer")
+        role1 = ROLE_HEALER;
+
     if (pBot->AI() && pBot->IsAlive() &&
         pBot->IsInMap(pPlayer) &&
         !pBot->HasUnitState(UNIT_STAT_NO_FREE_MOVE) &&
-        !pBot->IsWithinDistInMap(pPlayer, 10.0f))
+        !pBot->IsWithinDistInMap(pPlayer, 8.0f))
     {
         if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pBot->AI()))
         {
-            if (pBot->GetVictim())
-                StopPartyBotAttackHelper(pAI, pBot);
+            if (role1 == ROLE_INVALID || pAI->m_role == role1 || pAI->m_role == role2)
+            {
+                if (pBot->GetVictim())
+                    StopPartyBotAttackHelper(pAI, pBot);
 
-            if (pBot->GetStandState() != UNIT_STAND_STATE_STAND)
-                pBot->SetStandState(UNIT_STAND_STATE_STAND);
+                if (pBot->GetStandState() != UNIT_STAND_STATE_STAND)
+                    pBot->SetStandState(UNIT_STAND_STATE_STAND);
 
-            pBot->InterruptSpellsWithInterruptFlags(SPELL_INTERRUPT_FLAG_MOVEMENT);
-            //pBot->MonsterMove(pPlayer->GetPositionX(), pPlayer->GetPositionY(), pPlayer->GetPositionZ());
-            pAI->MoveToTarget(pPlayer);
-            return true;
+                pBot->InterruptSpellsWithInterruptFlags(SPELL_INTERRUPT_FLAG_MOVEMENT);
+                pAI->MoveToTarget(pPlayer);
+                return true;
+			}
         }
     }
 
@@ -1471,6 +1516,11 @@ bool HandlePartyBotComeToMeHelper(Player* pBot, Player* pPlayer)
 
 bool ChatHandler::HandlePartyBotComeToMeCommand(char* args)
 {
+    std::string roleStr = "";
+
+    if (args)
+        roleStr = args;
+
     Player* pPlayer = GetSession()->GetPlayer();
     Player* pTarget = GetSelectedPlayer();
 
@@ -1478,7 +1528,7 @@ bool ChatHandler::HandlePartyBotComeToMeCommand(char* args)
 
     if (pTarget && pTarget != pPlayer)
     {
-        if (ok = HandlePartyBotComeToMeHelper(pTarget, pPlayer))
+        if (ok = HandlePartyBotComeToMeHelper(pTarget, pPlayer, ""))
             PSendSysMessage("%s 將回到你的位置。", pTarget->GetName());
         else
             PSendSysMessage("%s 非機器人或是無法移動。", pTarget->GetName());
@@ -1494,7 +1544,7 @@ bool ChatHandler::HandlePartyBotComeToMeCommand(char* args)
                 if (pMember == pPlayer)
                     continue;
 
-                ok = HandlePartyBotComeToMeHelper(pMember, pPlayer) || ok;
+                ok = HandlePartyBotComeToMeHelper(pMember, pPlayer, roleStr) || ok;
             }
         }
 

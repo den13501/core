@@ -3198,6 +3198,19 @@ bool CombatBotBaseAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* p
     if (pTarget->IsImmuneToSpell(pSpellEntry, false))
         return false;
 
+	if (pSpellEntry->DmgClass == SPELL_DAMAGE_CLASS_MAGIC)
+	{
+		if (pTarget->HasAuraType(SPELL_AURA_REFLECT_SPELLS))
+			return false;
+
+		Unit::AuraList const& mReflectSpellsSchool = pTarget->GetAurasByType(SPELL_AURA_REFLECT_SPELLS_SCHOOL);
+		for (const auto i : mReflectSpellsSchool)
+		{
+			if (i->GetModifier()->m_miscvalue & pSpellEntry->GetSpellSchoolMask())
+				return false;
+		}
+	}
+
     if (pSpellEntry->GetErrorAtShapeshiftedCast(me->GetShapeshiftForm()) != SPELL_CAST_OK)
         return false;
 
