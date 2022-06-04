@@ -250,6 +250,12 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.paladin.pSealOfWisdom->Id < pSpellEntry->Id)
                         m_spells.paladin.pSealOfWisdom = pSpellEntry;
                 }
+                else if (pSpellEntry->SpellName[0].find("Seal of the Crusader") != std::string::npos) //十字軍聖印
+                {
+                    if (!m_spells.paladin.pSealOfCrusader ||
+                        m_spells.paladin.pSealOfCrusader->Id < pSpellEntry->Id)
+                        m_spells.paladin.pSealOfCrusader = pSpellEntry;
+                }
                 else if (pSpellEntry->SpellName[0].find("Judgement") != std::string::npos)
                 {
                     if (!m_spells.paladin.pJudgement ||
@@ -1031,6 +1037,12 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.priest.pPrayerofFortitude->Id < pSpellEntry->Id)
                         m_spells.priest.pPrayerofFortitude = pSpellEntry;
                 }
+                else if (pSpellEntry->SpellName[0].find("Prayer of Healing") != std::string::npos) //治療禱言
+                {
+                    if (!m_spells.priest.pPrayerofHealing ||
+                        m_spells.priest.pPrayerofHealing->Id < pSpellEntry->Id)
+                        m_spells.priest.pPrayerofHealing = pSpellEntry;
+                }
                 else if (pSpellEntry->SpellName[0].find("Inner Fire") != std::string::npos)
                 {
                     if (!m_spells.priest.pInnerFire ||
@@ -1298,6 +1310,12 @@ void CombatBotBaseAI::PopulateSpellData()
                     if (!m_spells.warlock.pLifeTap ||
                         m_spells.warlock.pLifeTap->Id < pSpellEntry->Id)
                         m_spells.warlock.pLifeTap = pSpellEntry;
+                }
+                else if (pSpellEntry->SpellName[0].find("Dark Pact") != std::string::npos) //黑暗契約
+                {
+                if (!m_spells.warlock.pDarkPact ||
+                    m_spells.warlock.pDarkPact->Id < pSpellEntry->Id)
+                    m_spells.warlock.pDarkPact = pSpellEntry;
                 }
 				else if (pSpellEntry->SpellName[0].find("Unending Breath") != std::string::npos)
 				{
@@ -1985,6 +2003,12 @@ void CombatBotBaseAI::PopulateSpellData()
                     m_spells.druid.pOmenOfClarity->Id < pSpellEntry->Id)
                     m_spells.druid.pOmenOfClarity = pSpellEntry;
                 }
+                else if (pSpellEntry->SpellName[0].find("Tranquility") != std::string::npos) //寧靜
+                {
+                if (!m_spells.druid.pTranquility ||
+                    m_spells.druid.pTranquility->Id < pSpellEntry->Id)
+                    m_spells.druid.pTranquility = pSpellEntry;
+                }
                 break;
             }
         }
@@ -2036,22 +2060,35 @@ void CombatBotBaseAI::PopulateSpellData()
                 m_spells.paladin.pSeal = pSealOfRighteousness;
 
             if (pBlessingOfSanctuary && m_role == ROLE_TANK)
-                m_spells.paladin.pBlessingBuff = pBlessingOfSanctuary;
+			{
+				m_spells.paladin.pBlessingBuff = pBlessingOfSanctuary;
+				m_spells.paladin.pBlessingBuffRanged = pBlessingOfSanctuary;
+			}
+			else if (pBlessingOfLight && m_role == ROLE_HEALER)
+			{
+				m_spells.paladin.pBlessingBuff = pBlessingOfLight;
+				m_spells.paladin.pBlessingBuffRanged = pBlessingOfLight;
+			}
             else
             {
                 std::vector<SpellEntry const*> blessings;
-                if (pBlessingOfLight)
-                    blessings.push_back(pBlessingOfLight);
+                std::vector<SpellEntry const*> blessingsRanged;
+
                 if (pBlessingOfMight)
                     blessings.push_back(pBlessingOfMight);
                 if (pBlessingOfWisdom)
-                    blessings.push_back(pBlessingOfWisdom);
+					blessingsRanged.push_back(pBlessingOfWisdom);
                 if (pBlessingOfKings)
                     blessings.push_back(pBlessingOfKings);
-                if (pBlessingOfSanctuary)
-                    blessings.push_back(pBlessingOfSanctuary);
+				{
+					blessings.push_back(pBlessingOfKings);
+					blessingsRanged.push_back(pBlessingOfKings);
+				}
+
                 if (!blessings.empty())
                     m_spells.paladin.pBlessingBuff = SelectRandomContainerElement(blessings);
+				if (!blessingsRanged.empty())
+					m_spells.paladin.pBlessingBuffRanged = SelectRandomContainerElement(blessingsRanged);
             }
 
             std::vector<SpellEntry const*> auras;
@@ -2061,9 +2098,9 @@ void CombatBotBaseAI::PopulateSpellData()
                 auras.push_back(pConcentrationAura);
             if (pRetributionAura)
                 auras.push_back(pRetributionAura);
-            if (pSanctityAura)
+			/*if (pSanctityAura)
                 auras.push_back(pSanctityAura);
-            /*if (pShadowResistanceAura)
+            if (pShadowResistanceAura)
                 auras.push_back(pShadowResistanceAura);
             if (pFrostResistanceAura)
                 auras.push_back(pFrostResistanceAura);
@@ -2210,6 +2247,17 @@ void CombatBotBaseAI::PopulateSpellData()
 
             break;
         }
+		case CLASS_WARLOCK:
+		{
+			std::vector<SpellEntry const*> vCurses;
+			if (m_spells.warlock.pCurseofShadow)
+				vCurses.push_back(m_spells.warlock.pCurseofShadow);
+			if (m_spells.warlock.pCurseoftheElements)
+				vCurses.push_back(m_spells.warlock.pCurseoftheElements);
+
+			if (!vCurses.empty())
+				m_spells.warlock.pRaidCurse = SelectRandomContainerElement(vCurses);
+		}
     }
 }
 
@@ -2548,6 +2596,32 @@ uint8 CombatBotBaseAI::GetAttackersInRangeCount(float range) const
     return count;
 }
 
+//新自定義，取得需要治療的盟友數量
+uint8 CombatBotBaseAI::GetAlliesNeedingHealCount(float range, float healthPercent) const
+{
+    uint8 count = 0;
+
+    if (Group* pGroup = me->GetGroup())
+    {
+        for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
+        {
+            if (Unit* pMember = itr->getSource())
+            {
+                if (me->GetDistance(pMember) > range)
+                    continue;
+                // Check if we should heal party member.
+                if (IsValidHealTarget(pMember, healthPercent))
+                    count++;
+                // Also check pets.
+               if ((pMember = pMember->GetPet()) && IsValidHealTarget(pMember, healthPercent))
+                    count++;
+            }
+        }
+    }
+
+    return count;
+}
+
 Unit* CombatBotBaseAI::SelectAttackerDifferentFrom(Unit const* pExcept) const
 {
     for (const auto& pTarget : me->GetAttackers())
@@ -2603,6 +2677,34 @@ Player* CombatBotBaseAI::SelectBuffTarget(SpellEntry const* pSpellEntry) const
     return nullptr;
 }
 
+//選擇BUFF對象之迴圈函式
+Player* CombatBotBaseAI::SelectBuffTarget(SpellEntry const* pSpellEntryMeele, SpellEntry const* pSpellEntryRanged) const
+{
+	Group* pGroup = me->GetGroup();
+	if (pGroup)
+	{
+		for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
+		{
+			if (Player* pMember = itr->getSource())
+			{
+				if (pMember->IsAlive() &&
+					!pMember->IsGameMaster() &&
+					me->IsWithinLOSInMap(pMember) &&
+					me->IsWithinDist(pMember, 30.0f))
+				{
+					if ((IsMeleeWeaponClass(pMember->GetClass()) &&
+						IsValidBuffTarget(pMember, pSpellEntryMeele)) ||
+						(!IsMeleeWeaponClass(pMember->GetClass()) &&
+							IsValidBuffTarget(pMember, pSpellEntryRanged)))
+						return pMember;
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 //選擇消除隊友DEFUFF之迴圈函式
 Player* CombatBotBaseAI::SelectDispelTarget(SpellEntry const* pSpellEntry) const
 {
@@ -2629,17 +2731,25 @@ Player* CombatBotBaseAI::SelectDispelTarget(SpellEntry const* pSpellEntry) const
 //決定是否需要召喚寵物function
 void CombatBotBaseAI::SummonPetIfNeeded()
 {
+	Pet* pPet = me->GetPet();
+
+	if (!pPet)
+		me->ResummonPetTemporaryUnSummonedIfAny();
+
     if (me->GetClass() == CLASS_HUNTER) //獵人寵物
     {
         if (me->GetPetGuid())
 		{
-			if (me->GetPet()->IsAlive())
-            {
-				if (!me->GetPet()->AllSpellsLearned())
+			if (pPet && pPet->IsAlive())
+			{
+				if (pPet->GetReactState() != REACT_PASSIVE)
+					pPet->SetReactState(REACT_PASSIVE);
+				if (!pPet->AllSpellsLearned())
+					pPet->LearnAllPetSpells();
+				if (pPet->GetLoyaltyLevel() != BEST_FRIEND)
 				{
-                    me->GetPet()->LearnAllPetSpells();
-                    me->GetPet()->SetPower(POWER_HAPPINESS, me->GetPet()->GetMaxPower(POWER_HAPPINESS)); //設為最開心
-                    me->GetPet()->SetLoyaltyLevel(BEST_FRIEND); //直接設為最高友好度
+					pPet->SetPower(POWER_HAPPINESS, me->GetPet()->GetMaxPower(POWER_HAPPINESS));
+					pPet->SetLoyaltyLevel(BEST_FRIEND);
                 }
                 return;
             }
@@ -2659,13 +2769,14 @@ void CombatBotBaseAI::SummonPetIfNeeded()
 
 		//隨機挑選一種獵人寵物
         //VM原始定義，從多種動物中隨機挑一個出來
-		uint32 petId = PickRandomValue(PET_WOLF, PET_CAT, PET_BEAR, PET_CRAB, PET_GORILLA, PET_BIRD,
-                                       PET_BOAR, PET_BAT, PET_CROC, PET_SPIDER, PET_OWL, PET_STRIDER,
-                                       PET_SCORPID, PET_SERPENT, PET_RAPTOR, PET_TURTLE, PET_HYENA,
-                                       PET_FROSTSABER, PET_FROSTSABERSTK, PET_SHARDTOOTH,
-                                       PET_HYENA, PET_HAKKAR, PET_BROKENTOOTH, PET_BLOODAXEWORG,PET_LUPOS);
+		if (!m_petId)
+			m_petId = PickRandomValue(PET_WOLF, PET_CAT, PET_BEAR, PET_CRAB, PET_GORILLA, PET_BIRD,
+                                      PET_BOAR, PET_BAT, PET_CROC, PET_SPIDER, PET_OWL, PET_STRIDER,
+                                      PET_SCORPID, PET_SERPENT, PET_RAPTOR, PET_TURTLE, PET_HYENA,
+                                      PET_FROSTSABER, PET_FROSTSABERSTK, PET_SHARDTOOTH,
+                                      PET_HYENA, PET_HAKKAR, PET_BROKENTOOTH, PET_BLOODAXEWORG, PET_LUPOS);
 
-        if (Creature* pCreature = me->SummonCreature(petId,
+		if (Creature* pCreature = me->SummonCreature(m_petId,
             me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0.0f,
             TEMPSUMMON_TIMED_COMBAT_OR_DEAD_DESPAWN, 3000, false, 3000))
         {
@@ -2675,10 +2786,12 @@ void CombatBotBaseAI::SummonPetIfNeeded()
     }
     else if (me->GetClass() == CLASS_WARLOCK)
     {
-        if (me->GetPetGuid())
-        {
-            if (me->GetPet()->AllSpellsLearned())
-                me->GetPet()->LearnAllPetSpells(); //術士寵物習得所有法術
+		if (pPet && pPet->IsAlive())
+		{
+			if (pPet->GetReactState() != REACT_PASSIVE)
+				pPet->SetReactState(REACT_PASSIVE);
+			if (!pPet->AllSpellsLearned())
+				pPet->LearnAllPetSpells();
             return;
         }
 

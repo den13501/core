@@ -112,6 +112,7 @@ public:
     uint8 m_level = 0;
     uint32 m_mapId = 0;
     uint32 m_instanceId = 0;
+    uint32 m_ressTimer = 0;
     float m_x = 0.0f;
     float m_y = 0.0f;
     float m_z = 0.0f;

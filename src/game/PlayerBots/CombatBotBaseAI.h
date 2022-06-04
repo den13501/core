@@ -97,10 +97,12 @@ public:
     void AutoEquipGear(uint32 option);
     
     uint8 GetAttackersInRangeCount(float range) const;
+    uint8 GetAlliesNeedingHealCount(float range, float healthPercent) const; //取得需要治療的盟友數量
     Unit* SelectAttackerDifferentFrom(Unit const* pExcept) const;
     Unit* SelectHealTarget(float selfHealPercent = 100.0f, float groupHealPercent = 100.0f) const;
     Unit* SelectPeriodicHealTarget(float selfHealPercent = 100.0f, float groupHealPercent = 100.0f) const;
     Player* SelectBuffTarget(SpellEntry const* pSpellEntry) const;
+    Player* SelectBuffTarget(SpellEntry const* pSpellEntryMeele, SpellEntry const* pSpellEntryRanged) const;
     Player* SelectDispelTarget(SpellEntry const* pSpellEntry) const;
     bool IsValidBuffTarget(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
     bool IsValidHealTarget(Unit const* pTarget, float healthPercent = 100.0f) const;
@@ -282,8 +284,10 @@ public:
         {
             SpellEntry const* pAura;
             SpellEntry const* pSeal;
-			SpellEntry const* pSealOfWisdom; //智慧祝福
+			SpellEntry const* pSealOfWisdom; //智慧聖印
+            SpellEntry const* pSealOfCrusader; //十字軍聖印
             SpellEntry const* pBlessingBuff;
+            SpellEntry const* pBlessingBuffRanged;
             SpellEntry const* pBlessingOfProtection;
             SpellEntry const* pBlessingOfFreedom;
             SpellEntry const* pBlessingOfSacrifice;
@@ -390,6 +394,7 @@ public:
             SpellEntry const* pDivineSpirit;
             SpellEntry const* pPrayerofSpirit;
             SpellEntry const* pPrayerofFortitude;
+            SpellEntry const* pPrayerofHealing; //治療禱言
             SpellEntry const* pInnerFire;
             SpellEntry const* pShadowProtection;
             SpellEntry const* pPowerWordShield;
@@ -440,6 +445,8 @@ public:
             SpellEntry const* pCurseofExhaustion;
             SpellEntry const* pLifeTap;
             SpellEntry const* pUnendingBreath;
+			SpellEntry const* pDarkPact;
+			SpellEntry const* pRaidCurse;
         } warlock;
         struct
         {
@@ -538,6 +545,7 @@ public:
             SpellEntry const* pHibernate;
             SpellEntry const* pSwiftmend; //迅捷治療
             SpellEntry const* pOmenOfClarity; //清晰預兆
+			SpellEntry const* pTranquility; //寧靜
             // Cat
             SpellEntry const* pProwl;
             SpellEntry const* pPounce;
@@ -567,6 +575,7 @@ public:
     bool m_initialized = false;
     bool m_isBuffing = false;
     bool m_receivedBgInvite = false;
+    uint32 m_petId = 0;
     CombatBotRoles m_role = ROLE_INVALID;
 };
 
