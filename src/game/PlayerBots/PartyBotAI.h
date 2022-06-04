@@ -73,6 +73,7 @@ public:
 	void MoveToTarget(Unit* pTarget);
     bool CrowdControlMarkedTargets();
     bool EnterCombatDruidForm();
+    void PopulateConsumableSpellData();
     bool ShouldEnterStealth() const;
     bool EnterStealthIfNeeded(SpellEntry const* pStealthSpell);
     void OnWhisper(Player* pWho, std::string text) override;
@@ -105,7 +106,10 @@ public:
     ObjectGuid m_leaderGuid;
     ObjectGuid m_cloneGuid;
     ObjectGuid m_spamGuid;
-    SpellEntry const* m_spamSpell = 0;    
+    SpellEntry const* m_spamSpell = 0; 
+    SpellEntry const* m_potionSpell = nullptr;
+    SpellEntry const* m_elixirSpell = nullptr;
+    SpellEntry const* m_flaskSpell = nullptr;
     uint8 m_race = 0;
 	uint8 m_gender = 0; //擴充屬性=性別
     uint8 m_class = 0;

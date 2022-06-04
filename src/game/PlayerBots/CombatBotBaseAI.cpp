@@ -2005,9 +2005,15 @@ void CombatBotBaseAI::PopulateSpellData()
                 }
                 else if (pSpellEntry->SpellName[0].find("Tranquility") != std::string::npos) //寧靜
                 {
-                if (!m_spells.druid.pTranquility ||
-                    m_spells.druid.pTranquility->Id < pSpellEntry->Id)
-                    m_spells.druid.pTranquility = pSpellEntry;
+				if (!m_spells.druid.pTranquility ||
+					m_spells.druid.pTranquility->Id < pSpellEntry->Id)
+					m_spells.druid.pTranquility = pSpellEntry;
+				}
+				else if (pSpellEntry->SpellName[0].find("Remove Curse") != std::string::npos) //解除詛咒
+				{
+				if (!m_spells.druid.pRemoveCurse ||
+					m_spells.druid.pRemoveCurse->Id < pSpellEntry->Id)
+					m_spells.druid.pRemoveCurse = pSpellEntry;
                 }
                 break;
             }
@@ -2423,8 +2429,9 @@ Unit* CombatBotBaseAI::SelectHealTarget(float selfHealPercent, float groupHealPe
     if (me->GetHealthPercent() < selfHealPercent)
         return me;
 
-    std::vector<Unit*> vPlayerTargets; //玩家目標
-    std::vector<Unit*> vPetTargets; //寵物目標
+    std::vector<Unit*> vHighPriority; //高優先
+    std::vector<Unit*> vMediumPriority; //中優先
+    std::vector<Unit*> vLowPriority; //低優先
 
     Unit* pTarget = nullptr;
     //float healthPercent = 100.0f;
@@ -2433,7 +2440,7 @@ Unit* CombatBotBaseAI::SelectHealTarget(float selfHealPercent, float groupHealPe
     {
         for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
         {
-            if (Unit* pMember = itr->getSource())
+            if (Player* pMember = itr->getSource())
             {
                 // We already checked self.跳過自己
                 if (pMember == me)
@@ -2445,12 +2452,20 @@ Unit* CombatBotBaseAI::SelectHealTarget(float selfHealPercent, float groupHealPe
                     continue;
 				*/
 
-                // Check if we should heal party member. 檢查我們是否應治療隊伍成員
-				if (IsValidHealTarget(pMember, groupHealPercent))
-					vPlayerTargets.push_back(pMember);
-				// Also check pets. 並且也檢查寵物
-				if ((pMember = pMember->GetPet()) && IsValidHealTarget(pMember, groupHealPercent))
-					vPetTargets.push_back(pMember);
+                // Check if we should heal group member. 檢查我們是否應治療隊伍成員
+                if (IsValidHealTarget(pMember, groupHealPercent))
+                {
+                    if (pMember->GetSubGroup() == me->GetSubGroup())
+                        vHighPriority.push_back(pMember);
+                    else
+                        vMediumPriority.push_back(pMember);
+                }
+                // Also check pets.
+                if (Unit* pPet = pMember->GetPet())
+				{
+					if (IsValidHealTarget(pPet, groupHealPercent))
+						vLowPriority.push_back(pMember);
+				}
                 /* VM原版
 				if ((IsValidHealTarget(pMember, groupHealPercent) &&
                     healthPercent > pMember->GetHealthPercent()) ||
@@ -2468,10 +2483,12 @@ Unit* CombatBotBaseAI::SelectHealTarget(float selfHealPercent, float groupHealPe
 
     /*if (healthPercent == 100.0f)
         return nullptr;*/
-    if (!vPlayerTargets.empty())
-        pTarget = SelectRandomContainerElement(vPlayerTargets);
-    else if (!vPetTargets.empty())
-        pTarget = SelectRandomContainerElement(vPetTargets);
+    if (!vHighPriority.empty())
+        pTarget = SelectRandomContainerElement(vHighPriority);
+    else if (!vMediumPriority.empty())
+        pTarget = SelectRandomContainerElement(vMediumPriority);
+    else if (!vLowPriority.empty())
+        pTarget = SelectRandomContainerElement(vLowPriority);
 
     return pTarget;
 }

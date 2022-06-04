@@ -404,8 +404,8 @@ public:
             SpellEntry const* pMindFlay;
             SpellEntry const* pShadowWordPain;
             SpellEntry const* pInnerFocus;
-            SpellEntry const* pAbolishDisease;
-            SpellEntry const* pDispelMagic;
+            SpellEntry const* pAbolishDisease; //驅除疾病
+            SpellEntry const* pDispelMagic; //驅散魔法
             SpellEntry const* pManaBurn;
             SpellEntry const* pDevouringPlague;
             SpellEntry const* pPsychicScream;
@@ -546,6 +546,7 @@ public:
             SpellEntry const* pSwiftmend; //迅捷治療
             SpellEntry const* pOmenOfClarity; //清晰預兆
 			SpellEntry const* pTranquility; //寧靜
+            SpellEntry const* pRemoveCurse; //解除詛咒
             // Cat
             SpellEntry const* pProwl;
             SpellEntry const* pPounce;
