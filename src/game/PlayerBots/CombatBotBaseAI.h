@@ -5,6 +5,58 @@
 #include "SpellEntry.h"
 #include "Player.h"
 
+enum CombatBotSpells //此處的法術定義不是施放或使用，主要用於機器人產生時的身分判斷和做為屬性打底
+{
+	SPELL_MAIL_PROFICIENCY = 8737, //學習鎖甲
+	SPELL_PLATE_PROFICIENCY = 750, //學習鎧甲
+	SPELL_GUNS = 266, //學習槍
+	SPELL_BOWS = 264, //學習弓
+	SEPLL_CROSSBOWS = 5011, //學習十字弓
+	SPELL_THROWN = 2567, //學習投擲
+
+	SPELL_SHIELD_SLAM = 23922,
+	SPELL_HOLY_SHIELD = 20925,
+	SPELL_SANCTITY_AURA = 20218,
+	SPELL_SHADOWFORM = 15473,
+	SPELL_ELEMENTAL_MASTERY = 16166,
+	SPELL_STORMSTRIKE = 17364,
+	SPELL_MOONKIN_FORM = 24858,
+	SPELL_LEADER_OF_THE_PACK = 17007,
+	SPELL_CHALLENGING_SHOUT = 1161, //挑戰怒吼
+
+	SPELL_SUMMON_IMP = 688, //召喚小鬼
+	SPELL_SUMMON_VOIDWALKER = 697, //召喚虛空行者
+	SPELL_SUMMON_FELHUNTER = 691, //召喚惡魔獵犬
+	SPELL_SUMMON_SUCCUBUS = 712, //召喚媚魔
+	SPELL_TAME_BEAST = 13481, //馴服野獸
+	SPELL_PET_REVIVE = 982, //復活寵物
+
+	PET_WOLF = 565,	//瘋狂的恐狼
+	PET_LUPOS = 521, //魯伯斯
+	PET_CAT = 681,
+	PET_BEAR = 822,
+	PET_CRAB = 831,
+	PET_GORILLA = 1108,
+	PET_BIRD = 1109,
+	PET_BOAR = 1190,
+	PET_BAT = 1554,
+	PET_CROC = 1693,
+	PET_SPIDER = 1781,
+	PET_OWL = 1997,
+	PET_STRIDER = 2322,
+	PET_SCORPID = 3127,
+	PET_SERPENT = 3247,
+	PET_RAPTOR = 3254,
+	PET_TURTLE = 3461,
+	PET_FROSTSABER = 7434,
+	PET_FROSTSABERSTK = 7432,
+	PET_SHARDTOOTH = 7445,
+	PET_HYENA = 4127,
+	PET_HAKKAR = 11357,
+	PET_BROKENTOOTH = 2850,
+	PET_BLOODAXEWORG = 9696,
+};
+
 struct HealSpellCompare
 {
     bool operator() (SpellEntry const* const lhs, SpellEntry const* const rhs) const
@@ -99,8 +151,9 @@ public:
     uint8 GetAttackersInRangeCount(float range) const;
     uint8 GetAlliesNeedingHealCount(float range, float healthPercent) const; //取得需要治療的盟友數量
     Unit* SelectAttackerDifferentFrom(Unit const* pExcept) const;
-    Unit* SelectHealTarget(float selfHealPercent = 100.0f, float groupHealPercent = 100.0f) const;
-    Unit* SelectPeriodicHealTarget(float selfHealPercent = 100.0f, float groupHealPercent = 100.0f) const;
+    //Unit* SelectHealTarget(float selfHealPercent = 100.0f, float groupHealPercent = 100.0f) const;
+    //Unit* SelectPeriodicHealTarget(float selfHealPercent = 100.0f, float groupHealPercent = 100.0f) const;
+    Unit* SelectHealTarget(float healthPercent = 100.0f, bool periodic = false) const;
     Player* SelectBuffTarget(SpellEntry const* pSpellEntry) const;
     Player* SelectBuffTarget(SpellEntry const* pSpellEntryMeele, SpellEntry const* pSpellEntryRanged) const;
     Player* SelectDispelTarget(SpellEntry const* pSpellEntry) const;
@@ -108,8 +161,9 @@ public:
     bool IsValidHealTarget(Unit const* pTarget, float healthPercent = 100.0f) const;
     bool IsValidHostileTarget(Unit const* pTarget) const;
     bool IsValidDispelTarget(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
-    bool FindAndHealInjuredAlly(float selfHealPercent = 100.0f, float groupHealPercent = 100.0f);
-    bool HealInjuredTarget(Unit* pTarget);
+    //bool FindAndHealInjuredAlly(float selfHealPercent = 100.0f, float groupHealPercent = 100.0f);
+    //bool HealInjuredTarget(Unit* pTarget);
+    bool FindAndHealInjuredAlly(float minimumHealthPercent = 100.0f, float criticalHealthPercent = 50.0f);
     bool HealInjuredTargetDirect(Unit* pTarget);
     bool HealInjuredTargetPeriodic(Unit* pTarget);
     template <class T>
@@ -118,6 +172,7 @@ public:
 
     SpellCastResult DoCastSpell(Unit* pTarget, SpellEntry const* pSpellEntry);
     virtual bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
+    bool IsSpellReady(SpellEntry const* pSpellEntry) const;
 	bool CanTryToCastStackSpell(Unit const* pTarget, SpellEntry const* pSpellEntry, uint32 maxStack = 1) const;
     bool IsWearingShield() const;
 	bool IsDualWielding() const; //雙持
@@ -334,7 +389,7 @@ public:
             SpellEntry const* pAspectOfTheMonkey;
             SpellEntry const* pAspectOfTheHawk;
             SpellEntry const* pSerpentSting;
-			SpellEntry const* pViperSting;
+			SpellEntry const* pViperSting; //毒蛇釘刺
             SpellEntry const* pArcaneShot;
             SpellEntry const* pAimedShot;
             SpellEntry const* pMultiShot;
@@ -353,10 +408,12 @@ public:
 			SpellEntry const* pImmolationTrap;
             SpellEntry const* pDeterrence;
 			SpellEntry const* pRevivePet;
-            SpellEntry const* pRapidFire;
             SpellEntry const* pCounterattack;
             SpellEntry const* pIntimidation;
             SpellEntry const* pBestialWrath;
+            SpellEntry const* pTranquilizingShot;
+            SpellEntry const* pRapidFire; //急速射擊
+            SpellEntry const* pTrueshotAura; //強擊光環
         } hunter;
         struct
         {
@@ -387,6 +444,11 @@ public:
             SpellEntry const* pFlamestrike; //烈焰風暴
             SpellEntry const* pArcaneMissiles; //祕法飛彈
 			SpellEntry const* pPortalIronforge; //傳送門：鐵爐堡
+            SpellEntry const* pImprovedArcaneExplosion;
+            SpellEntry const* pImprovedFlamestrike;
+            SpellEntry const* pImprovedFireball;
+            SpellEntry const* pImprovedScorch;
+            SpellEntry const* pImprovedArcaneMissiles;
         } mage;
         struct
         {
@@ -420,6 +482,7 @@ public:
         struct
         {
             SpellEntry const* pDemonArmor;
+			SpellEntry const* pDemonSkin; //惡魔皮膚
             SpellEntry const* pDeathCoil;
             SpellEntry const* pDetectInvisibility;
             SpellEntry const* pShadowWard;
@@ -511,6 +574,7 @@ public:
             SpellEntry const* pVanish;
             SpellEntry const* pBlind;
             SpellEntry const* pPreparation;
+			SpellEntry const* pSap; //悶棍
             SpellEntry const* pEvasion;
             SpellEntry const* pRiposte;
             SpellEntry const* pKick;
@@ -547,6 +611,7 @@ public:
             SpellEntry const* pOmenOfClarity; //清晰預兆
 			SpellEntry const* pTranquility; //寧靜
             SpellEntry const* pRemoveCurse; //解除詛咒
+			SpellEntry const* pFuror; //激怒
             // Cat
             SpellEntry const* pProwl;
             SpellEntry const* pPounce;

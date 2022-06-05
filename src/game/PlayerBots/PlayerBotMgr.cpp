@@ -434,6 +434,99 @@ bool PlayerBotMgr::DeleteBot(std::map<uint32, PlayerBotEntry*>::iterator iter)
     return true;
 }
 
+bool PlayerBotMgr::AddPartyBot(Player* pPlayer, std::string option, uint32 forceLevel)
+{
+	if (!pPlayer)
+		return false;
+
+	uint8 botClass = 0;
+	uint32 botLevel = 0;
+	//uint32 botGender = urand(0, 1); //加入性別屬性供定義
+
+	if (forceLevel)
+		botLevel = forceLevel;
+	else
+		botLevel = pPlayer->GetLevel() >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) ? pPlayer->GetLevel() + urand(0, 1) : pPlayer->GetLevel() + urand(-1, 1);
+
+	botLevel = botLevel < 1 ? 1 : botLevel;
+
+	CombatBotRoles botRole = ROLE_INVALID;
+
+	if (option == "warrior")
+		botClass = CLASS_WARRIOR;
+	else if (option == "paladin" && pPlayer->GetTeam() == ALLIANCE)
+		botClass = CLASS_PALADIN;
+	else if (option == "hunter")
+		botClass = CLASS_HUNTER;
+	else if (option == "rogue")
+		botClass = CLASS_ROGUE;
+	else if (option == "priest")
+		botClass = CLASS_PRIEST;
+	else if (option == "shaman" && pPlayer->GetTeam() == HORDE)
+		botClass = CLASS_SHAMAN;
+	else if (option == "mage")
+		botClass = CLASS_MAGE;
+	else if (option == "warlock")
+		botClass = CLASS_WARLOCK;
+	else if (option == "druid")
+		botClass = CLASS_DRUID;
+	else if (option == "dps")
+	{
+		/*
+		std::vector<uint32> dpsClasses = { CLASS_WARRIOR, CLASS_HUNTER, CLASS_ROGUE, CLASS_PRIEST, CLASS_MAGE, CLASS_WARLOCK, CLASS_DRUID };
+		if (pPlayer->GetTeam() == HORDE)
+		dpsClasses.push_back(CLASS_SHAMAN);
+		else
+		dpsClasses.push_back(CLASS_PALADIN);
+		botClass = SelectRandomContainerElement(dpsClasses);
+		*/
+		if (pPlayer->GetTeam() == ALLIANCE)
+			botClass = PickRandomValue(CLASS_WARRIOR, CLASS_HUNTER, CLASS_ROGUE, CLASS_MAGE, CLASS_WARLOCK, CLASS_PALADIN); //聯盟dps randon加入CLASS_PALADIN
+		else
+			botClass = PickRandomValue(CLASS_WARRIOR, CLASS_HUNTER, CLASS_ROGUE, CLASS_MAGE, CLASS_WARLOCK, CLASS_SHAMAN); //部落dps randon加入CLASS_SHAMAN
+		botRole = CombatBotBaseAI::IsMeleeDamageClass(botClass) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
+	}
+	else if (option == "healer")
+	{
+		std::vector<uint32> healerClasses = { CLASS_PRIEST, CLASS_DRUID };
+
+		if (pPlayer->GetTeam() == HORDE)
+			healerClasses.push_back(CLASS_SHAMAN);
+		if (pPlayer->GetTeam() == ALLIANCE)
+			healerClasses.push_back(CLASS_PALADIN);
+
+		botClass = SelectRandomContainerElement(healerClasses);
+		botRole = ROLE_HEALER;
+	}
+	else if (option == "tank")
+	{
+		std::vector<uint32> tankClasses = { CLASS_WARRIOR, CLASS_DRUID };
+
+		if (pPlayer->GetTeam() == ALLIANCE)
+			tankClasses.push_back(CLASS_PALADIN); //如果陣營為聯盟則回傳聖騎
+
+		botClass = SelectRandomContainerElement(tankClasses);
+		botRole = ROLE_TANK;
+	}
+
+	if (botRole == ROLE_INVALID)
+	{
+		if (botClass == CLASS_DRUID && botLevel >= 60)
+			botRole == urand(0, 1) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
+		else
+			botRole = CombatBotBaseAI::IsMeleeWeaponClass(botClass) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
+	}
+
+	uint8 botRace = sPlayerBotMgr.SelectRandomRaceForClass(botClass, pPlayer->GetTeam());
+
+	float x, y, z;
+	pPlayer->GetNearPoint(pPlayer, x, y, z, 0, 5.0f, frand(0.0f, 6.0f));
+
+	//PartyBotAI* ai = new PartyBotAI(pPlayer, nullptr, botRole, botRace, botClass, botGender, botLevel, pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
+	PartyBotAI* ai = new PartyBotAI(pPlayer, nullptr, botRole, botRace, botClass, botLevel, pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
+	AddBot(ai);
+}
+
 bool PlayerBotMgr::DeleteRandomBot()
 {
     if (m_stats.onlineCount < 1)
@@ -598,7 +691,7 @@ bool ChatHandler::HandleBotStartCommand(char * args)
 }
 
 //Function: 隨機選擇職業之種族
-uint8 SelectRandomRaceForClass(uint8 playerClass, Team playerTeam)
+uint8 PlayerBotMgr::SelectRandomRaceForClass(uint8 playerClass, Team playerTeam)
 {
     switch (playerClass)
     {
@@ -760,11 +853,9 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
     if (!pPlayer)
         return false;
 
-	/*if (!pPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING))
-	return false;*/
-
-    if (!PartyBotAddRequirementCheck(pPlayer, nullptr))
+	if (!args)
     {
+		SendSysMessage("語法錯誤，必須是身分(dps/tank/healer)或職業(warrior/mage..etc)。且敵對陣營職業不可用。");
         SetSentErrorMessage(true);
         return false;
     }
@@ -787,13 +878,13 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
 		return false;
 	}
 
-    if (!args)
+	if (!PartyBotAddRequirementCheck(pPlayer, nullptr))
     {
-        SendSysMessage("語法錯誤。必須是身分(dps/tank/healer)或職業(warrior/mage..etc)。且敵對陣營職業不可用。");
         SetSentErrorMessage(true);
         return false;
     }
 
+	/*
     uint8 botClass = 0;
     uint32 botLevel = pPlayer->GetLevel() >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) ? pPlayer->GetLevel() : pPlayer->GetLevel() + urand(-1,1);  //讀取玩家等級，如沒額外輸入第二參數，預設機器人等級就是玩家等級+-1
 	uint32 botGender = urand(0, 1); //加入性別屬性供定義
@@ -926,6 +1017,30 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
     }
 
     return true;
+	*/
+
+	uint32 botLevel = 0;
+	//uint32 botGender = urand(0, 1); //加入性別屬性供定義
+	//ExtractUInt32(&args, botLevel); //prevent player add level argument禁止使用第二個參數=botlevel
+	// Prevent setting a custom level for bots unless the account is a GM or skipping checks is enabled.
+	if (GetSession()->GetSecurity() > SEC_PLAYER || sWorld.getConfig(CONFIG_BOOL_PARTY_BOT_SKIP_CHECKS))
+		ExtractUInt32(&args, botLevel);
+	//else
+		//ExtractUInt32(&args, botGender); //使用第二個參數=botGender
+
+	std::string option = "dps";
+
+	if (char* arg1 = ExtractArg(&args))
+	{
+		option = arg1;
+	}
+
+	if (sPlayerBotMgr.AddPartyBot(pPlayer, option, botLevel))
+	{
+		SendSysMessage("加入一位機器人。");
+		return true;
+	}
+	return false;
 }
 
 //Function: 克隆機器人命令
@@ -949,14 +1064,16 @@ bool ChatHandler::HandlePartyBotCloneCommand(char* args)
         return false;
     }
 
+	//uint32 botGender = urand(0, 1); //加入性別屬性供定義
     uint8 botRace = pTarget->GetRace();
     uint8 botClass = pTarget->GetClass();
-	uint8 botGender = pTarget->GetGender();
+	//uint8 botGender = pTarget->GetGender();
 
     float x, y, z;
     pPlayer->GetNearPoint(pPlayer, x, y, z, 0, 5.0f, frand(0.0f, 6.0f));
 
-    PartyBotAI* ai = new PartyBotAI(pPlayer, pTarget, ROLE_INVALID, botRace, botGender, botClass, pPlayer->GetLevel(), pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
+    //PartyBotAI* ai = new PartyBotAI(pPlayer, pTarget, ROLE_INVALID, botRace, botGender, botClass, pPlayer->GetLevel(), pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
+	PartyBotAI* ai = new PartyBotAI(pPlayer, pTarget, ROLE_INVALID, botRace, botClass, pPlayer->GetLevel(), pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
     if (sPlayerBotMgr.AddBot(ai))
         SendSysMessage("加入一位機器人。");
     else
@@ -1912,7 +2029,8 @@ bool ChatHandler::HandleBattleBotAddCommand(char* args, uint8 bg) //輸入兩個
     else
         dpsClasses.push_back(CLASS_PALADIN);
     uint8 botClass = SelectRandomContainerElement(dpsClasses);
-    uint8 botRace = SelectRandomRaceForClass(botClass, botTeam);
+    //uint8 botRace = SelectRandomRaceForClass(botClass, botTeam);
+	uint8 botRace = sPlayerBotMgr.SelectRandomRaceForClass(botClass, botTeam);
 	if (botTeam == ALLIANCE)
 	{
 		// Spawn alliance battlebot on GM Island

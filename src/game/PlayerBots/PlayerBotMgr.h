@@ -81,6 +81,7 @@ class PlayerBotMgr
         bool AddBot(uint32 playerGuid, bool chatBot=false);
         bool DeleteBot(std::map<uint32, PlayerBotEntry*>::iterator iter);
         bool DeleteBot(uint32 playerGuid);
+        bool AddPartyBot(Player* pPlayer, std::string option, uint32 botLevel); //NPC添加PARTYBOT用途
 
         bool AddRandomBot();
         bool DeleteRandomBot();
@@ -93,6 +94,8 @@ class PlayerBotMgr
         void OnPlayerInWorld(Player* pPlayer);
         void AddTempBot(uint32 account, uint32 time);
         void RefreshTempBot(uint32 account);
+
+		uint8 SelectRandomRaceForClass(uint8 playerClass, Team playerTeam);
 
         bool ForceAccountConnection(WorldSession* sess);
         bool IsPermanentBot(uint32 playerGuid);

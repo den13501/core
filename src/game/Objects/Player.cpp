@@ -1493,6 +1493,16 @@ void Player::RemoveCityTitle()
     m_ExtraFlags &= ~PLAYER_EXTRA_CITY_PROTECTOR;
 }
 
+//設定治療目標定時器
+void Player::SetHealTargetTimer(uint32 newHealTargetTimer, uint32 newHealPeriodicTargetTimer)
+{
+	if (newHealTargetTimer)
+		m_healTargetTimer = newHealTargetTimer;
+
+	if (newHealPeriodicTargetTimer)
+		m_healPeriodicTargetTimer = newHealPeriodicTargetTimer;
+}
+
 AutoAttackCheckResult Player::CanAutoAttackTarget(Unit const* pVictim) const
 {
     if (!IsValidAttackTarget(pVictim))
@@ -1541,6 +1551,22 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         }
         else
             m_DetectInvTimer -= update_diff;
+    }
+
+    // Update special Timer for bot Heal Targeting
+    if (m_healTargetTimer > 0)
+    {
+        if (update_diff >= m_healTargetTimer)
+            m_healTargetTimer = 0;
+        else
+            m_healTargetTimer -= update_diff;
+    }
+    if (m_healPeriodicTargetTimer > 0)
+    {
+        if (update_diff >= m_healPeriodicTargetTimer)
+            m_healPeriodicTargetTimer = 0;
+        else
+            m_healPeriodicTargetTimer -= update_diff;
     }
 
     // Update items that have just a limited lifetime
@@ -8531,6 +8557,17 @@ void Player::SetBindPoint(ObjectGuid guid) const
     GetSession()->SendPacket(&data);
 }
 
+//添加Partybot函式
+void Player::PartyBotAdd()
+{
+    Player* me = ToPlayer();
+
+    if (!GetGroup())
+        sPlayerBotMgr.AddPartyBot(me, "dps", 0);
+    else
+        ChatHandler(me).PSendSysMessage("你已經有隊伍了");
+}
+
 void Player::SendTalentWipeConfirm(ObjectGuid guid) const
 {
     WorldPacket data(MSG_TALENT_WIPE_CONFIRM, (8 + 4));
@@ -12282,6 +12319,7 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
                     break;
                 case GOSSIP_OPTION_SPIRITGUIDE:
                 case GOSSIP_OPTION_INNKEEPER:
+                case GOSSIP_OPTION_BOT: //機器人Partybot選單
                 case GOSSIP_OPTION_BANKER:
                 case GOSSIP_OPTION_PETITIONER:
                 case GOSSIP_OPTION_TABARDDESIGNER:
@@ -12514,6 +12552,7 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId)
             }
 
             GetSession()->SendBattleGroundList(guid, bgTypeId);
+			/*
 			// [WIP]Auto queue for battlebot
 			if (bgTypeId == BATTLEGROUND_WS)
 			{
@@ -12528,8 +12567,8 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId)
 				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
 				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
 			}
-
-			break;
+			*/
+            break;
         }
 		/*case 63:
 			//PlayerTalkClass->CloseGossip();
@@ -12540,6 +12579,10 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId)
 			ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
 			return;
 		*/
+        case GOSSIP_OPTION_BOT: //機器人BOT對話選單
+            PlayerTalkClass->CloseGossip();
+            PartyBotAdd();
+            break;
     }
 
     if (pMenuData.m_gAction_script)

@@ -21,6 +21,71 @@
 #include "Group.h"
 #include "ObjectAccessor.h"
 
+enum PartyBotSpells //此處的法術定義是給機器人使用和施放用的，通常是較通用的法術，非特定職業的法術
+{
+	PB_SPELL_FOOD = 1131,
+	PB_SPELL_DRINK_25 = 1133, // bot>=lv55
+	PB_SPELL_DRINK_35 = 1135, // bot>=lv35
+	PB_SPELL_DRINK_45 = 1137, //bot>=lv45 Restores 2934 mana over 30 sec
+	PB_SPELL_DRINK_55 = 22734, // bot>=lv55
+	PB_SPELL_AUTO_SHOT = 75,
+	PB_SPELL_SHOOT_WAND = 5019,
+	PB_SPELL_HONORLESS_TARGET = 2479,
+	PB_SPELL_POT_RESTO = 11359,
+	PB_SPELL_POT_HEAL_3 = 858,
+	PB_SPELL_POT_HEAL_12 = 929,
+	PB_SPELL_POT_HEAL_21 = 1710,
+	PB_SPELL_POT_HEAL_35 = 3928,
+	PB_SPELL_POT_HEAL_45 = 13446,
+	PB_SPELL_POT_REJUV = 22729, //回春藥水 效果回復1440 to 1760點法力值和生命值。
+	PB_SPELL_ELX_MAGEBL = 24363, //魔血藥水 效果每5秒回復12點法力，持續1hour
+	PB_SPELL_ELX_MOONG = 17538, //貓鼬藥劑 效果敏捷提高25點，爆擊率提高2%
+	PB_SPELL_ELX_FORCE = 17537,
+	PB_SPELL_FLASK_TITAN = 17626,
+	PB_SPELL_FLASK_SPOWER = 17628,
+	PB_SPELL_FLASK_WISDOM = 17627,
+
+	//mounts definition of each race
+	PB_SPELL_MOUNT_40_HUMAN = 470,
+	PB_SPELL_MOUNT_40_NELF = 10787,
+	PB_SPELL_MOUNT_40_DWARF = 6896,
+	PB_SPELL_MOUNT_40_GNOME = 17456,
+	PB_SPELL_MOUNT_40_TROLL = 10795,
+	PB_SPELL_MOUNT_40_ORC = 581,
+	PB_SPELL_MOUNT_40_TAUREN = 18363,
+	PB_SPELL_MOUNT_40_UNDEAD = 8980,
+	PB_SPELL_MOUNT_60_HUMAN = 22717,
+	PB_SPELL_MOUNT_60_NELF = 22723,
+	PB_SPELL_MOUNT_60_DWARF = 22720,
+	PB_SPELL_MOUNT_60_GNOME = 22719,
+	PB_SPELL_MOUNT_60_TROLL = 22721,
+	PB_SPELL_MOUNT_60_ORC = 22724,
+	PB_SPELL_MOUNT_60_TAUREN = 22718,
+	PB_SPELL_MOUNT_60_UNDEAD = 22722,
+	PB_SPELL_MOUNT_40_PALADIN = 13819,
+	PB_SPELL_MOUNT_60_PALADIN = 23214,
+	PB_SPELL_MOUNT_40_WARLOCK = 5784,
+	PB_SPELL_MOUNT_60_WARLOCK = 23161,
+
+	PB_SPELL_SHIELD_SLAM = 23922, //盾牌猛擊
+	PB_SPELL_HOLY_SHIELD = 20925, //神聖之盾
+	PB_SPELL_TOUCH_OF_SHADOW = 18791, //暗影之觸
+
+	PB_SPELL_GOBLIN_SAPPER_CHARGE = 13241, //哥布林工事炸藥(對自己放)
+	PB_SPELL_IRON_GRENADE = 4068, //鐵皮手雷(對敵人放)
+	PB_SPELL_SHOOT_GUN = 7918, //槍射擊
+	PB_SPELL_SHOOT_BOW = 2480, //弓射擊
+	PB_SPELL_SHOOT_CROSSBOW = 7919, //十字弓射擊
+	PB_SPELL_THROW = 2764, //投擲武器
+};
+
+enum PartyBotSpecs //Partybot法師天賦
+{
+	PB_SPEC_MAGE_ARCANE = 81,
+	PB_SPEC_MAGE_FIRE = 82,
+	PB_SPEC_MAGE_FROST = 83,
+};
+
 struct LootResponseData
 {
     LootResponseData(uint64 guid_, uint32 slot_) : guid(guid_), slot(slot_) {}
@@ -32,8 +97,10 @@ class PartyBotAI : public CombatBotBaseAI
 {
 public:
 
-    PartyBotAI(Player* pLeader, Player* pClone, CombatBotRoles role, uint8 race, uint8 gender, uint8 class_, uint8 level, uint32 mapId, uint32 instanceId, float x, float y, float z, float o)
-        : CombatBotBaseAI(), m_race(race), m_gender(gender), m_class(class_), m_level(level), m_mapId(mapId), m_instanceId(instanceId), m_x(x), m_y(y), m_z(z), m_o(o)
+   // PartyBotAI(Player* pLeader, Player* pClone, CombatBotRoles role, uint8 race, uint8 gender, uint8 class_, uint8 level, uint32 mapId, uint32 instanceId, float x, float y, float z, float o)
+   //     : CombatBotBaseAI(), m_race(race), m_gender(gender), m_class(class_), m_level(level), m_mapId(mapId), m_instanceId(instanceId), m_x(x), m_y(y), m_z(z), m_o(o)
+	PartyBotAI(Player* pLeader, Player* pClone, CombatBotRoles role, uint8 race, uint8 class_, uint8 level, uint32 mapId, uint32 instanceId, float x, float y, float z, float o)
+		: CombatBotBaseAI(), m_race(race), m_class(class_), m_level(level), m_mapId(mapId), m_instanceId(instanceId), m_x(x), m_y(y), m_z(z), m_o(o)
     {
         m_role = role;
         m_leaderGuid = pLeader->GetObjectGuid();
@@ -42,7 +109,8 @@ public:
     }
     bool OnSessionLoaded(PlayerBotEntry* entry, WorldSession* sess) override
     {
-        return SpawnNewPartybotPlayer(sess, m_class, m_race, m_gender, m_mapId, m_instanceId, m_x, m_y, m_z, m_o, sObjectAccessor.FindPlayer(m_cloneGuid));  //嘗試修改自訂性別
+        //return SpawnNewPartybotPlayer(sess, m_class, m_race, m_gender, m_mapId, m_instanceId, m_x, m_y, m_z, m_o, sObjectAccessor.FindPlayer(m_cloneGuid));  //嘗試修改自訂性別
+		return SpawnNewPlayer(sess, m_class, m_race, m_mapId, m_instanceId, m_x, m_y, m_z, m_o, sObjectAccessor.FindPlayer(m_cloneGuid));
     }
 
     void OnPlayerLogin() final;
@@ -58,9 +126,10 @@ public:
     Player* GetPartyLeader() const;
     bool AttackStart(Unit* pVictim);
 	bool TankPull(Unit* pVictim);//坦克開怪命令
-	bool MageOpenPortal();//法師開傳送門
+	//bool MageOpenPortal();//法師開傳送門
     Unit* SelectAttackTarget(Player* pLeader) const;
     Unit* SelectPartyAttackTarget() const;
+	Unit* SelectSpellTargetDifferentFrom(SpellEntry const* pSpellEntry, Unit* pVictim, float distance = 10.0f) const;
     Player* SelectResurrectionTarget() const; //選擇復活目標
     Player* SelectShieldTarget() const;
     Unit* GetMarkedTarget(RaidTargetIcon mark) const;
@@ -70,10 +139,15 @@ public:
     void RunAwayFromTarget(Unit* pTarget);
 	void MageRunAwayFromTarget(Unit* pTarget);
 	bool HunterRunAwayFromTarget(Unit* pTarget);
-	void MoveToTarget(Unit* pTarget);
+	//void MoveToTarget(Unit* pTarget);
+	void RunAwayFromObject(GameObject* pObject, float distance = 10.0f, Unit* pTarget = nullptr);
+	void RunAwayFromAOE(float distance);
+	void MoveToTarget(Unit* pTarget, float distance = 1.0f);
+	void ChaseTarget(Unit* pTarget);
     bool CrowdControlMarkedTargets();
     bool EnterCombatDruidForm();
     void PopulateConsumableSpellData();
+	bool CheckBossMechanics();
     bool ShouldEnterStealth() const;
     bool EnterStealthIfNeeded(SpellEntry const* pStealthSpell);
     void OnWhisper(Player* pWho, std::string text) override;
@@ -105,11 +179,13 @@ public:
     ShortTimeTracker m_updateTimer;
     ObjectGuid m_leaderGuid;
     ObjectGuid m_cloneGuid;
+	ObjectGuid m_distObjGuid;
     ObjectGuid m_spamGuid;
     SpellEntry const* m_spamSpell = 0; 
     SpellEntry const* m_potionSpell = nullptr;
     SpellEntry const* m_elixirSpell = nullptr;
     SpellEntry const* m_flaskSpell = nullptr;
+	SpellEntry const* m_restPotion = nullptr;
     uint8 m_race = 0;
 	uint8 m_gender = 0; //擴充屬性=性別
     uint8 m_class = 0;
@@ -117,6 +193,8 @@ public:
     uint32 m_mapId = 0;
     uint32 m_instanceId = 0;
     uint32 m_ressTimer = 0;
+	uint32 m_aoeSpellTimer = 0;
+	uint32 m_spellTimer1 = 0;
     float m_x = 0.0f;
     float m_y = 0.0f;
     float m_z = 0.0f;

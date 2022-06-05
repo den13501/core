@@ -1895,6 +1895,7 @@ class Player final: public Unit
 
         bool SetPosition(float x, float y, float z, float orientation, bool teleport = false);
         void SetBindPoint(ObjectGuid guid) const;
+		void PartyBotAdd(); //自訂，NPC添加Partybot選單
 
         WorldLocation& GetTeleportDest() { return m_teleport_dest; }
         bool IsBeingTeleported() const { return mSemaphoreTeleport_Near || mSemaphoreTeleport_Far || mPendingFarTeleport; }
@@ -2214,6 +2215,8 @@ class Player final: public Unit
         float m_resurrectX, m_resurrectY, m_resurrectZ;
         uint32 m_resurrectHealth, m_resurrectMana;
         uint32 m_drunkTimer;
+        uint32 m_healTargetTimer;
+        uint32 m_healPeriodicTargetTimer;
         uint16 m_drunk;
         void HandleSobering();
         uint32 m_deathTimer;
@@ -2301,6 +2304,9 @@ class Player final: public Unit
         uint32 GetCorpseReclaimDelay(bool pvp) const;
         void SendCorpseReclaimDelay(bool load = false) const;
 
+        uint32 GetHealDirectTargetTimer() const { return m_healTargetTimer; }
+        uint32 GetHealPeriodicTargetTimer() const { return m_healPeriodicTargetTimer; }
+        void SetHealTargetTimer(uint32 newHealTargetTimer, uint32 newHealPeriodiTargetTimer);
         /*********************************************************/
         /***                    CHAT SYSTEM                    ***/
         /*********************************************************/

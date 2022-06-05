@@ -1118,7 +1118,7 @@ void BattleBotAI::UpdateOutOfCombatAI_Paladin()
         m_isBuffing = false;
     }
 
-    FindAndHealInjuredAlly();
+    FindAndHealInjuredAlly(90.0f, 50.0f);
 }
 
 void BattleBotAI::UpdateInCombatAI_Paladin()
@@ -1251,7 +1251,7 @@ void BattleBotAI::UpdateInCombatAI_Paladin()
         }
     }
 
-    FindAndHealInjuredAlly(me->IsTotalImmune() ? 80.0f : 40.0f, 50.0f);
+    FindAndHealInjuredAlly(me->IsTotalImmune() ? 80.0f : 60.0f, 35.0f);
 }
 
 void BattleBotAI::UpdateOutOfCombatAI_Shaman()
@@ -1387,7 +1387,7 @@ void BattleBotAI::UpdateInCombatAI_Shaman()
             return;
     }
 
-    FindAndHealInjuredAlly(40.0f);
+    FindAndHealInjuredAlly(50.0f, 25.0f);
 }
 
 void BattleBotAI::UpdateOutOfCombatAI_Hunter()
@@ -1892,7 +1892,7 @@ void BattleBotAI::UpdateInCombatAI_Priest()
 
     // Heal
     if (me->GetShapeshiftForm() == FORM_NONE &&
-		FindAndHealInjuredAlly(60.0f, 60.0f))
+		FindAndHealInjuredAlly(70.0f, 35.0f))
         return;
 
     // Dispels
@@ -2824,7 +2824,7 @@ void BattleBotAI::UpdateOutOfCombatAI_Druid()
         else
         {
             if ((me->GetPowerPercent(POWER_MANA) >  80.0f) &&
-                FindAndHealInjuredAlly(80.0f))
+                FindAndHealInjuredAlly(70.0f, 35.0f))
                 return;
         }
     }
@@ -2888,7 +2888,7 @@ void BattleBotAI::UpdateInCombatAI_Druid()
         }
 
         // Heal
-        if (FindAndHealInjuredAlly(60.0f,60.0f))
+        if (FindAndHealInjuredAlly(70.0f, 35.0f))
             return;
 
         // Dispels

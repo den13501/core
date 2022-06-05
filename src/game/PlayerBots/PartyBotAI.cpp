@@ -15,9 +15,11 @@
 */
 
 #include "PartyBotAI.h"
+#include "CombatBotBaseAI.h"
 #include "Player.h"
 #include "CreatureAI.h"
 #include "MotionMaster.h"
+#include "GridNotifiersImpl.h"
 #include "ObjectMgr.h"
 #include "PlayerBotMgr.h"
 #include "Opcodes.h"
@@ -26,8 +28,10 @@
 #include "Spell.h"
 #include "SpellAuras.h"
 #include "Chat.h"
+#include <string>
 #include <random>
 
+/*
 enum PartyBotSpells //此處的法術定義是給機器人使用和施放用的，通常是較通用的法術，非特定職業的法術
 {
     PB_SPELL_FOOD = 1131,
@@ -80,12 +84,12 @@ enum PartyBotSpells //此處的法術定義是給機器人使用和施放用的�
 	PB_SPELL_THROW = 2764, //投擲武器
 };
 
-enum MageBotSpells //此處的法術定義是給法師機器人使用和施放用的
+enum MageBotSpells //[WIP]此處的法術定義是給法師機器人使用和施放用的
 {
 	PB_SPELL_PORTAL_IRON_FORGE = 11416, //傳送門：鐵爐堡
 };
 
-enum WarlockBotPetSpells //此處的法術定義是給術士機器人寵物使用和施放用的
+enum WarlockBotPetSpells //[TECHEASY]此處的法術定義是給術士機器人寵物使用和施放用的
 {
 	PB_SPELL_FIREBOLT_RANK1 = 3110, //火焰箭R1 需要等級1
 	PB_SPELL_FIREBOLT_RANK2 = 7799, //火焰箭R2 需要等級8
@@ -100,19 +104,20 @@ enum WarlockBotPetSpells //此處的法術定義是給術士機器人寵物使�
 	PB_SPELL_BLOODPACT_RANK4 = 11766, //血之契印R4 需要等級38
 	PB_SPELL_BLOODPACT_RANK5 = 11767, //血之契印R5 需要等級50
 };
-
+*/
+/*
 enum PartyBotSpecs //Partybot法師天賦
 {
     PB_SPEC_MAGE_ARCANE = 81,
     PB_SPEC_MAGE_FIRE = 82,
     PB_SPEC_MAGE_FROST = 83,
 };
-
+*/
 #define PB_UPDATE_INTERVAL 1000
 #define PB_MIN_FOLLOW_DIST 3.0f
 #define PB_MAX_FOLLOW_DIST 6.0f
 #define PB_MIN_FOLLOW_ANGLE 0.0f
-#define PB_MAX_FOLLOW_ANGLE 6.0f
+#define PB_MAX_FOLLOW_ANGLE 6.283f
 
 //Function: 克隆自玩家
 void PartyBotAI::CloneFromPlayer(Player const* pPlayer)
@@ -267,10 +272,64 @@ bool PartyBotAI::HunterRunAwayFromTarget(Unit* pTarget)
 	return me->GetMotionMaster()->MoveDistance(pTarget, 8.5f);
 }
 
-void PartyBotAI::MoveToTarget(Unit* pTarget)
+void PartyBotAI::RunAwayFromObject(GameObject* pObject, float distance, Unit* pTarget)
 {
-	me->GetMotionMaster()->MoveIdle();
-	me->GetMotionMaster()->MoveFollow(pTarget, urand(PB_MIN_FOLLOW_DIST, PB_MAX_FOLLOW_DIST), frand(PB_MIN_FOLLOW_ANGLE, PB_MAX_FOLLOW_ANGLE));
+	if (m_distObjGuid &&
+		m_distObjGuid == pObject->GetObjectGuid() &&
+		me->GetMotionMaster()->GetCurrentMovementGeneratorType() == POINT_MOTION_TYPE)
+		return;
+
+	float x, y, z;
+	float angle = frand(PB_MIN_FOLLOW_ANGLE, PB_MAX_FOLLOW_ANGLE);
+
+	if (pTarget)
+		angle = ((2 * M_PI) - ((me->GetAngle(pTarget) + me->GetAngle(pObject)) / 2));
+
+	pObject->GetNearPoint(me, x, y, z, 0.0f, distance, angle);
+
+	me->GetMotionMaster()->Clear();
+	me->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
+}
+
+void PartyBotAI::RunAwayFromAOE(float distance)
+{
+	if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == POINT_MOTION_TYPE)
+		return;
+
+	float x, y, z;
+	float angle = frand(1.0f, 2.0f);
+	if (urand(0, 1))
+		angle *= -1.0f;
+
+	me->GetNearPoint(me, x, y, z, 0.0f, distance, angle);
+
+	me->GetMotionMaster()->Clear();
+	me->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
+}
+
+
+void PartyBotAI::MoveToTarget(Unit* pTarget, float distance)
+{
+	float x, y, z;
+	float angle = frand(PB_MIN_FOLLOW_ANGLE, PB_MAX_FOLLOW_ANGLE);
+	pTarget->GetNearPoint(me, x, y, z, 0, distance, angle);
+
+	me->GetMotionMaster()->Clear();
+	me->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
+}
+
+void PartyBotAI::ChaseTarget(Unit* pTarget)
+{
+	if (m_role == ROLE_RANGE_DPS)
+		me->SetCasterChaseDistance(25.0f);
+	else if (me->HasDistanceCasterMovement())
+		me->SetCasterChaseDistance(0.0f);
+
+	float angle = frand((M_PI - 0.5f), (M_PI + 0.5f));
+	float distance = pTarget->GetMeleeReach();
+	if (distance > 3.0f)
+		distance *= frand(0.75, 0.9);
+	me->GetMotionMaster()->MoveChase(pTarget, distance, m_role == ROLE_MELEE_DPS ? angle : 0.0f);
 }
 
 bool PartyBotAI::DrinkAndEat() //吃喝邏輯
@@ -364,6 +423,7 @@ bool PartyBotAI::ShouldAutoRevive() const
 
 	if (pLeader->IsInWorld() &&
 		pLeader->IsAlive() &&
+        !pLeader->IsInCombat() &&
 		(pLeader->GetMap() != me->GetMap() ||
 			m_ressTimer > (2 * MINUTE * IN_MILLISECONDS)))
 		return true;
@@ -405,14 +465,7 @@ bool PartyBotAI::AttackStart(Unit* pVictim)
 
     if (me->Attack(pVictim, true))
     {
-        if (m_role == ROLE_RANGE_DPS) //&&
-            //me->GetPowerPercent(POWER_MANA) > 10.0f &&
-            //me->GetCombatDistance(pVictim) > 8.0f)
-            me->SetCasterChaseDistance(25.0f);
-        else if (me->HasDistanceCasterMovement())
-            me->SetCasterChaseDistance(0.0f);
-
-        me->GetMotionMaster()->MoveChase(pVictim, 1.0f, m_role == ROLE_MELEE_DPS ? 3.0f : 0.0f);
+        ChaseTarget(pVictim);
         return true;
     }
 
@@ -612,6 +665,7 @@ bool PartyBotAI::TankPull(Unit* pVictim)
 	return false;
 }
 
+/*
 //[WIP]法師開傳送門Function
 bool PartyBotAI::MageOpenPortal()
 {
@@ -628,6 +682,7 @@ bool PartyBotAI::MageOpenPortal()
 	}
 	return true;
 }
+*/
 
 Unit* PartyBotAI::GetMarkedTarget(RaidTargetIcon mark) const
 {
@@ -707,7 +762,6 @@ Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
 //選擇隊伍攻擊的目標function
 Unit* PartyBotAI::SelectPartyAttackTarget() const
 {
-    // Random retries so not everyone selects the same target 隨機選定目標，這樣每個成員不會都選同個目標
     std::vector<Unit*> vAttackers;
     Group* pGroup = me->GetGroup();
 
@@ -739,7 +793,8 @@ Unit* PartyBotAI::SelectPartyAttackTarget() const
 
             for (const auto pAttacker : pMember->GetAttackers())
             {
-                if (IsValidHostileTarget(pAttacker) &&
+                if (!pAttacker->IsPlayer() &&
+                    IsValidHostileTarget(pAttacker) &&
                     me->IsWithinDist(pAttacker, 50.0f))
                     vAttackers.push_back(pAttacker);
             }
@@ -765,37 +820,69 @@ Unit* PartyBotAI::SelectPartyAttackTarget() const
     return nullptr;
 }
 
+Unit* PartyBotAI::SelectSpellTargetDifferentFrom(SpellEntry const* pSpellEntry, Unit* pVictim, float distance) const
+{
+	if (!IsSpellReady(pSpellEntry))
+		return nullptr;
+
+	std::list<Unit*> targets;
+	MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck u_check(pVictim, me, distance);
+	MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck> searcher(targets, u_check);
+	Cell::VisitAllObjects(me, searcher, distance);
+
+	// remove current target
+	if (pVictim)
+		targets.remove(pVictim);
+
+	// remove not LoS targets, not valid target, or immune target
+	for (std::list<Unit*>::iterator tIter = targets.begin(); tIter != targets.end();)
+	{
+		if ((!me->IsWithinLOSInMap(*tIter)) || !me->IsValidAttackTarget(*tIter) || !CanTryToCastSpell(*tIter, pSpellEntry))
+		{
+			std::list<Unit*>::iterator tIter2 = tIter;
+			++tIter;
+			targets.erase(tIter2);
+		}
+		else
+			++tIter;
+	}
+
+	// no appropriate targets
+	if (targets.empty())
+		return nullptr;
+
+	// select random
+	uint32 rIdx = urand(0, targets.size() - 1);
+	std::list<Unit*>::const_iterator tcIter = targets.begin();
+	for (uint32 i = 0; i < rIdx; ++i)
+		++tcIter;
+
+	return *tcIter;
+}
+
 //選擇要復活的目標
 Player* PartyBotAI::SelectResurrectionTarget() const
 {
-    uint64 m_uiLeaderGUID;
+	std::vector<Player*> vRessTargets;
+	Player* pTarget = nullptr;
 
-    Player* pLeader = GetPartyLeader();
-    m_uiLeaderGUID = pLeader->GetGUID();
-    Group* pGroup = me->GetGroup();
-    for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
-    {
-        Player* pMember = itr->getSource();
-		
-        if (pMember && pMember->IsDead())
-        {
-            // resurrect leader if possible. 測試優先辨識隊長(玩家)若非存活死亡則回傳為復活對象
-	    if ((pLeader->GetDeathState() == CORPSE) && (me->GetMapId() == pLeader->GetMapId())) 
-	    {
-		m_uiLeaderGUID = pLeader->GetGUID();
-		return pLeader;
-	    }
-            // Can't resurrect self.
-            if (pMember == me)
-                continue;
+	Group* pGroup = me->GetGroup();
+	for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
+	{
+		if (Player* pMember = itr->getSource())
+		{
+			// Can't resurrect self.
+			if (pMember == me)
+				continue;
 
-            if (pMember->GetDeathState() == CORPSE)
-		m_uiLeaderGUID = pMember->GetGUID();
-                return pMember;
-        }
-    }
+			if (pMember->GetDeathState() == CORPSE)
+				vRessTargets.push_back(pMember);
+		}
+	}
+	if (!vRessTargets.empty())
+		pTarget = SelectRandomContainerElement(vRessTargets);
 
-    return nullptr;
+	return pTarget;
 }
 
 Player* PartyBotAI::SelectShieldTarget() const
@@ -1013,6 +1100,10 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     m_updateTimer.Update(diff);
     if (me->IsDead())
         m_ressTimer += diff;
+	if (m_spellTimer1 > 0)
+		m_spellTimer1 -= diff;
+	if (m_aoeSpellTimer > 0)
+		m_aoeSpellTimer -= diff;
     if (m_updateTimer.Passed())
         m_updateTimer.Reset(PB_UPDATE_INTERVAL);
     else
@@ -1146,6 +1237,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             if (ShouldAutoRevive()) //如果應自動復活成立
             {
 				m_ressTimer = 0;
+                me->SetCheatGod(true);
                 me->ResurrectPlayer(0.5f); //復活自己後生命值50%
                 me->SpawnCorpseBones(); //產生地上的骷髏
                 me->CastSpell(me, PB_SPELL_HONORLESS_TARGET, true); //非榮譽目標法術
@@ -1159,6 +1251,9 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     }
     else if (m_ressTimer > 0)
         m_ressTimer = 0;
+
+    if (me->IsGod())
+        me->SetCheatGod(false);
 
     if (me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
     {
@@ -1205,13 +1300,27 @@ void PartyBotAI::UpdateAI(uint32 const diff)
 	}
 
 	// Engage combat ASAP
-	if (!pLeader->IsMounted() && (pVictim || me->IsInCombat()))
+	if (!pLeader->IsMounted() && (pVictim || me->IsInCombat() || (m_role == ROLE_HEALER && pLeader->IsInCombat())))
+	{
+		UpdateInCombatAI();
+		return;
+	}
+
+	// If channeling object, do not move
+	if (me->GetChannelObjectGuid())
+		return;
 		UpdateInCombatAI();
 
 	if (!pVictim && !me->IsInCombat())
     {
+		float leaderDistance = 0.0f;
+
+		// Distance to leader
+		if (!pLeader->IsDead())
+			leaderDistance = me->GetDistance(pLeader);
+
         // Teleport to leader if too far away. 離隊長達100碼，或bot離隊長高度大於20碼則傳送到身邊
-        if (!me->IsWithinDistInMap(pLeader, 100.0f) || me->GetDistanceZ(pLeader) > 20.0f)
+        if (leaderDistance > (PB_MAX_FOLLOW_DIST * 15.0f) || me->GetDistanceZ(pLeader) > (PB_MAX_FOLLOW_DIST * 3.2f))
         {
             if (!me->IsStopped())
                 me->StopMoving();
@@ -1223,7 +1332,14 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             return;
         }
 
-		if (!me->IsWithinDistInMap(pLeader, (PB_MAX_FOLLOW_DIST * 1.1f)))
+		else if (leaderDistance > (PB_MAX_FOLLOW_DIST * 2.5f) &&
+			me->HasAuraType(SPELL_AURA_MOD_STEALTH) &&
+			!pLeader->GetVictim())
+		{
+			me->RemoveSpellsCausingAura(SPELL_AURA_MOD_STEALTH);
+		}
+
+		if (leaderDistance > (PB_MAX_FOLLOW_DIST * 1.1f))
 		{
 			if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
                 me->GetMotionMaster()->MoveFollow(pLeader, urand(PB_MIN_FOLLOW_DIST, PB_MAX_FOLLOW_DIST), frand(PB_MIN_FOLLOW_ANGLE, PB_MAX_FOLLOW_ANGLE));
@@ -1286,7 +1402,7 @@ void PartyBotAI::UpdateOutOfCombatAI()
                     return;
 
     if (m_elixirSpell &&
-        !me->HasAura(m_elixirSpell->Id))
+        !me->HasAura(m_elixirSpell->Id)) //精煉藥劑
     {
         if (CanTryToCastSpell(me, m_elixirSpell))
         {
@@ -1297,7 +1413,7 @@ void PartyBotAI::UpdateOutOfCombatAI()
 
     if (m_flaskSpell &&
         me->GetGroup()->isRaidGroup() &&
-        !me->HasAura(m_flaskSpell->Id))
+        !me->HasAura(m_flaskSpell->Id)) //合劑
     {
         if (CanTryToCastSpell(me, m_flaskSpell))
         {
@@ -1344,8 +1460,16 @@ void PartyBotAI::UpdateOutOfCombatAI()
 //Function-更新戰鬥中AI
 void PartyBotAI::UpdateInCombatAI()
 {
-    Unit* pVictim = me->GetVictim();
+	if (me->GetStandState() != UNIT_STAND_STATE_STAND)
+		me->SetStandState(UNIT_STAND_STATE_STAND);
 
+    Unit* pVictim = me->GetVictim();
+	Unit* pLeader = GetPartyLeader();
+
+	if (!CheckBossMechanics())
+		return;		
+
+    /*
     if (m_spamSpell)
     {
         if (Unit* pTarget = !m_spamGuid.IsEmpty() ? me->GetMap()->GetUnit(m_spamGuid) : me->GetVictim())
@@ -1355,6 +1479,7 @@ void PartyBotAI::UpdateInCombatAI()
                     return;
         }
     }
+	*/
       
     if (m_role == ROLE_TANK)
     {
@@ -1384,17 +1509,38 @@ void PartyBotAI::UpdateInCombatAI()
     else if (CrowdControlMarkedTargets())
         return;
 
-    // Use potions
-    if (m_potionSpell &&
-        (me->GetHealthPercent() <= 50.0f ||
-        (me->GetPowerType() == POWER_MANA &&
-            me->GetPowerPercent(POWER_MANA) <= 50.0f)))
-    {
-        if (CanTryToCastSpell(me, m_potionSpell))
-        {
-            if (DoCastSpell(me, m_potionSpell) == SPELL_CAST_OK)
-                return;
-        }
+	if (m_role == ROLE_HEALER)
+	{
+		if (!pLeader->IsWithinLOSInMap(me))
+			MoveToTarget(pLeader, 5.0f);
+		else if (me->GetDistance(pLeader) < 20.0f)
+		{
+			me->GetMotionMaster()->Clear();
+			me->GetMotionMaster()->MoveIdle();
+		}
+		else
+		{
+			MoveToTarget(pLeader, 15.0f);
+		}
+	}
+
+	// Use potions
+	// Restorative Potion
+	if (m_restPotion &&
+		IsValidDispelTarget(me, m_restPotion) &&
+		CanTryToCastSpell(me, m_restPotion))
+	{
+		if (DoCastSpell(me, m_restPotion) == SPELL_CAST_OK)
+			return;
+	}
+
+	// Emergency Healing Potion
+	if (m_potionSpell &&
+		(me->GetHealthPercent() <= 15.0f) &&
+		CanTryToCastSpell(me, m_potionSpell))
+	{
+		if (DoCastSpell(me, m_potionSpell) == SPELL_CAST_OK)
+			return;
 	}
 
 	if (pVictim)
@@ -1404,9 +1550,13 @@ void PartyBotAI::UpdateInCombatAI()
 			IsValidHostileTarget(pVictim))
 			AttackStart(pVictim);
 
-		if ((m_role == ROLE_TANK || m_role == ROLE_MELEE_DPS) &&
-			!pVictim->CanReachWithMeleeAutoAttack(me))
-			me->GetMotionMaster()->MoveChase(pVictim, 1.0f, 3.0f);
+		if (((m_role == ROLE_TANK || m_role == ROLE_MELEE_DPS) &&
+			!pVictim->CanReachWithMeleeAutoAttack(me)) ||
+			(m_role == ROLE_RANGE_DPS &&
+				me->GetDistance(pVictim) > 28.0f))
+		{
+			ChaseTarget(pVictim);
+		}
 	}
 
     switch (me->GetClass())
@@ -1513,10 +1663,10 @@ void PartyBotAI::UpdateOutOfCombatAI_Paladin()
 		}
     }
 
-    if (m_role == ROLE_HEALER &&
-		FindAndHealInjuredAlly(100.0f, 90.0f))
+	if (m_role == ROLE_HEALER && FindAndHealInjuredAlly(90.0f))
         return;
 
+	/*
 	if (Unit* pVictim = me->GetVictim()) //嘗試用丟手雷進入戰鬥狀態
 	{
 		if (m_role == ROLE_TANK)
@@ -1529,12 +1679,13 @@ void PartyBotAI::UpdateOutOfCombatAI_Paladin()
 			}
 		}
 	}
+	*/
 }
 
 void PartyBotAI::UpdateInCombatAI_Paladin()
 {
     if (m_spells.paladin.pDivineShield &&
-       (me->GetHealthPercent() < 20.0f) &&
+		(me->GetHealthPercent() < 25.0f) &&
        (m_role != ROLE_TANK) &&
         CanTryToCastSpell(me, m_spells.paladin.pDivineShield)) //聖盾術(無敵)
     {
@@ -1567,6 +1718,19 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
         }
     }
 
+	// Critical Healing 危險狀態治療
+	if (m_role == ROLE_TANK && me->GetHealthPercent() < 35.0f)
+	{
+		HealInjuredTargetDirect(me);
+		return;
+	}
+	else
+	{
+		if (FindAndHealInjuredAlly(35.0f, 35.0f))
+			return;
+	}
+
+	// Dispel
     if (m_spells.paladin.pCleanse) //清潔術
     {
         if (Unit* pFriend = SelectDispelTarget(m_spells.paladin.pCleanse)) //選擇要消除debuff的對象
@@ -1618,36 +1782,18 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
                 return;
         }
 
-        if (FindAndHealInjuredAlly(85.0f, 85.0f))
+        if (FindAndHealInjuredAlly(85.0f, 45.0f))
             return;
     }
     else
     {
-        if (m_spells.paladin.pLayOnHands &&
-           (me->GetHealthPercent() < 15.0f) &&
-            CanTryToCastSpell(me, m_spells.paladin.pLayOnHands))
-        {
-            if (DoCastSpell(me, m_spells.paladin.pLayOnHands) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (m_role == ROLE_TANK && me->GetHealthPercent() < 35.0f)
-		{
-			HealInjuredTarget(me);
-			return;
-		}
-        else
-		{
-			if (FindAndHealInjuredAlly(35.0f, 35.0f))
-				return;
-		}
 
         if (Unit* pVictim = me->GetVictim())
         {
 
-            bool const hasSeal = me->HasAura(m_spells.paladin.pSeal->Id) ||
-                me->HasAura(m_spells.paladin.pSealOfWisdom->Id) ||
-                me->HasAura(m_spells.paladin.pSealOfCrusader->Id);
+			bool const hasSeal = (m_spells.paladin.pSeal && me->HasAura(m_spells.paladin.pSeal->Id)) ||
+				(m_spells.paladin.pSealOfWisdom && me->HasAura(m_spells.paladin.pSealOfWisdom->Id)) ||
+				(m_spells.paladin.pSealOfCrusader && me->HasAura(m_spells.paladin.pSealOfCrusader->Id));
 
             if (!hasSeal)
 			{
@@ -1656,7 +1802,8 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
 					CanTryToCastSpell(me, m_spells.paladin.pSealOfWisdom))
 					me->CastSpell(me, m_spells.paladin.pSealOfWisdom, false);
 				else if (m_spells.paladin.pSealOfCrusader &&
-					pVictim->GetHealthPercent() > 90.0f &&
+					!(pVictim->HasAura(21183) || pVictim->HasAura(20303) || pVictim->HasAura(20302)
+						|| pVictim->HasAura(20301) || pVictim->HasAura(20300) || pVictim->HasAura(20188)) &&
 					CanTryToCastSpell(me, m_spells.paladin.pSealOfCrusader))
 					me->CastSpell(me, m_spells.paladin.pSealOfCrusader, false);
 				else if (m_spells.paladin.pSeal &&
@@ -1687,7 +1834,8 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
                     return;
             }
             if (m_spells.paladin.pConsecration &&
-               (me->GetEnemyCountInRadiusAround(me, 10.0f) > 2) &&
+				((me->GetEnemyCountInRadiusAround(me, 10.0f) > 2) ||
+				(me->HasAura(20059) && pVictim->CanReachWithMeleeAutoAttack(me))) &&
                 CanTryToCastSpell(me, m_spells.paladin.pConsecration)) //10碼內敵人數量>=2則用奉獻
             {
                 if (DoCastSpell(me, m_spells.paladin.pConsecration) == SPELL_CAST_OK)
@@ -1757,8 +1905,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Shaman()
             return;
     }
 
-    if (m_role == ROLE_HEALER &&
-		FindAndHealInjuredAlly(100.0f, 90.0f))
+	if (m_role == ROLE_HEALER && FindAndHealInjuredAlly(90.0f))
         return;
 	/*
     if (me->GetVictim())
@@ -1782,13 +1929,41 @@ void PartyBotAI::UpdateInCombatAI_Shaman()
             return;
     }
 
-	if (m_role == ROLE_HEALER)
-	{
-		FindAndHealInjuredAlly(75.0f, 85.0f);
+	// Critical Healing
+	if (FindAndHealInjuredAlly(35.0f, 35.0f))
 		return;
+
+	// Dispels
+	if (m_spells.shaman.pCureDisease)
+	{
+		if (Unit* pFriend = SelectDispelTarget(m_spells.shaman.pCureDisease))
+		{
+			if (CanTryToCastSpell(pFriend, m_spells.shaman.pCureDisease))
+			{
+				if (DoCastSpell(pFriend, m_spells.shaman.pCureDisease) == SPELL_CAST_OK)
+					return;
+			}
+		}
 	}
 
-    if (m_role != ROLE_HEALER)
+	if (m_spells.shaman.pCurePoison)
+	{
+		if (Unit* pFriend = SelectDispelTarget(m_spells.shaman.pCurePoison))
+		{
+			if (CanTryToCastSpell(pFriend, m_spells.shaman.pCurePoison))
+			{
+				if (DoCastSpell(pFriend, m_spells.shaman.pCurePoison) == SPELL_CAST_OK)
+					return;
+			}
+		}
+	}
+
+	if (m_role == ROLE_HEALER)
+	{
+		FindAndHealInjuredAlly(85.0f, 45.0f);
+		return;
+	}
+	else
     {
         if (Unit* pVictim = me->GetVictim())
         {
@@ -1855,38 +2030,12 @@ void PartyBotAI::UpdateInCombatAI_Shaman()
                 if (DoCastSpell(pVictim, m_spells.shaman.pLightningBolt) == SPELL_CAST_OK)
                     return;
             }
-
-            if (FindAndHealInjuredAlly(35.0f, 35.0f))
-                return;
         }
     }
 
     if (SummonShamanTotems())
         return;
 
-    if (m_spells.shaman.pCureDisease)
-    {
-        if (Unit* pFriend = SelectDispelTarget(m_spells.shaman.pCureDisease))
-        {
-            if (CanTryToCastSpell(pFriend, m_spells.shaman.pCureDisease))
-            {
-                if (DoCastSpell(pFriend, m_spells.shaman.pCureDisease) == SPELL_CAST_OK)
-                    return;
-            }
-        }
-    }
-
-    if (m_spells.shaman.pCurePoison)
-    {
-        if (Unit* pFriend = SelectDispelTarget(m_spells.shaman.pCurePoison))
-        {
-            if (CanTryToCastSpell(pFriend, m_spells.shaman.pCurePoison))
-            {
-                if (DoCastSpell(pFriend, m_spells.shaman.pCurePoison) == SPELL_CAST_OK)
-                    return;
-            }
-        }
-    }
 }
 
 //更新獵人戰鬥外AI function
@@ -1898,6 +2047,16 @@ void PartyBotAI::UpdateOutOfCombatAI_Hunter()
         if (DoCastSpell(me, m_spells.hunter.pAspectOfTheHawk) == SPELL_CAST_OK)
             return;
     }
+
+	if (m_spells.hunter.pTrueshotAura &&
+		CanTryToCastSpell(me, m_spells.hunter.pTrueshotAura))
+	{
+		if (DoCastSpell(me, m_spells.hunter.pTrueshotAura) == SPELL_CAST_OK)
+		{
+			m_isBuffing = true;
+			return;
+		}
+	}
 
     SummonPetIfNeeded(); //沒有敵人則召喚寵物
     /*
@@ -1941,62 +2100,31 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 {
     if (Unit* pVictim = me->GetVictim())
     {
-
-        if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
-            && me->GetDistance(pVictim) > 30.0f) //如果目前移動行為是閒置且和敵人距離>30碼
-        {
-            me->GetMotionMaster()->MoveChase(pVictim, 25.0f); //則往敵人移動距離25碼
-        }
-
-		if (!me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
+		if (!me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL) &&
+			me->GetDistance(pVictim) <= 30.0f)
 		{
-			switch (urand(0, 3))
+			std::vector<const SpellEntry*> vTraps;
+
+			if (m_spells.hunter.pFrostTrap &&
+				CanTryToCastSpell(me, m_spells.hunter.pFrostTrap))
+				vTraps.push_back(m_spells.hunter.pFrostTrap);
+			if (m_spells.hunter.pFreezingTrap &&
+				CanTryToCastSpell(me, m_spells.hunter.pFreezingTrap))
+				vTraps.push_back(m_spells.hunter.pFreezingTrap);
+			if (m_spells.hunter.pImmolationTrap &&
+				CanTryToCastSpell(me, m_spells.hunter.pImmolationTrap))
+				vTraps.push_back(m_spells.hunter.pImmolationTrap);
+			if (m_spells.hunter.pExplosiveTrap &&
+				CanTryToCastSpell(me, m_spells.hunter.pExplosiveTrap))
+				vTraps.push_back(m_spells.hunter.pExplosiveTrap);
+
+			if (!vTraps.empty())
 			{
-			case 0:
-				if (m_spells.hunter.pFrostTrap &&
-					me->GetDistance(pVictim) <= 25.0f &&
-					CanTryToCastSpell(me, m_spells.hunter.pFrostTrap)) //冰霜陷阱
-				{
-					if (DoCastSpell(me, m_spells.hunter.pFrostTrap) == SPELL_CAST_OK)
-						return;
-				}
-				break;
-			case 1:
-				if (m_spells.hunter.pFreezingTrap &&
-					me->GetDistance(pVictim) <= 25.0f &&
-					CanTryToCastSpell(me, m_spells.hunter.pFreezingTrap)) //冰凍陷阱
-				{
-					if (DoCastSpell(me, m_spells.hunter.pFreezingTrap) == SPELL_CAST_OK)
-						return;
-				}
-				break;
-			case 2:
-				if (m_spells.hunter.pImmolationTrap &&
-					me->GetDistance(pVictim) <= 25.0f &&
-					CanTryToCastSpell(me, m_spells.hunter.pImmolationTrap)) //獻祭陷阱
-				{
-					if (DoCastSpell(me, m_spells.hunter.pImmolationTrap) == SPELL_CAST_OK)
-						return;
-				}
-				break;
-			case 3:
-				if (m_spells.hunter.pExplosiveTrap &&
-					me->GetDistance(pVictim) <= 25.0f &&
-					CanTryToCastSpell(me, m_spells.hunter.pExplosiveTrap)) //爆炸陷阱
-				{
-					if (DoCastSpell(me, m_spells.hunter.pExplosiveTrap) == SPELL_CAST_OK)
-						return;
-				}
-				break;
+				const SpellEntry* pTrap = SelectRandomContainerElement(vTraps);
+				if (DoCastSpell(me, pTrap) == SPELL_CAST_OK)
+					return;
 			}
 		}
-
-        if (m_spells.hunter.pHuntersMark &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pHuntersMark))
-        {
-            if (DoCastSpell(pVictim, m_spells.hunter.pHuntersMark) == SPELL_CAST_OK)
-                return;
-        }
 
         if (Pet* pPet = me->GetPet())
         {
@@ -2006,6 +2134,13 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
                 pPet->AI()->AttackStart(pVictim);
             }
         }
+
+		if (m_spells.hunter.pHuntersMark &&
+			CanTryToCastSpell(pVictim, m_spells.hunter.pHuntersMark))
+		{
+			if (DoCastSpell(pVictim, m_spells.hunter.pHuntersMark) == SPELL_CAST_OK)
+				return;
+		}
 
         if (me->HasSpell(PB_SPELL_AUTO_SHOT) &&
 			!me->IsMoving() &&
@@ -2023,7 +2158,17 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 			}
 		}
 
+		// Remove Frenzy
+		if (pVictim->HasAuraType(SPELL_AURA_MOD_MELEE_HASTE) &&
+			m_spells.hunter.pTranquilizingShot &&
+			CanTryToCastSpell(pVictim, m_spells.hunter.pTranquilizingShot))
+		{
+			if (DoCastSpell(pVictim, m_spells.hunter.pTranquilizingShot) == SPELL_CAST_OK)
+				return;
+		}
+
         if (m_spells.hunter.pVolley &&
+			m_aoeSpellTimer <= 0 &&
             pVictim->GetHealthPercent() < 75.0f &&
             (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 3) &&
             CanTryToCastSpell(pVictim, m_spells.hunter.pVolley)) //如果有亂射法術且「目標10碼內敵人>」2且可嘗試使用亂射
@@ -2066,21 +2211,39 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 				return;
 		}
 
-        if (m_spells.hunter.pArcaneShot &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pArcaneShot)) //秘法射擊
-        {
-            if (DoCastSpell(pVictim, m_spells.hunter.pArcaneShot) == SPELL_CAST_OK)
-                return;
-        }
+		if (m_spells.hunter.pRapidFire &&
+			pVictim->GetHealth() > (2 * me->GetMaxHealth()) &&
+			CanTryToCastSpell(pVictim, m_spells.hunter.pRapidFire))
+		{
+			if (DoCastSpell(pVictim, m_spells.hunter.pRapidFire) == SPELL_CAST_OK)
+				return;
+		}
 
-        if (m_spells.hunter.pSerpentSting &&
+		// Apply Sting
+		if (m_spells.hunter.pViperSting &&
+			pVictim->IsCaster() &&
+			pVictim->GetPowerPercent(POWER_MANA) > 10.0f)
+		{
+			if (CanTryToCastSpell(pVictim, m_spells.hunter.pViperSting) &&
+				DoCastSpell(pVictim, m_spells.hunter.pSerpentSting) == SPELL_CAST_OK)
+				return;
+		}
+		else if (m_spells.hunter.pSerpentSting &&
             CanTryToCastSpell(pVictim, m_spells.hunter.pSerpentSting)) //毒蛇釘刺
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pSerpentSting) == SPELL_CAST_OK)
                 return;
         }
 
+		if (m_spells.hunter.pArcaneShot &&
+			CanTryToCastSpell(pVictim, m_spells.hunter.pArcaneShot))
+		{
+			if (DoCastSpell(pVictim, m_spells.hunter.pArcaneShot) == SPELL_CAST_OK)
+				return;
+		}
+
         if (m_spells.hunter.pMultiShot &&
+			m_aoeSpellTimer <= 0 &&
             CanTryToCastSpell(pVictim, m_spells.hunter.pMultiShot)) //多重射擊
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pMultiShot) == SPELL_CAST_OK)
@@ -2232,16 +2395,6 @@ void PartyBotAI::UpdateOutOfCombatAI_Mage()
         }
     }
 
-    if (m_spells.mage.pIceBarrier &&
-        CanTryToCastSpell(me, m_spells.mage.pIceBarrier)) //寒冰護體
-    {
-        if (DoCastSpell(me, m_spells.mage.pIceBarrier) == SPELL_CAST_OK)
-        {
-            m_isBuffing = true;
-            return;
-        }
-    }
-
     if (m_isBuffing &&
        (!m_spells.mage.pArcaneIntellect ||
         !me->HasGCD(m_spells.mage.pArcaneIntellect)))
@@ -2269,12 +2422,6 @@ void PartyBotAI::UpdateOutOfCombatAI_Mage()
 
 void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
 {
-    int16 spec = PB_SPEC_MAGE_FROST; //法師天賦選擇，預設為冰法
-    if (m_spells.mage.pArcanePower) //如果法師擁有秘法強化技能則設為秘法天賦
-        spec = PB_SPEC_MAGE_ARCANE;
-    else if (m_spells.mage.pCombustion) //如果擁有燃燒技能則設為火法
-        spec = PB_SPEC_MAGE_FIRE;
-
     // Decurse - Priority for boss fights //解除詛咒，優先用於BOSS戰
     if (m_spells.mage.pRemoveLesserCurse)
     {
@@ -2307,19 +2454,24 @@ void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
         }
 
         if (m_spells.mage.pIceBlock &&
-           (me->GetHealthPercent() < 10.0f) &&
+			me->GetHealthPercent() < 10.0f &&
             CanTryToCastSpell(me, m_spells.mage.pIceBlock))
         {
             if (DoCastSpell(me, m_spells.mage.pIceBlock) == SPELL_CAST_OK)
                 return;
         }
 
-        if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
-            && me->GetDistance(pVictim) > 30.0f)
+		if (!me->GetAttackers().empty())
         {
-            me->GetMotionMaster()->MoveChase(pVictim, 25.0f);
+			if (m_spells.mage.pIceBarrier &&
+				CanTryToCastSpell(me, m_spells.mage.pIceBarrier))
+			{
+				if (DoCastSpell(me, m_spells.mage.pIceBarrier) == SPELL_CAST_OK)
+					return;
+			}
         }
-        else if (GetAttackersInRangeCount(10.0f) > 1)
+
+		if (GetAttackersInRangeCount(10.0f) > 1)
         {
             if (m_spells.mage.pManaShield &&
                (me->GetPowerPercent(POWER_MANA) > 20.0f) &&
@@ -2360,15 +2512,24 @@ void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
             }
         }
 
-        if (me->GetEnemyCountInRadiusAround(me, 10.0f) > 2) //範圍技判斷式
-        {
-            if (spec == PB_SPEC_MAGE_ARCANE &&
+		if (me->GetEnemyCountInRadiusAround(me, 10.0f) > 2 &&
+			m_aoeSpellTimer <= 0)
+		{
+			if (m_spells.mage.pImprovedArcaneExplosion &&
                 m_spells.mage.pArcaneExplosion &&
                 CanTryToCastSpell(me, m_spells.mage.pArcaneExplosion))
             {
                 if (DoCastSpell(me, m_spells.mage.pArcaneExplosion) == SPELL_CAST_OK)
                     return;
             }
+
+			if (m_spells.mage.pBlastWave &&
+				CanTryToCastSpell(me, m_spells.mage.pBlastWave))
+			{
+				if (DoCastSpell(me, m_spells.mage.pBlastWave) == SPELL_CAST_OK)
+					return;
+			}
+
             if (m_spells.mage.pConeofCold && !me->IsMoving() &&
                 CanTryToCastSpell(me, m_spells.mage.pConeofCold))
             {
@@ -2376,10 +2537,10 @@ void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
                     return;
             }
 
-            if (m_spells.mage.pBlastWave &&
-                CanTryToCastSpell(me, m_spells.mage.pBlastWave))
-            {
-                if (DoCastSpell(me, m_spells.mage.pBlastWave) == SPELL_CAST_OK)
+			if (m_spells.mage.pArcaneExplosion &&
+				CanTryToCastSpell(me, m_spells.mage.pArcaneExplosion))
+			{
+				if (DoCastSpell(me, m_spells.mage.pArcaneExplosion) == SPELL_CAST_OK)
                     return;
             }
 
@@ -2396,16 +2557,11 @@ void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
                 return;
         }
 
-        if (m_spells.mage.pCombustion &&
-            CanTryToCastSpell(pVictim, m_spells.mage.pCombustion)) //燃燒
+		if (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 3 &&
+			m_aoeSpellTimer <= 0 &&
+			pVictim->GetHealthPercent() < 75.0f)
         {
-            if (DoCastSpell(pVictim, m_spells.mage.pCombustion) == SPELL_CAST_OK)
-                return;
-         }
-
-        if (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 3 && pVictim->GetHealthPercent() < 75.0f) //交戰敵方目標周圍10碼若>3人，且交戰目標生命<75%
-        {
-            if (spec == PB_SPEC_MAGE_ARCANE &&
+			if (m_spells.mage.pImprovedArcaneExplosion &&
                 m_spells.mage.pArcaneExplosion &&
                 CanTryToCastSpell(pVictim, m_spells.mage.pArcaneExplosion))
             {
@@ -2413,7 +2569,7 @@ void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
                 // Spell is cast on a previous check when in range.
                 me->GetMotionMaster()->MoveChase(pVictim, 5.0f);
             }
-            if (spec == PB_SPEC_MAGE_FIRE &&
+			if (m_spells.mage.pImprovedFlamestrike &&
                 m_spells.mage.pFlamestrike &&
                 CanTryToCastSpell(pVictim, m_spells.mage.pFlamestrike)) //如果是天賦火法則用烈焰風暴
             {
@@ -2443,8 +2599,15 @@ void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
             }
         }
 
+		if (m_spells.mage.pCombustion &&
+			CanTryToCastSpell(pVictim, m_spells.mage.pCombustion))
+		{
+			if (DoCastSpell(pVictim, m_spells.mage.pCombustion) == SPELL_CAST_OK)
+				return;
+		}
+
         if (m_spells.mage.pArcanePower &&
-            (me->GetPowerPercent(POWER_MANA) > 50.0f) &&
+            (me->GetPowerPercent(POWER_MANA) > 20.0f) &&
             CanTryToCastSpell(me, m_spells.mage.pArcanePower))
         {
             if (DoCastSpell(me, m_spells.mage.pArcanePower) == SPELL_CAST_OK)
@@ -2452,44 +2615,16 @@ void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
         }
 
         if (m_spells.mage.pPresenceOfMind &&
-           (me->GetPowerPercent(POWER_MANA) > 50.0f) &&
             CanTryToCastSpell(me, m_spells.mage.pPresenceOfMind)) //氣定神閒
         {
             if (DoCastSpell(me, m_spells.mage.pPresenceOfMind) == SPELL_CAST_OK)
                 return;
-        } 
+		}
 
-        if (spec == PB_SPEC_MAGE_FROST) //如為冰法天賦
-        {
-            if (m_spells.mage.pFrostbolt &&
-                CanTryToCastSpell(pVictim, m_spells.mage.pFrostbolt)) //寒冰箭
-            {
-                if (DoCastSpell(pVictim, m_spells.mage.pFrostbolt) == SPELL_CAST_OK)
-                    return;
-            }
-
-            // If immune to frost, try fire
-            if (m_spells.mage.pFireball &&
-                CanTryToCastSpell(pVictim, m_spells.mage.pFireball))
-            {
-                if (DoCastSpell(pVictim, m_spells.mage.pFireball) == SPELL_CAST_OK)
-                    return;
-            }
-        }
-        else if (spec == PB_SPEC_MAGE_ARCANE) //如為秘法天賦
-        {
-            if (m_spells.mage.pArcaneMissiles &&
-                (pVictim->GetHealthPercent() < 95.0f) &&
-                CanTryToCastSpell(pVictim, m_spells.mage.pArcaneMissiles)) //秘法飛彈
-            {
-                if (DoCastSpell(pVictim, m_spells.mage.pArcaneMissiles) == SPELL_CAST_OK)
-                    return;
-            }
-        }
-        else if (spec == PB_SPEC_MAGE_FIRE) //如為火法天賦
+		// If has improved fireball, try fire spells
+		if (m_spells.mage.pImprovedFireball)
         {
             if (m_spells.mage.pFireBlast &&
-                (pVictim->GetHealthPercent() < 95.0f) &&
                 CanTryToCastSpell(pVictim, m_spells.mage.pFireBlast)) //火焰衝擊
             {
                 if (DoCastSpell(pVictim, m_spells.mage.pFireBlast) == SPELL_CAST_OK)
@@ -2497,28 +2632,57 @@ void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
             }
 
             if (m_spells.mage.pScorch &&
-                (pVictim->GetHealthPercent() < 20.0f) &&
                 CanTryToCastSpell(pVictim, m_spells.mage.pScorch)) //灼燒
             {
-                if (DoCastSpell(pVictim, m_spells.mage.pScorch) == SPELL_CAST_OK)
-                    return;
+				if (pVictim->GetHealth() < 10.0f)
+				{
+					if (DoCastSpell(pVictim, m_spells.mage.pScorch) == SPELL_CAST_OK)
+						return;
+				}
+				else if (m_spells.mage.pImprovedScorch)
+				{
+					// Fire vulnerability aura 22959
+					SpellAuraHolder* pSpellAuraHolder = pVictim->GetSpellAuraHolder(22959);
+					if (!pSpellAuraHolder || pSpellAuraHolder->GetStackAmount() < 5)
+					{
+						if (DoCastSpell(pVictim, m_spells.mage.pScorch) == SPELL_CAST_OK)
+							return;
+					}
+				}
             }
 
             if (m_spells.mage.pFireball &&
-                CanTryToCastSpell(pVictim, m_spells.mage.pFireball)) //火球術
+				CanTryToCastStackSpell(pVictim, m_spells.mage.pFireball, 2))
             {
                 if (DoCastSpell(pVictim, m_spells.mage.pFireball) == SPELL_CAST_OK)
                     return;
             }
         }
 
-        // Nothing cast, try Frostbolt
-        if (m_spells.mage.pFrostbolt &&
-            CanTryToCastSpell(pVictim, m_spells.mage.pFrostbolt))
+		// If has improved Arcane Missiles, try to use it
+		if (m_spells.mage.pImprovedArcaneMissiles &&
+			m_spells.mage.pArcaneMissiles &&
+			CanTryToCastStackSpell(pVictim, m_spells.mage.pArcaneMissiles, 2))
+		{
+			if (DoCastSpell(pVictim, m_spells.mage.pArcaneMissiles) == SPELL_CAST_OK)
+				return;
+		}
+
+		// Nothing cast, try Frostbolt...
+		if (m_spells.mage.pFrostbolt &&
+			CanTryToCastStackSpell(pVictim, m_spells.mage.pFrostbolt, 2))
         {
             if (DoCastSpell(pVictim, m_spells.mage.pFrostbolt) == SPELL_CAST_OK)
                 return;
         }
+
+		// If immune, try normal fireball
+		if (m_spells.mage.pFireball &&
+			CanTryToCastStackSpell(pVictim, m_spells.mage.pFireball, 2))
+		{
+			if (DoCastSpell(pVictim, m_spells.mage.pFireball) == SPELL_CAST_OK)
+				return;
+		}
 
         if (m_spells.mage.pEvocation &&
            (me->GetPowerPercent(POWER_MANA) < 30.0f) &&
@@ -2531,7 +2695,6 @@ void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
 
         if (me->HasSpell(PB_SPELL_SHOOT_WAND) &&
            !me->IsMoving() &&
-           (me->GetPowerPercent(POWER_MANA) < 5.0f) &&
            !me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
             me->CastSpell(pVictim, PB_SPELL_SHOOT_WAND, false);
     }
@@ -2664,8 +2827,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Priest()
         }
     }
 
-    if (m_role == ROLE_HEALER &&
-		FindAndHealInjuredAlly(100.0f, 90.0f))
+	if (m_role == ROLE_HEALER && FindAndHealInjuredAlly(90.0f))
         return;
     /*
     if (me->GetVictim())
@@ -2724,6 +2886,10 @@ void PartyBotAI::UpdateInCombatAI_Priest() //牧師戰鬥中AI
         DoCastSpell(me, m_spells.priest.pInnerFocus);
     }
 
+	// Critical Healing
+	if (FindAndHealInjuredAlly(35.0f, 35.0f))
+		return;
+
 	// Dispels
 	if (m_spells.priest.pDispelMagic)
 	{
@@ -2773,118 +2939,102 @@ void PartyBotAI::UpdateInCombatAI_Priest() //牧師戰鬥中AI
             }
         }
 
-        // Direct heal more seriously injured.
-        if (Unit* pTarget = SelectHealTarget(70.0f, 70.0f))
-            if (HealInjuredTargetDirect(pTarget))
-                return;
-
-        // Apply HoT aura for small injuries.
-        if (Unit* pTarget = SelectPeriodicHealTarget(85.0f, 85.0f))
-            if (HealInjuredTargetPeriodic(pTarget))
-                return;
+		if (FindAndHealInjuredAlly(85.0f, 45.0f))
+			return;
     }
-    else if (Unit* pVictim = me->GetVictim())
-    {
-        if (m_spells.priest.pShadowform &&
-            me->GetShapeshiftForm() != FORM_SHADOW &&
-            CanTryToCastSpell(me, m_spells.priest.pShadowform))
-        {
-            if (DoCastSpell(me, m_spells.priest.pShadowform) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (m_spells.priest.pSilence &&
-            pVictim->IsNonMeleeSpellCasted() &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pSilence))
-        {
-            if (DoCastSpell(pVictim, m_spells.priest.pSilence) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (m_spells.priest.pManaBurn &&
-            me->GetPowerPercent(POWER_MANA) < 50.0f &&
-            pVictim->GetPowerType() == POWER_MANA &&
-            pVictim->GetPowerPercent(POWER_MANA) > 10.0f &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pManaBurn)) //法力燃燒
-        {
-            if (DoCastSpell(pVictim, m_spells.priest.pManaBurn) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (pVictim->GetHealthPercent() < 95.0f) //如果敵方生命<95%
-        {
-            if (m_spells.priest.pVampiricEmbrace &&
-                CanTryToCastSpell(pVictim, m_spells.priest.pVampiricEmbrace)) //吸血鬼的擁抱
-            {
-                if (DoCastSpell(pVictim, m_spells.priest.pVampiricEmbrace) == SPELL_CAST_OK)
-                    return;
+	else
+	{
+		if (Unit* pVictim = me->GetVictim())
+		{
+			if (m_spells.priest.pShadowform &&
+				me->GetShapeshiftForm() != FORM_SHADOW &&
+				CanTryToCastSpell(me, m_spells.priest.pShadowform))
+			{
+				if (DoCastSpell(me, m_spells.priest.pShadowform) == SPELL_CAST_OK)
+					return;
 			}
 
-            if (m_spells.priest.pShadowWordPain &&
-                CanTryToCastSpell(pVictim, m_spells.priest.pShadowWordPain)) //暗言術：痛
-            {
-                if (DoCastSpell(pVictim, m_spells.priest.pShadowWordPain) == SPELL_CAST_OK)
-                    return;
-            }
+			if (m_spells.priest.pSilence &&
+				pVictim->IsNonMeleeSpellCasted() &&
+				CanTryToCastSpell(pVictim, m_spells.priest.pSilence))
+			{
+				if (DoCastSpell(pVictim, m_spells.priest.pSilence) == SPELL_CAST_OK)
+					return;
+			}
 
-            if (m_spells.priest.pDevouringPlague &&
-                CanTryToCastSpell(pVictim, m_spells.priest.pDevouringPlague)) //嗜靈瘟疫
-            {
-                if (DoCastSpell(pVictim, m_spells.priest.pDevouringPlague) == SPELL_CAST_OK)
-                    return;
-            }
 
-        }
+			if (m_spells.priest.pHolyNova &&
+				me->GetShapeshiftForm() == FORM_NONE &&
+				me->GetEnemyCountInRadiusAround(me, 10.0f) > 2 &&
+				CanTryToCastSpell(me, m_spells.priest.pHolyNova))
+			{
+				if (DoCastSpell(me, m_spells.priest.pHolyNova) == SPELL_CAST_OK)
+					return;
+			}
 
-        if (m_spells.priest.pMindBlast &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pMindBlast))//心靈震爆
-        {
-            if (DoCastSpell(pVictim, m_spells.priest.pMindBlast) == SPELL_CAST_OK)
-                return;
-        }
+			if (m_spells.priest.pManaBurn &&
+				me->GetPowerPercent(POWER_MANA) < 50.0f &&
+				pVictim->GetPowerType() == POWER_MANA &&
+				pVictim->GetPowerPercent(POWER_MANA) > 10.0f &&
+				CanTryToCastSpell(pVictim, m_spells.priest.pManaBurn))
+			{
+				if (DoCastSpell(pVictim, m_spells.priest.pManaBurn) == SPELL_CAST_OK)
+					return;
+			}
 
-        if (m_spells.priest.pMindFlay &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pMindFlay)) //心靈鞭笞
-        {
-            if (DoCastSpell(pVictim, m_spells.priest.pMindFlay) == SPELL_CAST_OK)
-                return;
-        }
+			if (m_spells.priest.pVampiricEmbrace &&
+				CanTryToCastSpell(pVictim, m_spells.priest.pVampiricEmbrace)) //吸血鬼的擁抱
+			{
+				if (DoCastSpell(pVictim, m_spells.priest.pVampiricEmbrace) == SPELL_CAST_OK)
+					return;
+			}
 
-        if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
-            && me->GetDistance(pVictim) > 30.0f)
-        {
-            me->GetMotionMaster()->MoveChase(pVictim, 25.0f);
-        }
+			if (m_spells.priest.pShadowWordPain &&
+				CanTryToCastSpell(pVictim, m_spells.priest.pShadowWordPain)) //暗言術：痛
+			{
+				if (DoCastSpell(pVictim, m_spells.priest.pShadowWordPain) == SPELL_CAST_OK)
+					return;
+			}
 
-        if (me->GetShapeshiftForm() == FORM_NONE)
-        {
-            if (m_spells.priest.pHolyNova &&
-                GetAttackersInRangeCount(10.0f) > 2 &&
-                CanTryToCastSpell(me, m_spells.priest.pHolyNova))
-            {
-                if (DoCastSpell(me, m_spells.priest.pHolyNova) == SPELL_CAST_OK)
-                    return;
-            }
+			if (m_spells.priest.pDevouringPlague &&
+				CanTryToCastSpell(pVictim, m_spells.priest.pDevouringPlague)) //嗜靈瘟疫
+			{
+				if (DoCastSpell(pVictim, m_spells.priest.pDevouringPlague) == SPELL_CAST_OK)
+					return;
+			}
 
-            if (m_spells.priest.pSmite &&
-                CanTryToCastSpell(pVictim, m_spells.priest.pSmite))
-            {
-                if (DoCastSpell(pVictim, m_spells.priest.pSmite) == SPELL_CAST_OK)
-                    return;
-            }
-        }
+			if (m_spells.priest.pMindBlast &&
+				CanTryToCastSpell(pVictim, m_spells.priest.pMindBlast))
+			{
+				if (DoCastSpell(pVictim, m_spells.priest.pMindBlast) == SPELL_CAST_OK)
+					return;
+			}
 
-        if (me->HasSpell(PB_SPELL_SHOOT_WAND) &&
-           !me->IsMoving() &&
-           (me->GetPowerPercent(POWER_MANA) < 10.0f) &&
-           !me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
-            me->CastSpell(pVictim, PB_SPELL_SHOOT_WAND, false);
+			if (m_spells.priest.pMindFlay &&
+				CanTryToCastSpell(pVictim, m_spells.priest.pMindFlay))
+			{
+				if (DoCastSpell(pVictim, m_spells.priest.pMindFlay) == SPELL_CAST_OK)
+					return;
+			}
+
+			if (m_spells.priest.pSmite &&
+				CanTryToCastSpell(pVictim, m_spells.priest.pSmite))
+			{
+				if (DoCastSpell(pVictim, m_spells.priest.pSmite) == SPELL_CAST_OK)
+					return;
+			}
+
+			if (me->HasSpell(PB_SPELL_SHOOT_WAND) &&
+				!me->IsMoving() &&
+				!me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
+				me->CastSpell(pVictim, PB_SPELL_SHOOT_WAND, false);
+		}
     }
 }
 
 void PartyBotAI::UpdateOutOfCombatAI_Warlock()
 {
-	if (m_spells.warlock.pUnendingBreath) //水息術
+	if (m_spells.warlock.pUnendingBreath && !me->GetGroup()->isRaidGroup()) //水息術
 	{
 		if (Player* pTarget = SelectBuffTarget(m_spells.warlock.pUnendingBreath))
 		{
@@ -2902,7 +3052,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
 		}
 	}
 
-    if (m_spells.warlock.pDetectInvisibility) //偵測次級隱形
+	if (m_spells.warlock.pDetectInvisibility && !me->GetGroup()->isRaidGroup()) //偵測次級隱形
     {
         if (Player* pTarget = SelectBuffTarget(m_spells.warlock.pDetectInvisibility))
         {
@@ -2917,13 +3067,27 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
         }
     }
 
-    if (m_spells.warlock.pDemonArmor &&
-        CanTryToCastSpell(me, m_spells.warlock.pDemonArmor)) //惡魔護甲
-    {
-        if (DoCastSpell(me, m_spells.warlock.pDemonArmor) == SPELL_CAST_OK)
-        {
-            m_isBuffing = true;
-            return;
+	if (m_spells.warlock.pDemonArmor)
+	{
+		if (CanTryToCastSpell(me, m_spells.warlock.pDemonArmor))
+		{
+			if (DoCastSpell(me, m_spells.warlock.pDemonArmor) == SPELL_CAST_OK)
+			{
+				m_isBuffing = true;
+				return;
+			}
+		}
+
+	}
+	else if (m_spells.warlock.pDemonSkin)
+	{
+		if (CanTryToCastSpell(me, m_spells.warlock.pDemonSkin))
+		{
+			if (DoCastSpell(me, m_spells.warlock.pDemonSkin) == SPELL_CAST_OK)
+			{
+				m_isBuffing = true;
+				return;
+			}
         }
     }
 
@@ -3093,6 +3257,15 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
                 return;
         }
 
+		if (Pet* pPet = me->GetPet())
+		{
+			if (!pPet->GetVictim() && !me->GetMap()->IsDungeon())
+			{
+				pPet->GetCharmInfo()->SetIsCommandAttack(true);
+				pPet->AI()->AttackStart(pVictim);
+			}
+		}
+
 		if (m_spells.warlock.pHowlofTerror &&
 			me->GetHealthPercent() < 30.0f &&
 			GetAttackersInRangeCount(10.0f) > 1 &&
@@ -3110,19 +3283,20 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
                 return;
         }
 
-        if (m_spells.warlock.pBanish &&
-            me->GetAttackers().size() > 1) //如果攻擊者>1就使用放逐術
-        {
-            Unit* pAttacker = *me->GetAttackers().begin();
-            if ((pAttacker->GetHealth() > me->GetHealth()) &&
-                CanTryToCastSpell(pAttacker, m_spells.warlock.pBanish))
-            {
-                if (DoCastSpell(pAttacker, m_spells.warlock.pBanish) == SPELL_CAST_OK)
-                    return;
+		if (m_spells.warlock.pBanish && m_spellTimer1 <= 0)
+		{
+			if (Unit* pTarget = SelectSpellTargetDifferentFrom(m_spells.warlock.pBanish, pVictim, 15.0f))
+			{
+				if (DoCastSpell(pTarget, m_spells.warlock.pBanish) == SPELL_CAST_OK)
+				{
+					m_spellTimer1 = 15 * IN_MILLISECONDS;
+					return;
+				}
             }
         }
 
         if (m_spells.warlock.pRainOfFire &&
+			m_aoeSpellTimer <= 0 &&
             (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 3) &&
             pVictim->GetHealthPercent() < 75.0f &&
             CanTryToCastSpell(pVictim, m_spells.warlock.pRainOfFire)) //火焰之雨
@@ -3144,33 +3318,14 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
             }
         }
 
-		if (pVictim->GetHealthPercent() < 95.0f)
+		// Raid Curse
+		if (me->GetGroup()->isRaidGroup())
 		{
-			// Curse Selection
-			if (me->GetGroup()->isRaidGroup())
+			if (m_spells.warlock.pRaidCurse &&
+				!pVictim->HasAura(m_spells.warlock.pRaidCurse->Id) &&
+				CanTryToCastSpell(pVictim, m_spells.warlock.pRaidCurse))
 			{
-				if (m_spells.warlock.pRaidCurse &&
-					!pVictim->HasAura(m_spells.warlock.pRaidCurse->Id) &&
-					CanTryToCastSpell(pVictim, m_spells.warlock.pRaidCurse))
-				{
-					if (DoCastSpell(pVictim, m_spells.warlock.pRaidCurse) == SPELL_CAST_OK)
-						return;
-				}
-			}
-			else
-			{
-				if (m_spells.warlock.pCurseofAgony &&
-					CanTryToCastSpell(pVictim, m_spells.warlock.pCurseofAgony))
-				{
-					if (DoCastSpell(pVictim, m_spells.warlock.pCurseofAgony) == SPELL_CAST_OK)
-						return;
-				}
-			}
-
-			if (m_spells.warlock.pCorruption &&
-				CanTryToCastSpell(pVictim, m_spells.warlock.pCorruption))
-			{
-				if (DoCastSpell(pVictim, m_spells.warlock.pCorruption) == SPELL_CAST_OK)
+				if (DoCastSpell(pVictim, m_spells.warlock.pRaidCurse) == SPELL_CAST_OK)
 					return;
 			}
 		}
@@ -3179,16 +3334,40 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
 			CanTryToCastSpell(pVictim, m_spells.warlock.pImmolate))
 		{
 			if (DoCastSpell(pVictim, m_spells.warlock.pImmolate) == SPELL_CAST_OK)
-                return;
-        }
+				return;
+		}
+
+		if (m_spells.warlock.pCorruption &&
+			CanTryToCastSpell(pVictim, m_spells.warlock.pCorruption))
+		{
+			if (DoCastSpell(pVictim, m_spells.warlock.pCorruption) == SPELL_CAST_OK)
+				return;
+		}
 
         if (m_spells.warlock.pSiphonLife &&
-           (me->GetHealthPercent() < 50.0f) &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pSiphonLife)) //靈魂虹吸，VM原版當術士生命<80使用，我比照Ace方式改為<50
+           (me->GetHealthPercent() < 80.0f) &&
+            CanTryToCastSpell(pVictim, m_spells.warlock.pSiphonLife)) //靈魂虹吸
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pSiphonLife) == SPELL_CAST_OK)
                 return;
         }
+
+		if (!me->GetGroup()->isRaidGroup())
+		{
+			if (m_spells.warlock.pCurseofTongues &&
+				pVictim->IsCaster() &&
+				CanTryToCastSpell(pVictim, m_spells.warlock.pCurseofTongues))
+			{
+				if (DoCastSpell(pVictim, m_spells.warlock.pCurseofTongues) == SPELL_CAST_OK)
+					return;
+			}
+			else if (m_spells.warlock.pCurseofAgony &&
+				CanTryToCastSpell(pVictim, m_spells.warlock.pCurseofAgony))
+			{
+				if (DoCastSpell(pVictim, m_spells.warlock.pCurseofAgony) == SPELL_CAST_OK)
+					return;
+			}
+		}
 
         if (m_spells.warlock.pDrainLife &&
            (me->GetHealthPercent() < 50.0f) &&
@@ -3249,7 +3428,6 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
 
         if (me->HasSpell(PB_SPELL_SHOOT_WAND) &&
            !me->IsMoving() &&
-           (me->GetPowerPercent(POWER_MANA) < 5.0f) &&
            !me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
             me->CastSpell(pVictim, PB_SPELL_SHOOT_WAND, false);
     }
@@ -3373,6 +3551,14 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 				return;
 		}
 
+		// BATTLE SHOUT IF NEEDED
+		if (m_spells.warrior.pBattleShout &&
+			CanTryToCastSpell(me, m_spells.warrior.pBattleShout))
+		{
+			if (DoCastSpell(me, m_spells.warrior.pBattleShout) == SPELL_CAST_OK)
+				return;
+		}
+
 		// USE PROC OR CONDITIONAL SPELLS
 		if (m_spells.warrior.pRevenge &&
 			CanTryToCastSpell(pVictim, m_spells.warrior.pRevenge))
@@ -3437,7 +3623,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 						return;
 				}
 			}
-			else if (pVictim->GetHealthPercent() < 75.0f)
+			else
 			{
 				if (m_spells.warrior.pWhirlwind &&
 					CanTryToCastSpell(pVictim, m_spells.warrior.pWhirlwind))
@@ -3456,10 +3642,49 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 		}
 
 		// Use single target spells
+		if (m_spells.warrior.pRend &&
+			CanTryToCastSpell(pVictim, m_spells.warrior.pRend))
+		{
+			if (DoCastSpell(pVictim, m_spells.warrior.pRend) == SPELL_CAST_OK)
+				return;
+		}
+
+		// Try to stop if target running away
+		if (m_spells.warrior.pConcussionBlow &&
+			(pVictim->IsNonMeleeSpellCasted() || pVictim->IsMoving() || (me->GetHealthPercent() < 50.0f)) &&
+			CanTryToCastSpell(pVictim, m_spells.warrior.pConcussionBlow))
+		{
+			if (DoCastSpell(pVictim, m_spells.warrior.pConcussionBlow) == SPELL_CAST_OK)
+				return;
+		}
+
+		if (m_spells.warrior.pHamstring &&
+			pVictim->IsMoving() &&
+			!pVictim->HasUnitState(UNIT_STAT_ROOT) &&
+			!pVictim->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) &&
+			CanTryToCastSpell(pVictim, m_spells.warrior.pHamstring))
+		{
+			if (DoCastSpell(pVictim, m_spells.warrior.pHamstring) == SPELL_CAST_OK)
+				return;
+		}
+
+
+		// Now wait for more rage for main skills
+		if (me->GetPowerPercent(POWER_RAGE) < 30.0f)
+			return;
+
 		if (m_spells.warrior.pShieldSlam &&
 			CanTryToCastSpell(pVictim, m_spells.warrior.pShieldSlam)) //盾牌猛擊
 		{
 			if (DoCastSpell(pVictim, m_spells.warrior.pShieldSlam) == SPELL_CAST_OK)
+				return;
+		}
+
+		if (m_spells.warrior.pSweepingStrikes &&
+			CanTryToCastSpell(me, m_spells.warrior.pSweepingStrikes) &&
+			(me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 1))
+		{
+			if (DoCastSpell(me, m_spells.warrior.pSweepingStrikes) == SPELL_CAST_OK)
 				return;
 		}
 
@@ -3477,14 +3702,6 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 				return;
 		}
 
-		if (m_spells.warrior.pConcussionBlow &&
-			(pVictim->IsNonMeleeSpellCasted() || pVictim->IsMoving() || (me->GetHealthPercent() < 50.0f)) &&
-			CanTryToCastSpell(pVictim, m_spells.warrior.pConcussionBlow)) //震盪猛擊
-		{
-			if (DoCastSpell(pVictim, m_spells.warrior.pConcussionBlow) == SPELL_CAST_OK)
-				return;
-		}
-
         // Second Sunder Armor Application
 		if (m_role == ROLE_TANK &&
 			m_spells.warrior.pSunderArmor &&
@@ -3494,37 +3711,11 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 				return;
 		}
 
-        if (m_spells.warrior.pHamstring &&
-			pVictim->IsMoving() &&
-			!pVictim->HasUnitState(UNIT_STAT_ROOT) &&
-			!pVictim->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) &&
-			CanTryToCastSpell(pVictim, m_spells.warrior.pHamstring)) //斷筋
-		{
-			if (DoCastSpell(pVictim, m_spells.warrior.pHamstring) == SPELL_CAST_OK)
-				return;
-		}
-
-		if (m_spells.warrior.pRend &&
-			CanTryToCastSpell(pVictim, m_spells.warrior.pRend))
-		{
-			if (DoCastSpell(pVictim, m_spells.warrior.pRend) == SPELL_CAST_OK)
-				return;
-		}
-
         if (m_spells.warrior.pDisarm &&
 			IsMeleeWeaponClass(pVictim->GetClass()) &&
 			CanTryToCastSpell(pVictim, m_spells.warrior.pDisarm)) //繳械
 		{
 			if (DoCastSpell(pVictim, m_spells.warrior.pDisarm) == SPELL_CAST_OK)
-				return;
-		}
-
-		if (m_spells.warrior.pSweepingStrikes &&
-			pVictim->GetHealthPercent() < 75.0f &&
-			CanTryToCastSpell(me, m_spells.warrior.pSweepingStrikes) &&
-			(me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2))
-		{
-			if (DoCastSpell(me, m_spells.warrior.pSweepingStrikes) == SPELL_CAST_OK)
 				return;
 		}
 
@@ -3675,8 +3866,16 @@ void PartyBotAI::UpdateOutOfCombatAI_Rogue()
             return;
     }
 
-    if (EnterStealthIfNeeded(m_spells.rogue.pStealth))
-        return;
+	if (m_spells.rogue.pStealth &&
+		CanTryToCastSpell(me, m_spells.rogue.pStealth))
+	{
+		if (Player* pLeader = GetPartyLeader())
+		{
+			if (me->IsWithinDistInMap(pLeader, 10.0) &&
+				DoCastSpell(me, m_spells.rogue.pStealth) == SPELL_CAST_OK)
+				return;
+		}
+	}
 
     /*
     if (me->GetVictim())
@@ -3923,9 +4122,25 @@ bool PartyBotAI::EnterCombatDruidForm()
 //BOT使用消耗品的判斷式
 void PartyBotAI::PopulateConsumableSpellData()
 {
+	// Healing Potion
+	if (me->GetLevel() >= 60)
+		m_potionSpell = sSpellMgr.GetSpellEntry(PB_SPELL_POT_REJUV);
+	else if (me->GetLevel() >= 45)
+		m_potionSpell = sSpellMgr.GetSpellEntry(PB_SPELL_POT_HEAL_45);
+	else if (me->GetLevel() >= 35)
+		m_potionSpell = sSpellMgr.GetSpellEntry(PB_SPELL_POT_HEAL_35);
+	else if (me->GetLevel() >= 21)
+		m_potionSpell = sSpellMgr.GetSpellEntry(PB_SPELL_POT_HEAL_21);
+	else if (me->GetLevel() >= 12)
+		m_potionSpell = sSpellMgr.GetSpellEntry(PB_SPELL_POT_HEAL_12);
+	else if (me->GetLevel() >= 3)
+		m_potionSpell = sSpellMgr.GetSpellEntry(PB_SPELL_POT_HEAL_3);
+
+	// Other Potions only apply to lvl 60+
 	if (m_level < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
 		return;
-	m_potionSpell = sSpellMgr.GetSpellEntry(PB_SPELL_POT_REJUV);
+
+	m_restPotion = sSpellMgr.GetSpellEntry(PB_SPELL_POT_RESTO);
 
 	switch (m_role)
 	{
@@ -4013,7 +4228,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Druid()
 		}
 	}
 
-    if (m_spells.druid.pThorns) //荊棘術
+	if (m_spells.druid.pThorns && !me->GetGroup()->isRaidGroup()) //荊棘術
     {
         if (Player* pTarget = SelectBuffTarget(m_spells.druid.pThorns))
         {
@@ -4065,41 +4280,25 @@ void PartyBotAI::UpdateOutOfCombatAI_Druid()
 		}
 	}
 
-    if (me->GetShapeshiftForm() == FORM_NONE)
-    {
-        if (EnterCombatDruidForm())
-            return;
-
-        //if ((me->GetPowerPercent(POWER_MANA) > 80.0f) &&
-        if (m_role == ROLE_HEALER &&
-            FindAndHealInjuredAlly(100.0f, 90.0f))
-            return;
-    }
-    else if (me->GetShapeshiftForm() == FORM_CAT)
-    {
-        if (EnterStealthIfNeeded(m_spells.druid.pProwl))
-            return;
-    }
-
-    /*
-    //if (me->GetVictim())
-    //    UpdateInCombatAI_Druid();
-	if (Unit* pVictim = me->GetVictim()) //嘗試用丟手雷進入戰鬥狀態
+	if (m_role == ROLE_HEALER && FindAndHealInjuredAlly(90.0f))
+		return;
+	else
 	{
-		if (m_role == ROLE_TANK)
+		if (me->GetShapeshiftForm() == FORM_NONE)
 		{
-			SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(PB_SPELL_IRON_GRENADE);
-			if (me->GetEnemyCountInRadiusAround(pVictim, 5.0f) >= 2 && me->CastSpell(pVictim, pSpellEntry, true))//目標周圍3碼內敵人數量3個以上則丟手雷
+			if (EnterCombatDruidForm())
+				return;
+		}
+		else if (me->GetShapeshiftForm() == FORM_CAT)
+		{
+			if (m_spells.druid.pProwl &&
+				CanTryToCastSpell(me, m_spells.druid.pProwl))
 			{
-				if (DoCastSpell(pVictim, pSpellEntry) == SPELL_CAST_OK)
+				if (DoCastSpell(me, m_spells.druid.pProwl) == SPELL_CAST_OK)
 					return;
 			}
-			UpdateInCombatAI_Druid();
 		}
-		else
-			UpdateInCombatAI_Druid();
 	}
-    */
 }
 
 void PartyBotAI::UpdateInCombatAI_Druid()
@@ -4115,6 +4314,18 @@ void PartyBotAI::UpdateInCombatAI_Druid()
         if (DoCastSpell(me, m_spells.druid.pBarkskin) == SPELL_CAST_OK)
             return;
     }
+
+	// Critical Healing
+	if (m_role == ROLE_TANK && me->GetHealthPercent() < 35.0f)
+	{
+		HealInjuredTargetDirect(me);
+		return;
+	}
+	else
+	{
+		if (FindAndHealInjuredAlly(35.0f, 35.0f))
+			return;
+	}
 
 	// Dispels
 	SpellEntry const* pDispelSpell = m_spells.druid.pAbolishPoison ?
@@ -4155,39 +4366,20 @@ void PartyBotAI::UpdateInCombatAI_Druid()
                 return;
         }
 
-		// Prioritize applying HoTs.
-		if (Unit* pTarget = SelectPeriodicHealTarget(85.0f, 85.0f))
-			if (HealInjuredTargetPeriodic(pTarget))
-				return;
-
-		// Direct heal.
-        if (Unit* pTarget = SelectHealTarget(70.0f, 70.0f))
-        {
-            if (m_spells.druid.pSwiftmend &&
-                pTarget->GetHealthPercent() < 50.0f &&
-                pTarget->HasAuraType(SPELL_AURA_PERIODIC_HEAL) &&
-                CanTryToCastSpell(pTarget, m_spells.druid.pSwiftmend)) //如果被治療對象身上有Hot就使用迅捷治癒
-            {
-                if (DoCastSpell(pTarget, m_spells.druid.pSwiftmend) == SPELL_CAST_OK)
-                    return;
-            }
-
-            if (HealInjuredTargetDirect(pTarget))
-                return;
-        }
-	}
-    else
-	{
-		if (m_role == ROLE_TANK && me->GetHealthPercent() < 35.0f)
+		// Swiftmend
+		if (Unit* pTarget = SelectHealTarget(50.0f, false))
 		{
-			HealInjuredTarget(me);
+			if (m_spells.druid.pSwiftmend &&
+				pTarget->HasAuraType(SPELL_AURA_PERIODIC_HEAL) &&
+				CanTryToCastSpell(pTarget, m_spells.druid.pSwiftmend))
+			{
+				if (DoCastSpell(pTarget, m_spells.druid.pSwiftmend) == SPELL_CAST_OK)
+					return;
+			}
+		}
+
+		if (FindAndHealInjuredAlly(85.0f, 45.0f))
 			return;
-		}
-		else
-		{
-			if (FindAndHealInjuredAlly(35.0f, 35.0f))
-				return;
-		}
 	}
 
     if (form == FORM_NONE)
@@ -4238,6 +4430,11 @@ void PartyBotAI::UpdateInCombatAI_Druid()
             if (me->HasDistanceCasterMovement())
                 me->SetCasterChaseDistance(0.0f);
 
+			if (m_spells.druid.pFuror && me->GetPower(POWER_ENERGY) <= 12)
+			{
+				me->RemoveSpellsCausingAura(SPELL_AURA_MOD_SHAPESHIFT);
+			}
+
             /*if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
                 && !me->CanReachWithMeleeAutoAttack(pVictim))
             {
@@ -4246,24 +4443,25 @@ void PartyBotAI::UpdateInCombatAI_Druid()
 
             if (me->HasAuraType(SPELL_AURA_MOD_STEALTH))
             {
-                if (m_spells.druid.pPounce &&
-                    CanTryToCastSpell(pVictim, m_spells.druid.pPounce))
-                {
-                    if (DoCastSpell(pVictim, m_spells.druid.pPounce) == SPELL_CAST_OK)
-                        return;
-                }
                 if (m_spells.druid.pRavage &&
                     CanTryToCastSpell(pVictim, m_spells.druid.pRavage))
                 {
                     if (DoCastSpell(pVictim, m_spells.druid.pRavage) == SPELL_CAST_OK)
                         return;
                 }
-                if (m_spells.druid.pTigersFury &&
-                    CanTryToCastSpell(me, m_spells.druid.pTigersFury))
-                {
-                    if (DoCastSpell(me, m_spells.druid.pTigersFury) == SPELL_CAST_OK)
-                        return;
-                }
+				if (m_spells.druid.pPounce &&
+					CanTryToCastSpell(pVictim, m_spells.druid.pPounce))
+				{
+					if (DoCastSpell(pVictim, m_spells.druid.pPounce) == SPELL_CAST_OK)
+						return;
+				}
+
+				/*if (m_spells.druid.pTigersFury &&
+					CanTryToCastSpell(me, m_spells.druid.pTigersFury))
+				{
+					if (DoCastSpell(me, m_spells.druid.pTigersFury) == SPELL_CAST_OK)
+						return;
+				}*/
                 return;
             }
 
@@ -4278,7 +4476,8 @@ void PartyBotAI::UpdateInCombatAI_Druid()
                 }
             }
 
-            if (me->GetComboPoints() > 4)
+			if (me->GetComboPoints() > 4 ||
+				(me->GetComboPoints() > 2 && pVictim->GetHealthPercent() < 10.0f))
             {
                 if (m_spells.druid.pFerociousBite &&
                     CanTryToCastSpell(pVictim, m_spells.druid.pFerociousBite))
@@ -4313,13 +4512,6 @@ void PartyBotAI::UpdateInCombatAI_Druid()
                 }
             }
 
-            if (m_spells.druid.pShred &&
-                CanTryToCastSpell(pVictim, m_spells.druid.pShred))
-            {
-                if (DoCastSpell(pVictim, m_spells.druid.pShred) == SPELL_CAST_OK)
-                    return;
-            }
-
             if (m_spells.druid.pRake &&
                 CanTryToCastSpell(pVictim, m_spells.druid.pRake))
             {
@@ -4327,8 +4519,16 @@ void PartyBotAI::UpdateInCombatAI_Druid()
                     return;
             }
 
-            if (m_spells.druid.pClaw &&
-                CanTryToCastSpell(pVictim, m_spells.druid.pClaw))
+			if (m_spells.druid.pShred)
+			{
+				if (CanTryToCastSpell(pVictim, m_spells.druid.pShred))
+				{
+					if (DoCastSpell(pVictim, m_spells.druid.pShred) == SPELL_CAST_OK)
+						return;
+				}
+			}
+			else if (m_spells.druid.pClaw &&
+				CanTryToCastSpell(pVictim, m_spells.druid.pClaw))
             {
                 if (DoCastSpell(pVictim, m_spells.druid.pClaw) == SPELL_CAST_OK)
                     return;
@@ -4406,12 +4606,7 @@ void PartyBotAI::UpdateInCombatAI_Druid()
         case FORM_NONE:
         case FORM_MOONKIN:
         {
-            if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE &&
-                me->GetDistance(pVictim) > 30.0f)
-            {
-                me->GetMotionMaster()->MoveChase(pVictim, 25.0f);
-            }
-            else if (pVictim->CanReachWithMeleeAutoAttack(me) &&
+			if (pVictim->CanReachWithMeleeAutoAttack(me) &&
                     (pVictim->GetVictim() == me) &&
                     !me->HasUnitState(UNIT_STAT_ROOT) &&
                     (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != DISTANCING_MOTION_TYPE))
@@ -4427,6 +4622,7 @@ void PartyBotAI::UpdateInCombatAI_Druid()
             }
 
             if (m_spells.druid.pHurricane &&
+				m_aoeSpellTimer <= 0 &&
                 (me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 3) &&
                 pVictim->GetHealthPercent() < 75.0f &&
                 CanTryToCastSpell(pVictim, m_spells.druid.pHurricane)) //颶風術
@@ -4469,7 +4665,6 @@ void PartyBotAI::UpdateInCombatAI_Druid()
             }
 
             if (m_spells.druid.pMoonfire &&
-                pVictim->GetHealthPercent() < 95.0f &&
                 CanTryToCastSpell(pVictim, m_spells.druid.pMoonfire)) //月火術
             {
                 if (DoCastSpell(pVictim, m_spells.druid.pMoonfire) == SPELL_CAST_OK)
@@ -4494,4 +4689,45 @@ void PartyBotAI::UpdateInCombatAI_Druid()
             break;
         }
     }
+}
+
+bool PartyBotAI::CheckBossMechanics()
+{
+	// Return FALSE while not ok with desired mechanics
+
+	// If not in Raid Group or Inside Dungeon return
+	if (!(me->GetMap()->IsDungeon() || me->GetGroup()->isRaidGroup()))
+		return true;
+
+	switch (me->GetMap()->GetId())
+	{
+		// MOLTEN CORE
+	case 409:
+
+		// MAGMADAR - Fire Bomb
+		if (GameObject* pBomb = me->FindNearestGameObject(177704, 6.0f))
+		{
+			RunAwayFromObject(pBomb, 8.0f, me->GetVictim());
+			return false;
+		}
+
+		// GEHENNAS - Rain of Fire
+		if (me->HasAura(19717))
+		{
+			RunAwayFromAOE(12.0f);
+			return false;
+		}
+
+		// GARR
+		if (Unit* pVictim = me->GetVictim())
+		{
+			if (pVictim->GetEntry() == 12057)
+				m_aoeSpellTimer = 30 * IN_MILLISECONDS;
+		}
+
+	default:
+		break;
+	}
+
+	return true;
 }

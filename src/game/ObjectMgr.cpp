@@ -11071,7 +11071,8 @@ void ObjectMgr::LoadPlayerPremadeTemplates()
                     continue;
             }
 
-            if (!(level >= 1 && level <= PLAYER_MAX_LEVEL))
+            //if (!(level >= 1 && level <= PLAYER_MAX_LEVEL))
+            if (!(level >= 1 && level <= PLAYER_STRONG_MAX_LEVEL))
             {
                 sLog.outErrorDb("Wrong level %hhu for entry %u in table `player_premade_template`", level, entry);
                 continue;

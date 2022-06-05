@@ -144,7 +144,7 @@ void AuctionHouseBotMgr::AddItem(AuctionHouseBotEntry e, AuctionHouseObject *auc
         return;
     }
 
-    sLog.outInfo("AHBot::AddItem() : Adding item %u.", e.item);
+    //sLog.outInfo("AHBot::AddItem() : Adding item %u.", e.item);
 
     uint32 randomPropertyId = Item::GenerateItemRandomPropertyId(e.item);
     if (randomPropertyId != 0)
