@@ -441,6 +441,7 @@ bool PlayerBotMgr::AddPartyBot(Player* pPlayer, std::string option, uint32 force
 
 	uint8 botClass = 0;
 	uint32 botLevel = 0;
+	uint8 botRace = 0;
 	//uint32 botGender = urand(0, 1); //加入性別屬性供定義
 
 	if (forceLevel)
@@ -508,16 +509,22 @@ bool PlayerBotMgr::AddPartyBot(Player* pPlayer, std::string option, uint32 force
 		botClass = SelectRandomContainerElement(tankClasses);
 		botRole = ROLE_TANK;
 	}
+	else if (option == "partner")
+	{
+		botRace = pPlayer->GetRace();
+		botClass = SelectRandomClassForRace(botRace);
+	}
 
-	if (botRole == ROLE_INVALID)
+	if (!botRole)
 	{
 		if (botClass == CLASS_DRUID && botLevel >= 60)
-			botRole == urand(0, 1) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
+			botRole = urand(0, 1) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
 		else
 			botRole = CombatBotBaseAI::IsMeleeWeaponClass(botClass) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
 	}
 
-	uint8 botRace = sPlayerBotMgr.SelectRandomRaceForClass(botClass, pPlayer->GetTeam());
+	if (!botRace)
+		botRace = sPlayerBotMgr.SelectRandomRaceForClass(botClass, pPlayer->GetTeam());
 
 	float x, y, z;
 	pPlayer->GetNearPoint(pPlayer, x, y, z, 0, 5.0f, frand(0.0f, 6.0f));
@@ -525,6 +532,8 @@ bool PlayerBotMgr::AddPartyBot(Player* pPlayer, std::string option, uint32 force
 	//PartyBotAI* ai = new PartyBotAI(pPlayer, nullptr, botRole, botRace, botClass, botGender, botLevel, pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
 	PartyBotAI* ai = new PartyBotAI(pPlayer, nullptr, botRole, botRace, botClass, botLevel, pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
 	AddBot(ai);
+
+    return true;
 }
 
 bool PlayerBotMgr::DeleteRandomBot()
@@ -548,6 +557,40 @@ bool PlayerBotMgr::DeleteRandomBot()
         }
     }
     return false;
+}
+
+uint8 PlayerBotMgr::SelectRandomClassForRace(uint8 playerRace)
+{
+	switch (playerRace)
+	{
+	case RACE_HUMAN:
+		return PickRandomValue(CLASS_MAGE, CLASS_PALADIN, CLASS_PRIEST, CLASS_ROGUE, CLASS_WARLOCK, CLASS_WARRIOR);
+		break;
+	case RACE_DWARF:
+		return PickRandomValue(CLASS_HUNTER, CLASS_PALADIN, CLASS_PRIEST, CLASS_ROGUE, CLASS_WARRIOR);
+		break;
+	case RACE_GNOME:
+		return PickRandomValue(CLASS_MAGE, CLASS_ROGUE, CLASS_WARLOCK, CLASS_WARRIOR);
+		break;
+	case RACE_NIGHTELF:
+		return PickRandomValue(CLASS_DRUID, CLASS_HUNTER, CLASS_PRIEST, CLASS_ROGUE, CLASS_WARRIOR);
+		break;
+	case RACE_ORC:
+		return PickRandomValue(CLASS_HUNTER, CLASS_ROGUE, CLASS_SHAMAN, CLASS_WARLOCK, CLASS_WARRIOR);
+		break;
+	case RACE_TAUREN:
+		return PickRandomValue(CLASS_DRUID, CLASS_HUNTER, CLASS_SHAMAN, CLASS_WARRIOR);
+		break;
+	case RACE_TROLL:
+		return PickRandomValue(CLASS_HUNTER, CLASS_MAGE, CLASS_PRIEST, CLASS_ROGUE, CLASS_SHAMAN, CLASS_WARRIOR);
+		break;
+	case RACE_UNDEAD:
+		return PickRandomValue(CLASS_MAGE, CLASS_PRIEST, CLASS_ROGUE, CLASS_WARLOCK, CLASS_WARRIOR);
+		break;
+	default:
+		return CLASS_WARRIOR;
+		break;
+	}
 }
 
 bool PlayerBotMgr::ForceAccountConnection(WorldSession* sess)
@@ -1028,7 +1071,7 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
 	//else
 		//ExtractUInt32(&args, botGender); //使用第二個參數=botGender
 
-	std::string option = "dps";
+	std::string option = "partner";
 
 	if (char* arg1 = ExtractArg(&args))
 	{

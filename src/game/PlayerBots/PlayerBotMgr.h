@@ -95,7 +95,8 @@ class PlayerBotMgr
         void AddTempBot(uint32 account, uint32 time);
         void RefreshTempBot(uint32 account);
 
-		uint8 SelectRandomRaceForClass(uint8 playerClass, Team playerTeam);
+        uint8 SelectRandomRaceForClass(uint8 playerClass, Team playerTeam);
+        uint8 SelectRandomClassForRace(uint8 playerRace);
 
         bool ForceAccountConnection(WorldSession* sess);
         bool IsPermanentBot(uint32 playerGuid);

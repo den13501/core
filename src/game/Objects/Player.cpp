@@ -1556,14 +1556,14 @@ void Player::Update(uint32 update_diff, uint32 p_time)
     // Update special Timer for bot Heal Targeting
     if (m_healTargetTimer > 0)
     {
-        if (update_diff >= m_healTargetTimer)
+        if (update_diff >= m_healTargetTimer || m_healTargetTimer > 3.5f)
             m_healTargetTimer = 0;
         else
             m_healTargetTimer -= update_diff;
     }
     if (m_healPeriodicTargetTimer > 0)
     {
-        if (update_diff >= m_healPeriodicTargetTimer)
+        if (update_diff >= m_healPeriodicTargetTimer || m_healPeriodicTargetTimer > 3.5f)
             m_healPeriodicTargetTimer = 0;
         else
             m_healPeriodicTargetTimer -= update_diff;
@@ -8563,7 +8563,7 @@ void Player::PartyBotAdd()
     Player* me = ToPlayer();
 
     if (!GetGroup())
-        sPlayerBotMgr.AddPartyBot(me, "dps", 0);
+        sPlayerBotMgr.AddPartyBot(me, "partner", 0);
     else
         ChatHandler(me).PSendSysMessage("你已經有隊伍了");
 }

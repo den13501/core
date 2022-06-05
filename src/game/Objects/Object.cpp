@@ -1839,6 +1839,30 @@ bool WorldObject::HasInArc(WorldObject const* target, float const arcangle, floa
     return ((angle >= lborder) && (angle <= rborder));
 }
 
+bool WorldObject::HasInArcCust(float const arcangle, WorldObject const* obj, float offset) const
+{
+	// always have self in arc
+	if (obj == this)
+		return true;
+
+	float arc = arcangle;
+
+	// move arc to range 0.. 2*pi
+	arc = MapManager::NormalizeOrientation(arc);
+
+	float angle = GetAngle(obj);
+	angle -= m_position.o + offset;
+
+	// move angle to range -pi ... +pi
+	angle = MapManager::NormalizeOrientation(angle);
+	if (angle > M_PI_F)
+		angle -= 2.0f * M_PI_F;
+
+	float lborder = -1 * (arc / 2.0f);                     // in range -pi..0
+	float rborder = (arc / 2.0f);                           // in range 0..pi
+	return ((angle >= lborder) && (angle <= rborder));
+}
+
 bool WorldObject::IsFacingTarget(WorldObject const* target) const
 {
     return (GetDistance2dToCenter(target) < NO_FACING_CHECKS_DISTANCE) || HasInArc(target);

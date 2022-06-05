@@ -176,6 +176,7 @@ public:
 	bool CanTryToCastStackSpell(Unit const* pTarget, SpellEntry const* pSpellEntry, uint32 maxStack = 1) const;
     bool IsWearingShield() const;
 	bool IsDualWielding() const; //雙持
+	bool IsTank(Player* pPlayer) const; //是否為坦克判斷涵式
 
     void EquipOrUseNewItem();
     void AddItemToInventory(uint32 itemId, uint32 count = 1);

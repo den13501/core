@@ -90,6 +90,8 @@ void Pet::AddToWorld()
 
     Unit::AddToWorld();
 
+    m_allSpellsLearned = false;
+
     // Prevent stuck pets when zoning. Pets default to "follow" when added to world
     // so we'll reset flags and let the AI handle things
     if (GetCharmInfo() && GetCharmInfo()->HasCommandState(COMMAND_FOLLOW))
