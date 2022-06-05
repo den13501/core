@@ -509,11 +509,13 @@ bool PlayerBotMgr::AddPartyBot(Player* pPlayer, std::string option, uint32 force
 		botClass = SelectRandomContainerElement(tankClasses);
 		botRole = ROLE_TANK;
 	}
-	else if (option == "partner")
-	{
-		botRace = pPlayer->GetRace();
-		botClass = SelectRandomClassForRace(botRace);
-	}
+    else if (option == "partner")
+    {
+        botRace = pPlayer->GetRace();
+        botClass = SelectRandomClassForRace(botRace);
+        while (botClass == pPlayer->GetClass())
+            botClass = SelectRandomClassForRace(botRace);
+    }
 
 	if (!botRole)
 	{

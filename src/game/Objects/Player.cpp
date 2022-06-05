@@ -1079,11 +1079,14 @@ void Player::SatisfyItemRequirements(ItemPrototype const* pItem)
     auto playerRank = (sWorld.getConfig(CONFIG_BOOL_ACCURATE_PVP_EQUIP_REQUIREMENTS) && sWorld.GetWowPatch() < WOW_PATCH_106) ? m_honorMgr.GetRank().rank : m_honorMgr.GetHighestRank().rank;
     if (playerRank < (uint8)pItem->RequiredHonorRank)
     {
-        HonorRankInfo rank;
-        rank.rank = pItem->RequiredHonorRank;
-        m_honorMgr.CalculateRankInfo(rank);
-        m_honorMgr.SetHighestRank(rank);
-        m_honorMgr.SetRank(rank);
+		if (m_honorMgr.GetRank().rank < pItem->RequiredHonorRank)
+		{
+			HonorRankInfo rank;
+			rank.rank = pItem->RequiredHonorRank;
+			m_honorMgr.CalculateRankInfo(rank);
+			m_honorMgr.SetHighestRank(rank);
+			m_honorMgr.SetRank(rank);
+		}
     }
 
     // Set required reputation

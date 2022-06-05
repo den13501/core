@@ -457,7 +457,7 @@ bool PartyBotAI::DrinkAndEat() //吃喝邏輯
         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType())
         {
             me->StopMoving();
-            me->GetMotionMaster()->Clear(false, true);
+            //me->GetMotionMaster()->Clear(false, true);
             me->GetMotionMaster()->MoveIdle();
         }
 		if (me->GetLevel() < 35)
@@ -795,6 +795,16 @@ Unit* PartyBotAI::SelectAttackTarget() const
 	{
 		if (Unit* pVictim = pLeader->GetVictim())
 		{
+			// Stick to marked target in combat.
+			for (auto markId : m_marksToFocus)
+			{
+				ObjectGuid targetGuid = me->GetGroup()->GetTargetWithIcon(markId);
+				if (targetGuid.IsUnit())
+					if (Unit* pVictim = me->GetMap()->GetUnit(targetGuid))
+						if (IsValidHostileTarget(pVictim))
+							return pVictim;
+			}
+
 			if (pLeader->IsInCombat() &&
 				IsValidHostileTarget(pVictim))
 				return pVictim;
@@ -2447,13 +2457,13 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 
         if (!me->HasUnitState(UNIT_STAT_ROOT) &&
             (me->GetCombatDistance(pVictim) < 8.0f) &&
-			m_role != ROLE_MELEE_DPS)
+            m_role != ROLE_MELEE_DPS)
         {
-			if (!me->IsStopped()) //如果本身動作未停止
+            if (!me->IsStopped()) //如果本身動作未停止
                 me->StopMoving(); //則停止移動
             me->GetMotionMaster()->Clear(); //清除移動狀態
             //if (HunterRunAwayFromTarget(pVictim))
-			RunAwayFromTarget(pVictim);
+            RunAwayFromTarget(pVictim, true);
             return;
         }
     }
@@ -2609,7 +2619,7 @@ void PartyBotAI::UpdateInCombatAI_Mage() //法師戰鬥中AI
                         CanTryToCastSpell(me, m_spells.mage.pFrostNova))
                     {
                         DoCastSpell(me, m_spells.mage.pFrostNova);
-                        RunAwayFromTarget(pVictim);
+                        RunAwayFromTarget(pVictim, true);
                     }
 					//定腳目標後逃開的行為模式
                     //if (MageRunAwayFromTarget(pVictim))
@@ -2981,7 +2991,7 @@ void PartyBotAI::UpdateInCombatAI_Priest() //牧師戰鬥中AI
                 CanUseCrowdControl(m_spells.priest.pShackleUndead, pAttacker))
             {
                 if (DoCastSpell(pAttacker, m_spells.priest.pShackleUndead) == SPELL_CAST_OK)
-                    RunAwayFromTarget(pAttacker);
+                    RunAwayFromTarget(pAttacker, true);
                     return;
             }
         }
@@ -4046,7 +4056,7 @@ void PartyBotAI::UpdateInCombatAI_Rogue()
                 {
                     if (DoCastSpell(me, m_spells.rogue.pVanish) == SPELL_CAST_OK)
                     {
-                        RunAwayFromTarget(pVictim);
+                        RunAwayFromTarget(pVictim, true);
                         return;
                     }
                 }
@@ -4729,7 +4739,7 @@ void PartyBotAI::UpdateInCombatAI_Druid()
             {
                 if (pVictim->HasAura(m_spells.druid.pEntanglingRoots->Id))
                 {
-                    RunAwayFromTarget(pVictim);
+                    RunAwayFromTarget(pVictim, true);
                     return;
                 }
                 if (m_spells.druid.pEntanglingRoots &&
@@ -4842,6 +4852,7 @@ bool PartyBotAI::CheckThreat(Unit const* pTarget)
 	return m_threatOK;
 }
 
+//團隊副本對應機制檢查
 bool PartyBotAI::CheckCombatInstanceMechanics(bool& pCombatEngagementReady)
 {
 	/// --------------
