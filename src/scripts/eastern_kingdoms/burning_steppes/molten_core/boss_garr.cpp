@@ -52,6 +52,10 @@ struct boss_garrAI : ScriptedAI
 
         if (m_creature->IsAlive() && m_pInstance && m_pInstance->GetData(TYPE_GARR) != DONE)
             m_pInstance->SetData(TYPE_GARR, NOT_STARTED);
+
+        // Set creature hitBox so Melee can reach it 加大BOSS的命中判定範圍
+        m_creature->SetFloatValue(UNIT_FIELD_BOUNDINGRADIUS, 15.0f);
+        m_creature->SetFloatValue(UNIT_FIELD_COMBATREACH, 16.0f);
     }
 
     void Aggro(Unit* /*pWho*/) override
