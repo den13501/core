@@ -454,23 +454,45 @@ bool PlayerBotMgr::AddPartyBot(Player* pPlayer, std::string option, uint32 force
 	CombatBotRoles botRole = ROLE_INVALID;
 
 	if (option == "warrior")
-		botClass = CLASS_WARRIOR;
-	else if (option == "paladin" && pPlayer->GetTeam() == ALLIANCE)
-		botClass = CLASS_PALADIN;
+        botClass = CLASS_WARRIOR;
+    else if (option == "mwarrior")
+       (botClass = CLASS_WARRIOR) && (botRole = ROLE_MELEE_DPS);
+    else if (option == "paladin" && pPlayer->GetTeam() == ALLIANCE)
+        botClass = CLASS_PALADIN;
+    else if (option == "mpaladin" && pPlayer->GetTeam() == ALLIANCE)
+        (botClass = CLASS_PALADIN) && (botRole = ROLE_MELEE_DPS);
+    else if (option == "hpaladin" && pPlayer->GetTeam() == ALLIANCE)
+        (botClass = CLASS_PALADIN) && (botRole = ROLE_HEALER);
 	else if (option == "hunter")
 		botClass = CLASS_HUNTER;
 	else if (option == "rogue")
 		botClass = CLASS_ROGUE;
 	else if (option == "priest")
 		botClass = CLASS_PRIEST;
+	else if (option == "rpriest")
+		(botClass = CLASS_PRIEST) && (botRole = ROLE_RANGE_DPS);
+	else if (option == "hpriest")
+		(botClass = CLASS_PRIEST) && (botRole = ROLE_HEALER);
 	else if (option == "shaman" && pPlayer->GetTeam() == HORDE)
 		botClass = CLASS_SHAMAN;
+	else if (option == "mshaman" && pPlayer->GetTeam() == HORDE)
+		(botClass = CLASS_SHAMAN) && (botRole = ROLE_MELEE_DPS);
+	else if (option == "rshaman" && pPlayer->GetTeam() == HORDE)
+		(botClass = CLASS_SHAMAN) && (botRole = ROLE_RANGE_DPS);
+	else if (option == "hshaman" && pPlayer->GetTeam() == HORDE)
+		(botClass = CLASS_SHAMAN) && (botRole = ROLE_HEALER);
 	else if (option == "mage")
 		botClass = CLASS_MAGE;
 	else if (option == "warlock")
 		botClass = CLASS_WARLOCK;
 	else if (option == "druid")
 		botClass = CLASS_DRUID;
+	else if (option == "mdruid")
+		(botClass = CLASS_DRUID) && (botRole = ROLE_MELEE_DPS);
+	else if (option == "rdruid")
+		(botClass = CLASS_DRUID) && (botRole = ROLE_RANGE_DPS);
+	else if (option == "hdruid")
+		(botClass = CLASS_DRUID) && (botRole = ROLE_HEALER);
 	else if (option == "dps")
 	{
 		/*
@@ -509,7 +531,22 @@ bool PlayerBotMgr::AddPartyBot(Player* pPlayer, std::string option, uint32 force
 		botClass = SelectRandomContainerElement(tankClasses);
 		botRole = ROLE_TANK;
 	}
-    else if (option == "partner")
+	else if (option == "wtank") //防戰
+	{
+		botClass = CLASS_WARRIOR;
+		botRole = ROLE_TANK;
+	}
+	else if (option == "dtank") //熊坦
+	{
+		botClass = CLASS_DRUID;
+		botRole = ROLE_TANK;
+	}
+	else if (option == "ptank" && pPlayer->GetTeam() == ALLIANCE) //防騎
+	{
+		botClass = CLASS_PALADIN;
+		botRole = ROLE_TANK;
+	}
+    else if (option == "partner") //同伴，隨機出與玩家同種族的職業
     {
         botRace = pPlayer->GetRace();
         botClass = SelectRandomClassForRace(botRace);
