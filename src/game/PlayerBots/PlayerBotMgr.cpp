@@ -447,7 +447,7 @@ bool PlayerBotMgr::AddPartyBot(Player* pPlayer, std::string option, uint32 force
 	if (forceLevel)
 		botLevel = forceLevel;
 	else
-		botLevel = pPlayer->GetLevel() >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) ? pPlayer->GetLevel() + urand(0, 1) : pPlayer->GetLevel() + urand(-1, 1);
+		botLevel = pPlayer->GetLevel() >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) ? pPlayer->GetLevel() : pPlayer->GetLevel() + urand(-1, 1);
 
 	botLevel = botLevel < 1 ? 1 : botLevel;
 
