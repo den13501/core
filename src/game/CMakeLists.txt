@@ -413,6 +413,11 @@ set (game_SRCS
     vmap/VMapTools.h
     vmap/WorldModel.h
 
+    Marketer/MarketerConfig.h
+    Marketer/MarketerConfig.cpp
+    Marketer/MarketerManager.h
+    Marketer/MarketerManager.cpp
+
 )
 
 if((${CMAKE_VERSION} VERSION_LESS "3.16") OR USE_PCH_OLD)
@@ -496,6 +501,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/Threat
   ${CMAKE_CURRENT_SOURCE_DIR}/Transports
   ${CMAKE_CURRENT_SOURCE_DIR}/vmap
+  ${CMAKE_CURRENT_SOURCE_DIR}/Marketer
   ${CMAKE_SOURCE_DIR}/src/scripts
   ${CMAKE_SOURCE_DIR}/src/scripts/PrecompiledHeaders
   ${CMAKE_SOURCE_DIR}/dep/include/g3dlite
@@ -554,6 +560,10 @@ source_group("References"
 
 source_group("Anticheat"
   REGULAR_EXPRESSION Anticheat
+)
+
+source_group("Marketer"
+  REGULAR_EXPRESSION Marketer
 )
 
 add_library(game STATIC
