@@ -387,6 +387,14 @@ void GameObject::Update(uint32 update_diff, uint32 /*p_time*/)
         // NO BREAK for switch (m_lootState)
         case GO_READY:
         {
+            // lfm auto fish
+            if (GetGoType() == GAMEOBJECT_TYPE_FISHINGNODE)
+            {
+                Unit* caster = GetOwner();
+                Use(caster);
+                break;
+            }
+
             if (m_respawnTime > 0)                          // timer on
             {
                 if (m_respawnTime <= time(nullptr))            // timer expired
@@ -1758,6 +1766,10 @@ void GameObject::Use(Unit* user)
                 }
             }
 
+            // lfm auto fish 自動釣魚
+            player->fishingDelay = urand(500, 1000);
+            player->AutoStoreLoot(loot);
+            //player->SendLootRelease(player->GetObjectGuid());
             player->FinishSpell(CURRENT_CHANNELED_SPELL);
             return;
         }

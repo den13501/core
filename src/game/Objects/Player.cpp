@@ -725,6 +725,9 @@ Player::Player(WorldSession* session) : Unit(),
 
     m_longSightSpell = 0;
     m_longSightRange = 0.0f;
+
+    // lfm auto fish
+    fishingDelay = 0;
 }
 
 Player::~Player()
@@ -1766,6 +1769,17 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         uint32 cheatAction = GetCheatData()->Update(this, p_time, reason);
         if (cheatAction)
             GetSession()->ProcessAnticheatAction("MovementAnticheat", reason.str().c_str(), cheatAction, sWorld.getConfig(CONFIG_UINT32_AC_MOVEMENT_BAN_DURATION));
+    }
+
+    // lfm auto fish 自動釣魚
+    if (fishingDelay > 0)
+    {
+        fishingDelay -= p_time;
+        if (fishingDelay <= 0)
+        {
+            CastSpell(this, 7620, true);
+            fishingDelay = 0;
+        }
     }
 }
 
