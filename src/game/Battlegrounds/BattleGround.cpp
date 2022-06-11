@@ -1037,11 +1037,13 @@ void BattleGround::AddPlayer(Player* pPlayer)
     BattleGroundPlayer bp;
     bp.playerTeam = team;
 
+    bool const isInBattleground = IsPlayerInBattleGround(pPlayer->GetGUID());
     // Add to list/maps
     m_players[guid] = bp;
 
-    UpdatePlayersCountByTeam(team, false);                  // +1 player
-
+    if (!isInBattleground)
+        UpdatePlayersCountByTeam(team, false);                  // +1 player
+    
     WorldPacket data;
     sBattleGroundMgr.BuildPlayerJoinedBattleGroundPacket(&data, pPlayer);
     SendPacketToTeam(team, &data, pPlayer, false);
