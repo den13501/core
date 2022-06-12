@@ -1479,6 +1479,9 @@ void World::SetInitialWorldSettings()
     sLog.outString("Loading Creature spells...");
     sObjectMgr.LoadCreatureSpells();
 
+    sLog.outString("Loading Creature class level stats...");
+    sObjectMgr.LoadCreatureClassLevelStats();
+
     sLog.outString("Loading Creature templates...");
     sObjectMgr.LoadCreatureTemplates();
 
