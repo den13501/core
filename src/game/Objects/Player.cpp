@@ -12336,8 +12336,8 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
                 case GOSSIP_OPTION_BATTLEFIELD:
                     if (!pCreature->CanInteractWithBattleMaster(this, false))
                         hasMenuItem = false;
-					//pMenu->GetGossipMenu().AddMenuItem(8, "聯盟戰歌+1", GetLevel(), 63, "", false);
-					//pMenu->GetGossipMenu().AddMenuItem(8, "部落戰歌+1", GetLevel(), 64, "", false);
+					pMenu->GetGossipMenu().AddMenuItem(8, "BOT戰場：戰歌", GetLevel(), 63, "", false);
+					pMenu->GetGossipMenu().AddMenuItem(8, "BOT戰場：奧山", GetLevel(), 64, "", false);
                     break;
                 case GOSSIP_OPTION_STABLEPET:
                     if (GetClass() != CLASS_HUNTER)
@@ -12345,7 +12345,7 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
                     break;
                 case GOSSIP_OPTION_SPIRITGUIDE:
                 case GOSSIP_OPTION_INNKEEPER:
-                case GOSSIP_OPTION_BOT: //機器人Partybot選單
+                //case GOSSIP_OPTION_BOT: //機器人Partybot選單
                 case GOSSIP_OPTION_BANKER:
                 case GOSSIP_OPTION_PETITIONER:
                 case GOSSIP_OPTION_TABARDDESIGNER:
@@ -12578,34 +12578,100 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId)
             }
 
             GetSession()->SendBattleGroundList(guid, bgTypeId);
-			/*
-			// [WIP]Auto queue for battlebot
-			if (bgTypeId == BATTLEGROUND_WS)
-			{
-				ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
-				ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
-				ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
-				ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
-				ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
-				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
-				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
-				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
-				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
-				ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
-			}
-			*/
             break;
         }
-		/*case 63:
+		case 63:
+			// [WIP]Auto queue for battlebot
+			//BattleGroundTypeId bgTypeId = sBattleGroundMgr.GetBattleMasterBG(pSource->GetEntry());
 			//PlayerTalkClass->CloseGossip();
+			//ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+			//Player* pPlayer = m_session->GetPlayer();
+			//BattleGroundQueueTypeId bgQueueTypeId = BattleGroundMgr::BgQueueTypeId(BattleGroundTypeId(bgTypeId));
+			//BattleGroundTypeId bgTypeId = GetTypeID();
+			//BattleGroundQueueTypeId bgQueueTypeId = BattleGroundMgr::BgQueueTypeId(GetTypeID());
+			//if (pPlayer->InBattleGroundQueueForBattleGroundQueueType(bgQueueTypeId))
+			//{
+			//	if (bgTypeId == BATTLEGROUND_WS)
+		{
 			ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
-			return;
-		case 64:
-			//PlayerTalkClass->CloseGossip();
+			ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
 			ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+			ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+			ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+			ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+			ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+
+			//}
+			// [WIP]Auto queue for battlebot
+			return;				
+		}
+		case 64:
+        {
+			//PlayerTalkClass->CloseGossip();
+//ChatHandler(this).HandleBattleBotAddWarsongCommand("horde");
+// [WIP]Auto queue for battlebot
+//BattleGroundTypeId bgTypeId = sBattleGroundMgr.GetBattleMasterBG(pSource->GetEntry());
+//PlayerTalkClass->CloseGossip();
+//ChatHandler(this).HandleBattleBotAddWarsongCommand("alliance");
+//Player* pPlayer = m_session->GetPlayer();
+//BattleGroundQueueTypeId bgQueueTypeId = BattleGroundMgr::BgQueueTypeId(BattleGroundTypeId(bgTypeId));
+//BattleGroundTypeId bgTypeId = GetTypeID();
+//BattleGroundQueueTypeId bgQueueTypeId = BattleGroundMgr::BgQueueTypeId(GetTypeID());
+//if (pPlayer->InBattleGroundQueueForBattleGroundQueueType(bgQueueTypeId))
+//{
+//	if (bgTypeId == BATTLEGROUND_AV)
+	//{
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("alliance");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			ChatHandler(this).HandleBattleBotAddAlteracCommand("horde");
+			//	}
+			//}
+			// [WIP]Auto queue for battlebot
 			return;
-		*/
-        case GOSSIP_OPTION_BOT: //機器人BOT對話選單
+		}
+
+		
+        case GOSSIP_OPTION_BOT: //Partybot機器人對話選單，需搭配sql定義選單
             PlayerTalkClass->CloseGossip();
             PartyBotAdd();
             break;

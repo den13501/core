@@ -1291,7 +1291,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         me->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH); 此為VM原版代碼，先註解慢慢研究
     */
 
-    if (me->HasAuraType(SPELL_AURA_FEIGN_DEATH))
+    if (me->HasAuraType(SPELL_AURA_FEIGN_DEATH)) //如果有假死法術狀態
 	{
         if (me->GetEnemyCountInRadiusAround(me, 20.0f) > 0)
             return;
@@ -1389,7 +1389,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     {
 		float leaderDistance = 0.0f;
 
-		// Check if should run or teleport to Leader
+		// Check if should run or teleport to Leader 檢查是否要跑動或傳送到隊長處
 		if (!pLeader->IsDead())
 		{
 			leaderDistance = me->GetDistance(pLeader);
@@ -1402,8 +1402,20 @@ void PartyBotAI::UpdateAI(uint32 const diff)
 				me->RemoveSpellsCausingAura(SPELL_AURA_MOD_STEALTH);
 			}
 
-			// Teleport to leader if too far away.
-			if (leaderDistance > (PB_MAX_FOLLOW_DIST * 15.0f) || me->GetDistanceZ(pLeader) > (PB_MAX_FOLLOW_DIST * 3.2f))
+			// Teleport to leader if too far away. 如果太遠則傳送到隊長處
+            if (pLeader->GetMap()->GetId() == 329 && !me->IsWithinDistInMap(pLeader, 100.0f)) //斯坦索姆副本門口有柵欄，另外處理
+			{
+					if (!me->IsStopped())
+						me->StopMoving();
+					me->GetMotionMaster()->Clear(false, true);
+
+					me->GetMotionMaster()->MoveIdle();
+					char name[128] = {};
+					strcpy(name, pLeader->GetName());
+					ChatHandler(me).HandleGonameCommand(name);
+					return;
+			}
+			else if (leaderDistance > (PB_MAX_FOLLOW_DIST * 15.0f) || me->GetDistanceZ(pLeader) > (PB_MAX_FOLLOW_DIST * 3.2f))
 			{
 				if (!me->IsStopped())
 					me->StopMoving();
@@ -1563,7 +1575,7 @@ void PartyBotAI::UpdateInCombatAI()
 			return;
 	}
 
-	// Use potions
+	// Use potions 使用藥水
 	// Restorative Potion
 	if (m_restPotion &&
 		IsValidDispelTarget(me, m_restPotion) &&
@@ -1573,10 +1585,10 @@ void PartyBotAI::UpdateInCombatAI()
 			return;
 	}
 
-	// Emergency Healing Potion
+	// Emergency Healing Potion 戰鬥中喝藥水
 	if (m_potionSpell &&
 		(me->GetHealthPercent() <= 15.0f) &&
-		CanTryToCastSpell(me, m_potionSpell))
+		CanTryToCastStackSpell(me, m_potionSpell,1))
 	{
 		if (DoCastSpell(me, m_potionSpell) == SPELL_CAST_OK)
 			return;
@@ -1771,7 +1783,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Paladin()
 
 	if (m_role == ROLE_HEALER)
 	{
-		if (FindAndHealInjuredAlly(90.0f, 50.0f))
+		if (FindAndHealInjuredAlly(90.0f, 60.0f))
 			return;
 	}
 
@@ -1839,7 +1851,7 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
 			return;
 	}
 
-	// Dispel
+	// Dispel 去除Debuff
     if (m_spells.paladin.pCleanse) //清潔術
     {
         if (Unit* pFriend = SelectDispelTarget(m_spells.paladin.pCleanse)) //選擇要消除debuff的對象
@@ -1891,7 +1903,7 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
                 return;
         }
 
-		if (FindAndHealInjuredAlly(95.0f, 50.0f))
+		if (FindAndHealInjuredAlly(95.0f, 60.0f))
             return;
     }
     else
@@ -2213,7 +2225,7 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
     if (Unit* pVictim = me->GetVictim())
     {
 		if (!me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL) &&
-			me->GetDistance(pVictim) <= 30.0f)
+			me->GetDistance(pVictim) <= 30.0f) //放陷阱之判斷式
 		{
 			std::vector<const SpellEntry*> vTraps;
 
@@ -2248,7 +2260,7 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
         }
 
 		if (m_spells.hunter.pHuntersMark &&
-			CanTryToCastSpell(pVictim, m_spells.hunter.pHuntersMark))
+			CanTryToCastSpell(pVictim, m_spells.hunter.pHuntersMark)) //獵人印記
 		{
 			if (DoCastSpell(pVictim, m_spells.hunter.pHuntersMark) == SPELL_CAST_OK)
 				return;
@@ -2256,23 +2268,23 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 
         if (me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL) &&
             me->GetCombatDistance(pVictim) < 8.0f)
-            me->InterruptSpell(CURRENT_AUTOREPEAT_SPELL, true);
+            me->InterruptSpell(CURRENT_AUTOREPEAT_SPELL, true); //小於8碼則中斷目前的自動射擊
 
         if (me->HasSpell(PB_SPELL_AUTO_SHOT) &&
-			!me->IsMoving() &&
-			(me->GetCombatDistance(pVictim) >= 8.0f) &&
-			!me->IsNonMeleeSpellCasted()) //如果有自動射擊法術且不再移動中且與敵人相距>8碼且沒有近戰範圍法術使用中，則使用自動射擊
-		{
-			switch (me->CastSpell(pVictim, PB_SPELL_AUTO_SHOT, false))
+            !me->IsMoving() &&
+            (me->GetCombatDistance(pVictim) >= 8.0f) &&
+            !me->IsNonMeleeSpellCasted()) //如果有自動射擊法術且不再移動中且與敵人相距>8碼且沒有近戰範圍法術使用中，則使用自動射擊
+        {
+            switch (me->CastSpell(pVictim, PB_SPELL_AUTO_SHOT, false))
 			{
-			case SPELL_FAILED_NEED_AMMO:
-			case SPELL_FAILED_NO_AMMO:
-			{
-				AddHunterAmmo();
-				break;
-			}
-			}
-		}
+                case SPELL_FAILED_NEED_AMMO:
+			    case SPELL_FAILED_NO_AMMO:
+			    {
+                    AddHunterAmmo();
+                    break;
+			    }
+            }
+        }
 
 		// Remove Frenzy
 		if (pVictim->HasAuraType(SPELL_AURA_MOD_MELEE_HASTE) &&
@@ -2319,14 +2331,24 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
                     return;
             }
         }
-
+/*
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_7_1
 		if (m_spells.hunter.pBestialWrath &&
-			CanTryToCastSpell(pVictim, m_spells.hunter.pBestialWrath)) //狂野怒火
+			CanTryToCastSpell(pVictim, m_spells.hunter.pBestialWrath)) //狂野怒火 PATCH 1.7才有
 		{
-			if (DoCastSpell(pVictim, m_spells.hunter.pBestialWrath) == SPELL_CAST_OK)
+			me->CastSpell(pVictim, PB_SPELL_BESTIAL_WRATH, false);
 				return;
 		}
-
+#endif
+*/
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_7_1
+		if (me ->HasSpell(PB_SPELL_BESTIAL_WRATH)) //狂野怒火 PATCH 1.7才有
+		{
+			me->CastSpell(pVictim, PB_SPELL_BESTIAL_WRATH, false);
+			return;
+		}
+#endif
+		
 		if (m_spells.hunter.pRapidFire &&
 			pVictim->GetHealth() > (2 * me->GetMaxHealth()) &&
 			CanTryToCastSpell(pVictim, m_spells.hunter.pRapidFire))
@@ -3004,11 +3026,11 @@ void PartyBotAI::UpdateInCombatAI_Priest() //牧師戰鬥中AI
         DoCastSpell(me, m_spells.priest.pInnerFocus);
     }
 
-	// Critical Healing
+	// Critical Healing 緊急治療
 	if (FindAndHealInjuredAlly(35.0f, 35.0f))
 		return;
 
-	// Dispels
+	// Dispels 去除debuff
 	if (m_spells.priest.pDispelMagic)
 	{
 		if (Unit* pFriend = SelectDispelTarget(m_spells.priest.pDispelMagic))
@@ -4261,7 +4283,7 @@ void PartyBotAI::PopulateConsumableSpellData()
 	if (m_level < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
 		return;
 
-	m_restPotion = sSpellMgr.GetSpellEntry(PB_SPELL_POT_RESTO);
+    m_restPotion = sSpellMgr.GetSpellEntry(PB_SPELL_POT_RESTO);
 
 	switch (m_role)
 	{

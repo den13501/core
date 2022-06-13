@@ -876,12 +876,14 @@ void CombatBotBaseAI::PopulateSpellData()
                     m_spells.hunter.pIntimidation->Rank < pSpellEntry->Rank)
                     m_spells.hunter.pIntimidation = pSpellEntry;
                 }
-                else if (pSpellEntry->SpellName[0].find("Bestial Wrath") != std::string::npos) //狂野怒火
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_7_1
+				else if (pSpellEntry->Id == (19574)) // Bestial Wrath 狂野怒火
                 {
-                if (!m_spells.hunter.pBestialWrath ||
-                    m_spells.hunter.pBestialWrath->Rank < pSpellEntry->Rank)
+                //if (!m_spells.hunter.pBestialWrath ||
+                //    m_spells.hunter.pBestialWrath->Id < pSpellEntry->Id)
                     m_spells.hunter.pBestialWrath = pSpellEntry;
                 }
+#endif
                 else if (pSpellEntry->SpellName[0].find("Tranquilizing Shot") != std::string::npos) //寧神射擊
                 {
                 if (!m_spells.hunter.pTranquilizingShot ||
@@ -976,7 +978,7 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.mage.pBlink->Rank < pSpellEntry->Rank)
                         m_spells.mage.pBlink = pSpellEntry;
                 }
-				else if (pSpellEntry->Id == (12826)) // Sheep
+                else if (pSpellEntry->Id == (12826)) // Sheep
                 {
                     if (!pPolymorphSheep ||
                         pPolymorphSheep->Rank < pSpellEntry->Rank)

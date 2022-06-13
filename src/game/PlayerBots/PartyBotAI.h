@@ -28,7 +28,8 @@ enum PartyBotSpells //此處的法術定義是給機器人使用和施放用的�
 	PB_SPELL_DRINK_35 = 1135, // bot>=lv35
 	PB_SPELL_DRINK_45 = 1137, //bot>=lv45 Restores 2934 mana over 30 sec
 	PB_SPELL_DRINK_55 = 22734, // bot>=lv55
-	PB_SPELL_AUTO_SHOT = 75,
+	PB_SPELL_AUTO_SHOT = 75, //自動射擊
+	PB_SPELL_BESTIAL_WRATH = 19574, //狂野怒火
 	PB_SPELL_SHOOT_WAND = 5019,
 	PB_SPELL_HONORLESS_TARGET = 2479,
 	PB_SPELL_POT_RESTO = 11359,
