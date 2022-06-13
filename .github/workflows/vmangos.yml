@@ -86,15 +86,15 @@ jobs:
 
     #build and install
     #ubuntu
-    - name: ubuntu build & install
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        mkdir build
-        mkdir _install
-        cd build
-        cmake ../ -DCMAKE_INSTALL_PREFIX=../_install -DWITH_WARNINGS=0 -DUSE_EXTRACTORS=1
-        make -j2
-        make install
+    #- name: ubuntu build & install
+    #  if: matrix.os == 'ubuntu-latest'
+    #  run: |
+    #    mkdir build
+    #    mkdir _install
+    #    cd build
+    #    cmake ../ -DCMAKE_INSTALL_PREFIX=../_install -DWITH_WARNINGS=0 -DUSE_EXTRACTORS=1
+    #    make -j2
+    #    make install
     #windows
     - name: windows build & install
       if: matrix.os == 'windows-2019'
