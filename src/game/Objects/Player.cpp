@@ -12336,8 +12336,8 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
                 case GOSSIP_OPTION_BATTLEFIELD:
                     if (!pCreature->CanInteractWithBattleMaster(this, false))
                         hasMenuItem = false;
-					pMenu->GetGossipMenu().AddMenuItem(8, "BOT戰場：戰歌", GetLevel(), 63, "", false);
-					pMenu->GetGossipMenu().AddMenuItem(8, "BOT戰場：奧山", GetLevel(), 64, "", false);
+					//pMenu->GetGossipMenu().AddMenuItem(8, "BOT戰場：戰歌", GetLevel(), 63, "", false);
+					//pMenu->GetGossipMenu().AddMenuItem(8, "BOT戰場：奧山", GetLevel(), 64, "", false);
                     break;
                 case GOSSIP_OPTION_STABLEPET:
                     if (GetClass() != CLASS_HUNTER)

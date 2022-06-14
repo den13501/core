@@ -2341,6 +2341,7 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 		}
 #endif
 */
+/*
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_7_1
 		if (me ->HasSpell(PB_SPELL_BESTIAL_WRATH)) //狂野怒火 PATCH 1.7才有
 		{
@@ -2348,7 +2349,7 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 			return;
 		}
 #endif
-		
+*/		
 		if (m_spells.hunter.pRapidFire &&
 			pVictim->GetHealth() > (2 * me->GetMaxHealth()) &&
 			CanTryToCastSpell(pVictim, m_spells.hunter.pRapidFire))
