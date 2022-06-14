@@ -248,8 +248,8 @@ void AuctionHouseBotMgr::Create(uint32 itemId)
 	}
 
     uint32 stack = prototype->GetMaxStackSize();
-    uint32 multi = prototype->Quality + 1;
-    uint32 bid = prototype->SellPrice * multi * 5 * stack;
+    uint32 multi = (prototype->Quality * 3) + 3;
+    uint32 bid = prototype->SellPrice * multi * stack;
     uint32 buyout = bid * 2;
 
     if (!WorldDatabase.PExecute("INSERT INTO `auctionhousebot` (`item`, `stack`, `bid`, `buyout`) VALUES (%u, %u, %u, %u)", itemId, stack, bid, buyout))
@@ -281,7 +281,9 @@ bool ChatHandler::HandleAHBotCreateCommand(char *args) //支援以指令建立�
     if (!ExtractUInt32(&args, itemId))
         return false;
 
+    std::string msg = "[AHBot] Auction Created for item " + std::to_string(itemId) + ".";
+
     sAuctionHouseBotMgr.Create(itemId);
-    SendSysMessage("[AHBot] Auction Created.");
+    SendSysMessage(msg.c_str());
     return true;
 }
