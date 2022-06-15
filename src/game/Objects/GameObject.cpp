@@ -1769,7 +1769,7 @@ void GameObject::Use(Unit* user)
             // lfm auto fish 自動釣魚
             player->fishingDelay = urand(500, 1000);
             player->AutoStoreLoot(loot);
-            //player->SendLootRelease(player->GetObjectGuid());
+            player->SendLootRelease(player->GetObjectGuid());
             player->FinishSpell(CURRENT_CHANNELED_SPELL);
             return;
         }
@@ -1920,6 +1920,13 @@ void GameObject::Use(Unit* user)
             Player* player = (Player*)user;
 
             player->SendLoot(GetObjectGuid(), LOOT_FISHINGHOLE);
+
+            // lfm auto fish 自動釣魚
+            player->fishingDelay = urand(500, 1000);
+            player->AutoStoreLoot(loot);
+            player->SendLootRelease(player->GetObjectGuid());
+            player->FinishSpell(CURRENT_CHANNELED_SPELL);
+
             return;
         }
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_7_1
