@@ -15151,6 +15151,9 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
                 m_movementInfo.ClearTransportData();
 
                 RelocateToHomebind();
+                if (GetMapId() <= 1)
+                    SetLocationInstanceId(sMapMgr.GetContinentInstanceId(GetMapId(), GetPositionX(), GetPositionY()));
+                SetMap(sMapMgr.CreateMap(GetMapId(), this));
             }
             else
             {
@@ -15171,6 +15174,9 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
                           guid.GetString().c_str(), transGUID);
 
             RelocateToHomebind();
+            if (GetMapId() <= 1)
+                SetLocationInstanceId(sMapMgr.GetContinentInstanceId(GetMapId(), GetPositionX(), GetPositionY()));
+            SetMap(sMapMgr.CreateMap(GetMapId(), this));
         }
     }
 
