@@ -48,12 +48,12 @@ jobs:
     - uses: actions/checkout@v2
 
     #before install dependencies
-    - name: ubuntu dependencies
-      #ubuntu dependencies
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get -qq install libmysql++-dev libace-dev libtbb-dev
-        sudo apt-get -qq install cmake build-essential cppcheck git make libiberty-dev openssl libssl-dev
+    #- name: ubuntu dependencies
+    #  #ubuntu dependencies
+    #  if: matrix.os == 'ubuntu-latest'
+    #  run: |
+    #    sudo apt-get -qq install libmysql++-dev libace-dev libtbb-dev
+    #    sudo apt-get -qq install cmake build-essential cppcheck git make libiberty-dev openssl libssl-dev
       #windows dependencies
     - name: windows dependencies
       if: matrix.os == 'windows-2019'
@@ -86,15 +86,15 @@ jobs:
 
     #build and install
     #ubuntu
-    - name: ubuntu build & install
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        mkdir build
-        mkdir _install
-        cd build
-        cmake ../ -DCMAKE_INSTALL_PREFIX=../_install -DWITH_WARNINGS=0 -DUSE_EXTRACTORS=1
-        make -j2
-        make install
+    #- name: ubuntu build & install
+    #  if: matrix.os == 'ubuntu-latest'
+    #  run: |
+    #    mkdir build
+    #    mkdir _install
+    #    cd build
+    #    cmake ../ -DCMAKE_INSTALL_PREFIX=../_install -DWITH_WARNINGS=0 -DUSE_EXTRACTORS=1
+    #    make -j2
+    #    make install
     #windows
     - name: windows build & install
       if: matrix.os == 'windows-2019'
