@@ -43,6 +43,17 @@ enum PartyBotSpells
 #define PB_MIN_FOLLOW_ANGLE 0.0f
 #define PB_MAX_FOLLOW_ANGLE 6.0f
 
+bool PartyBotAI::OnSessionLoaded(PlayerBotEntry* entry, WorldSession* sess)
+{
+    if (!m_race && !m_class)
+    {
+        sess->LoginPlayer(entry->playerGUID);
+        return true;
+    }
+
+    return SpawnNewPlayer(sess, m_class, m_race, m_mapId, m_instanceId, m_x, m_y, m_z, m_o, sObjectAccessor.FindPlayer(m_cloneGuid));
+}
+
 void PartyBotAI::CloneFromPlayer(Player const* pPlayer)
 {
     if (!pPlayer)
@@ -427,7 +438,13 @@ void PartyBotAI::AddToPlayerGroup()
         sObjectMgr.AddGroup(group);
     }
 
-    group->AddMember(me->GetObjectGuid(), me->GetName());
+    if (me->GetGroup() != group)
+    {
+        if (me->GetGroup())
+            me->RemoveFromGroup();
+
+        group->AddMember(me->GetObjectGuid(), me->GetName());
+    } 
 }
 
 void PartyBotAI::SendFakePacket(uint16 opcode)
@@ -482,7 +499,7 @@ void PartyBotAI::OnPacketReceived(WorldPacket const* packet)
 void PartyBotAI::OnPlayerLogin()
 {
     if (!m_initialized)
-        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
 }
 
 void PartyBotAI::UpdateAI(uint32 const diff)
@@ -500,41 +517,54 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     {
         AddToPlayerGroup();
 
-        if (m_level && m_level != me->GetLevel())
+        if (m_race && m_class) // temporary character
         {
-            me->GiveLevel(m_level);
-            me->InitTalentForLevel();
-            me->SetUInt32Value(PLAYER_XP, 0);
-        }
+            if (m_level && m_level != me->GetLevel())
+            {
+                me->GiveLevel(m_level);
+                me->InitTalentForLevel();
+                me->SetUInt32Value(PLAYER_XP, 0);
+            }
 
-        if (!m_cloneGuid.IsEmpty())
-        {
-            CloneFromPlayer(sObjectAccessor.FindPlayer(m_cloneGuid));
-            AutoAssignRole();
-        }
-        else
-        {
-            LearnPremadeSpecForClass();
+            if (!m_cloneGuid.IsEmpty())
+            {
+                CloneFromPlayer(sObjectAccessor.FindPlayer(m_cloneGuid));
+                AutoAssignRole();
+            }
+            else
+            {
+                LearnPremadeSpecForClass();
 
+                if (m_role == ROLE_INVALID)
+                    AutoAssignRole();
+
+                AutoEquipGear(sWorld.getConfig(CONFIG_UINT32_PARTY_BOT_AUTO_EQUIP));
+
+                // fix client bug causing some item slots to not be visible
+                if (Player* pLeader = GetPartyLeader())
+                {
+                    me->SetVisibility(VISIBILITY_OFF);
+                    pLeader->UpdateVisibilityOf(pLeader, me);
+                    me->SetVisibility(VISIBILITY_ON);
+                }
+            }
+            me->UpdateSkillsToMaxSkillsForLevel();
+        }
+        else // loaded from db
+        {
             if (m_role == ROLE_INVALID)
                 AutoAssignRole();
 
-            AutoEquipGear(sWorld.getConfig(CONFIG_UINT32_PARTY_BOT_AUTO_EQUIP));
+            if (me->IsGameMaster())
+                me->SetGameMaster(false);
 
-            // fix client bug causing some item slots to not be visible
-            if (Player* pLeader = GetPartyLeader())
-            {
-                me->SetVisibility(VISIBILITY_OFF);
-                pLeader->UpdateVisibilityOf(pLeader, me);
-                me->SetVisibility(VISIBILITY_ON);
-            }
+            me->TeleportTo(m_mapId, m_x, m_y, m_z, m_o);
         }
 
         ResetSpellData();
         PopulateSpellData();
         AddAllSpellReagents();
-        me->UpdateSkillsToMaxSkillsForLevel();
-        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
         SummonPetIfNeeded();
         me->SetHealthPercent(100.0f);
         me->SetPowerPercent(me->GetPowerType(), 100.0f);
@@ -1591,22 +1621,24 @@ void PartyBotAI::UpdateInCombatAI_Mage()
                 return;
         }
 
-        if (m_spells.mage.pRemoveLesserCurse &&
-            CanTryToCastSpell(me, m_spells.mage.pRemoveLesserCurse) &&
-            IsValidDispelTarget(me, m_spells.mage.pRemoveLesserCurse))
+        if (m_spells.mage.pRemoveLesserCurse)
         {
-            if (DoCastSpell(me, m_spells.mage.pRemoveLesserCurse) == SPELL_CAST_OK)
-                return;
+            if (Unit* pFriend = SelectDispelTarget(m_spells.mage.pRemoveLesserCurse))
+            {
+                if (CanTryToCastSpell(pFriend, m_spells.mage.pRemoveLesserCurse))
+                {
+                    if (DoCastSpell(pFriend, m_spells.mage.pRemoveLesserCurse) == SPELL_CAST_OK)
+                        return;
+                }
+            }
         }
 
-        if (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2)
+        if (m_spells.mage.pBlizzard &&
+           (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2) &&
+            CanTryToCastSpell(pVictim, m_spells.mage.pBlizzard))
         {
-            if (m_spells.mage.pBlizzard &&
-                CanTryToCastSpell(pVictim, m_spells.mage.pBlizzard))
-            {
-                if (DoCastSpell(pVictim, m_spells.mage.pBlizzard) == SPELL_CAST_OK)
-                    return;
-            }
+            if (DoCastSpell(pVictim, m_spells.mage.pBlizzard) == SPELL_CAST_OK)
+                return;
         }
 
         if (m_spells.mage.pPolymorph)
@@ -1935,7 +1967,7 @@ void PartyBotAI::UpdateInCombatAI_Priest()
         }
 
         if (m_spells.priest.pMindFlay &&
-           !pVictim->CanReachWithMeleeAutoAttack(me) &&
+           (!GetAttackersInRangeCount(10.0f) || me->HasAuraType(SPELL_AURA_SCHOOL_ABSORB)) &&
             CanTryToCastSpell(pVictim, m_spells.priest.pMindFlay))
         {
             if (DoCastSpell(pVictim, m_spells.priest.pMindFlay) == SPELL_CAST_OK)
@@ -1968,7 +2000,7 @@ void PartyBotAI::UpdateInCombatAI_Priest()
 
         if (me->HasSpell(PB_SPELL_SHOOT_WAND) &&
            !me->IsMoving() &&
-           (me->GetPowerPercent(POWER_MANA) < 5.0f) &&
+           (me->GetPowerPercent(POWER_MANA) < 10.0f) &&
            !me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
             me->CastSpell(pVictim, PB_SPELL_SHOOT_WAND, false);
     }
@@ -2602,16 +2634,24 @@ void PartyBotAI::UpdateInCombatAI_Rogue()
         if (me->GetComboPoints() > 4)
         {
             std::vector<SpellEntry const*> vSpells;
-            if (m_spells.rogue.pSliceAndDice)
+
+            // Give priority to Slice and Dice over other finishing moves.
+            if (m_spells.rogue.pSliceAndDice &&
+               !me->HasAura(m_spells.rogue.pSliceAndDice->Id) &&
+                pVictim->GetHealthPercent() > 10.0f)
                 vSpells.push_back(m_spells.rogue.pSliceAndDice);
-            if (m_spells.rogue.pEviscerate)
-                vSpells.push_back(m_spells.rogue.pEviscerate);
-            if (m_spells.rogue.pKidneyShot)
-                vSpells.push_back(m_spells.rogue.pKidneyShot);
-            if (m_spells.rogue.pExposeArmor)
-                vSpells.push_back(m_spells.rogue.pExposeArmor);
-            if (m_spells.rogue.pRupture)
-                vSpells.push_back(m_spells.rogue.pRupture);
+            else
+            {
+                if (m_spells.rogue.pEviscerate)
+                    vSpells.push_back(m_spells.rogue.pEviscerate);
+                if (m_spells.rogue.pKidneyShot && !pVictim->IsImmuneToMechanic(MECHANIC_STUN))
+                    vSpells.push_back(m_spells.rogue.pKidneyShot);
+                if (m_spells.rogue.pExposeArmor)
+                    vSpells.push_back(m_spells.rogue.pExposeArmor);
+                if (m_spells.rogue.pRupture)
+                    vSpells.push_back(m_spells.rogue.pRupture);
+            }
+            
             if (!vSpells.empty())
             {
                 SpellEntry const* pComboSpell = SelectRandomContainerElement(vSpells);
@@ -2899,6 +2939,18 @@ void PartyBotAI::UpdateInCombatAI_Druid()
             }
         }
 
+        if (m_spells.druid.pRemoveCurse)
+        {
+            if (Unit* pFriend = SelectDispelTarget(m_spells.druid.pRemoveCurse))
+            {
+                if (CanTryToCastSpell(pFriend, m_spells.druid.pRemoveCurse))
+                {
+                    if (DoCastSpell(pFriend, m_spells.druid.pRemoveCurse) == SPELL_CAST_OK)
+                        return;
+                }
+            }
+        }
+
         if (m_spells.druid.pInnervate &&
            (me->GetHealthPercent() > 40.0f) &&
            (me->GetPowerPercent(POWER_MANA) < 10.0f) &&
@@ -3138,6 +3190,14 @@ void PartyBotAI::UpdateInCombatAI_Druid()
 
             if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == DISTANCING_MOTION_TYPE)
                 return;
+
+            if (m_spells.druid.pHurricane &&
+               (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2) &&
+                CanTryToCastSpell(pVictim, m_spells.druid.pHurricane))
+            {
+                if (DoCastSpell(pVictim, m_spells.druid.pHurricane) == SPELL_CAST_OK)
+                    return;
+            }
 
             if (m_spells.druid.pMoonfire &&
                 CanTryToCastSpell(pVictim, m_spells.druid.pMoonfire))

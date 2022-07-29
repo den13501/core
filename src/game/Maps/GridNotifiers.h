@@ -1009,19 +1009,21 @@ namespace MaNGOS
                 if (u == i_funit)
                     return;
 
-                if (!u->CanAssistTo(i_funit, i_enemy, false))
-                    return;
-
                 // too far
                 if (!i_funit->IsWithinDistInMap(u, i_range))
+                    return;
+
+                if (!u->CanBeTargetedByCallForHelp(i_funit, i_enemy, false))
                     return;
 
                 // only if see assisted creature
                 if (!i_funit->IsWithinLOSInMap(u))
                     return;
 
-                if (u->AI())
+                if (u->CanRespondToCallForHelpAgainst(i_enemy) && u->AI())
                     u->AI()->AttackStart(i_enemy);
+                else if (u->CanFleeFromCallForHelpAgainst(i_enemy))
+                    u->MoveAwayFromTarget(i_enemy, 10.0f);
             }
 
         private:
@@ -1296,6 +1298,48 @@ namespace MaNGOS
             uint32 i_spellId;
     };
 
+    class NearestAlivePlayerCheck
+    {
+        public:
+            NearestAlivePlayerCheck(WorldObject const* source, float dist) : me(source), m_range(dist) {}
+            bool operator() (Player* pPlayer)
+            {
+                if (me == pPlayer)
+                    return false;
+
+                if (pPlayer->IsGameMaster())
+                    return false;
+
+                if (!pPlayer->IsAlive())
+                    return false;
+
+                if (!me->IsWithinDistInMap(pPlayer, m_range))
+                    return false;
+
+                m_range = me->GetDistance(pPlayer);   // use found unit range as new range limit for next check
+                return true;
+            }
+
+        private:
+            WorldObject const* me;
+            float m_range;
+    };
+
+    class PlayerAtMinimumRangeAway
+    {
+        public:
+            PlayerAtMinimumRangeAway(Unit const* unit, float fMinRange) : pUnit(unit), fRange(fMinRange) {}
+            bool operator() (Player* pPlayer)
+            {
+                //No threat list check, must be done explicit if expected to be in combat with creature
+                return !pPlayer->IsGameMaster() && pPlayer->IsAlive() && !pUnit->IsWithinDist(pPlayer,fRange,false);
+            }
+
+        private:
+            Unit const* pUnit;
+            float fRange;
+    };
+
     // Prepare using Builder localized packets with caching and send to player
     template<class Builder>
     class LocalizedPacketDo
@@ -1417,21 +1461,6 @@ namespace MaNGOS
         float m_fRange;
     };
 
-    class PlayerAtMinimumRangeAway
-    {
-        public:
-            PlayerAtMinimumRangeAway(Unit const* unit, float fMinRange) : pUnit(unit), fRange(fMinRange) {}
-            bool operator() (Player* pPlayer)
-            {
-                //No threat list check, must be done explicit if expected to be in combat with creature
-                return !pPlayer->IsGameMaster() && pPlayer->IsAlive() && !pUnit->IsWithinDist(pPlayer,fRange,false);
-            }
-
-        private:
-            Unit const* pUnit;
-            float fRange;
-    };
-
     class NearestUnitCheck
     {
         public:
@@ -1532,7 +1561,7 @@ namespace MaNGOS
                 if (!u->IsWithinDistInMap(m_me, std::min(m_me->GetAttackDistance(u), m_dist), true, false))
                     return false;
 
-                if (!u->IsTargetable(true, m_me->IsCharmerOrOwnerPlayerOrPlayerItself()))
+                if (!u->IsTargetableBy(m_me))
                     return false;
 
                 if (m_ignoreCivilians && u->IsCreature() && static_cast<Creature*>(u)->IsCivilian())

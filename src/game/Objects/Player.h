@@ -330,6 +330,45 @@ enum PlayerFlags
     PLAYER_FLAGS_PVP_TIMER              = 0x00040000,       // 3.0.2, pvp timer active (after you disable pvp manually)
 };
 
+enum PlayerBytesOffsets
+{
+    PLAYER_BYTES_OFFSET_SKIN_ID         = 0,
+    PLAYER_BYTES_OFFSET_FACE_ID         = 1,
+    PLAYER_BYTES_OFFSET_HAIR_STYLE_ID   = 2,
+    PLAYER_BYTES_OFFSET_HAIR_COLOR_ID   = 3
+};
+
+enum PlayerBytes2Offsets
+{
+    PLAYER_BYTES_2_OFFSET_FACIAL_STYLE   = 0,
+    PLAYER_BYTES_2_OFFSET_UNK1           = 1,
+    PLAYER_BYTES_2_OFFSET_BANK_BAG_SLOTS = 2,
+    PLAYER_BYTES_2_OFFSET_REST_STATE     = 3
+};
+
+enum PlayerBytes3Offsets
+{
+    PLAYER_BYTES_3_OFFSET_GENDER_AND_INEBRIATION = 0, // uint16, 1 bit for gender, rest for drunk state
+    PLAYER_BYTES_3_OFFSET_CITY_PROTECTOR_TITLE   = 2, // race id
+    PLAYER_BYTES_3_OFFSET_HONOR_RANK             = 3
+};
+
+enum PlayerFieldBytesOffsets
+{
+    PLAYER_FIELD_BYTES_OFFSET_FLAGS              = 0,
+    PLAYER_FIELD_BYTES_OFFSET_COMBO_POINTS       = 1,
+    PLAYER_FIELD_BYTES_OFFSET_ACTION_BARS        = 2,
+    PLAYER_FIELD_BYTES_OFFSET_HIGHEST_HONOR_RANK = 3
+};
+
+enum PlayerFieldBytes2Offsets
+{
+    PLAYER_FIELD_BYTES_2_OFFSET_HONOR_RANK_BAR = 0,
+    PLAYER_FIELD_BYTES_2_OFFSET_FLAGS          = 1,
+    PLAYER_FIELD_BYTES_2_OFFSET_UNK2           = 2,
+    PLAYER_FIELD_BYTES_2_OFFSET_UNK3           = 3
+};
+
 // used in (PLAYER_FIELD_BYTES, 0) byte values
 enum PlayerFieldByteFlags
 {
@@ -342,6 +381,7 @@ enum PlayerFieldByteFlags
 enum PlayerFieldByte2Flags
 {
     PLAYER_FIELD_BYTE2_NONE              = 0x00,
+    PLAYER_FIELD_BYTE2_DETECT_AMORE      = 0x01,            // SPELL_AURA_DETECT_AMORE
     PLAYER_FIELD_BYTE2_STEALTH           = 0x20,
     PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW = 0x40
 };
@@ -1035,6 +1075,7 @@ class Player final: public Unit
         void RemoveAllEnchantments(EnchantmentSlot slot);
         void AddEnchantmentDuration(Item* item, EnchantmentSlot slot, uint32 duration);
         void SendEnchantmentDurations() const;
+        void BuildEnchantmentLog(WorldPacket& data, ObjectGuid casterGuid, uint32 itemId, uint32 spellId, bool showAffiliation) const;
         void AddItemDurations(Item* item);
         void RemoveItemDurations(Item* item);
         void SendItemDurations() const;
@@ -1062,8 +1103,8 @@ class Player final: public Unit
         static bool IsBankPos(uint8 bag, uint8 slot);
         bool IsValidPos(uint16 pos, bool explicit_pos) const { return IsValidPos(pos >> 8, pos & 255, explicit_pos); }
         bool IsValidPos(uint8 bag, uint8 slot, bool explicit_pos) const;
-        uint8 GetBankBagSlotCount() const { return GetByteValue(PLAYER_BYTES_2, 2); }
-        void SetBankBagSlotCount(uint8 count) { SetByteValue(PLAYER_BYTES_2, 2, count); }
+        uint8 GetBankBagSlotCount() const { return GetByteValue(PLAYER_BYTES_2, PLAYER_BYTES_2_OFFSET_BANK_BAG_SLOTS); }
+        void SetBankBagSlotCount(uint8 count) { SetByteValue(PLAYER_BYTES_2, PLAYER_BYTES_2_OFFSET_BANK_BAG_SLOTS, count); }
         bool HasItemCount(uint32 item, uint32 count = 1, bool inBankAlso = false) const;
         bool HasItemFitToSpellReqirements(SpellEntry const* spellInfo, Item const* ignoreItem = nullptr);
         bool HasItemWithIdEquipped(uint32 item, uint32 count = 1, uint8 except_slot = NULL_SLOT) const;
@@ -1077,7 +1118,6 @@ class Player final: public Unit
                 return EQUIP_ERR_ITEM_NOT_FOUND;
             uint32 count = pItem->GetCount();
             return _CanStoreItem(bag, slot, dest, pItem->GetEntry(), count, pItem, swap, nullptr);
-
         }
         InventoryResult CanStoreItems(Item** pItem,int count) const;
         InventoryResult CanEquipNewItem(uint8 slot, uint16& dest, uint32 item, bool swap) const;
@@ -1188,6 +1228,7 @@ class Player final: public Unit
         void SendNotifyLootMoneyRemoved() const;
         bool IsAllowedToLoot(Creature const* creature);
 
+        void SendEnchantmentLog(ObjectGuid casterGuid, uint32 itemId, uint32 spellId) const;
         void ApplyEnchantment(Item* item,EnchantmentSlot slot,bool apply, bool apply_dur = true, bool ignore_condition = false);
         void ApplyEnchantment(Item* item,bool apply);
 
@@ -1273,6 +1314,8 @@ class Player final: public Unit
         bool SatisfyQuestLevel(Quest const* qInfo, bool msg) const;
         bool SatisfyQuestLog(bool msg) const;
         bool SatisfyQuestPreviousQuest(Quest const* qInfo, bool msg) const;
+        bool SatisfyQuestBreadcrumbQuest(Quest const* qInfo, bool msg) const;
+        bool SatisfyQuestDependentBreadcrumbQuests(Quest const* qInfo, bool msg) const;
         bool SatisfyQuestClass(Quest const* qInfo, bool msg) const;
         bool SatisfyQuestRace(Quest const* qInfo, bool msg) const;
         bool SatisfyQuestReputation(Quest const* qInfo, bool msg) const;
@@ -1321,7 +1364,7 @@ class Player final: public Unit
         QuestStatusMap& getQuestStatusMap() { return mQuestStatus; };
 
         void SendQuestCompleteEvent(uint32 quest_id) const;
-        void SendQuestReward(Quest const* pQuest, uint32 XP, Object* questGiver) const;
+        void SendQuestReward(Quest const* pQuest, uint32 XP) const;
         void SendQuestFailed(uint32 quest_id) const;
         void SendQuestFailedAtTaker(uint32 quest_id, uint32 reason = INVALIDREASON_DONT_HAVE_REQ) const;
         void SendQuestTimerFailed(uint32 quest_id) const;
@@ -1392,6 +1435,7 @@ class Player final: public Unit
         void _SaveBGData();
         void _SaveStats();
         uint32 m_nextSave;
+        bool m_saveDisabled; // used for temporary bots and faction change
     public:
         // Saves a new character directly in the database, without creating a Player object in memory.
         static bool SaveNewPlayer(WorldSession* session, uint32 guidlow, std::string const& name, uint8 raceId, uint8 classId, uint8 gender, uint8 skin, uint8 face, uint8 hairStyle, uint8 hairColor, uint8 facialHair);
@@ -1406,6 +1450,7 @@ class Player final: public Unit
 
         uint32 GetSaveTimer() const { return m_nextSave; }
         void   SetSaveTimer(uint32 timer) { m_nextSave = timer; }
+        bool   IsSavingDisabled() const { return m_saveDisabled; }
 
         /*********************************************************/
         /***                    PET SYSTEM                     ***/
@@ -1454,6 +1499,7 @@ class Player final: public Unit
         float m_auraBaseMod[BASEMOD_END][MOD_END];
         SpellModList m_spellMods[MAX_SPELLMOD];
         uint32 m_lastFromClientCastedSpellID;
+        std::map<uint32, ItemSetEffect> m_itemSetEffects;
         
         bool IsNeedCastPassiveLikeSpellAtLearn(SpellEntry const* spellInfo) const;
         void SendInitialSpells() const;
@@ -1475,6 +1521,10 @@ class Player final: public Unit
 
         void CastItemCombatSpell(Unit* Target, WeaponAttackType attType);
         void CastItemUseSpell(Item* item, SpellCastTargets const& targets);
+
+        ItemSetEffect* GetItemSetEffect(uint32 setId);
+        ItemSetEffect* AddItemSetEffect(uint32 setId);
+        void RemoveItemSetEffect(uint32 setId);
 
         // needed by vanish and improved sap
         void CastHighestStealthRank();
@@ -1523,8 +1573,7 @@ class Player final: public Unit
                     ++spellCDItr;
             }
         }
-
-        std::vector<ItemSetEffect*> m_ItemSetEff;
+        
         uint32 m_castingSpell; // Last spell cast by client, or combo points if player is rogue
 
         /*********************************************************/
@@ -1862,6 +1911,7 @@ class Player final: public Unit
         void HandleFall(MovementInfo const& movementInfo);
         bool IsFalling() const { return GetPositionZ() < m_lastFallZ; }
 
+        bool IsControlledByOwnClient() const { return m_session->HasClientMovementControl(); }
         void SetClientControl(Unit* target, uint8 allowMove);
         void SetMover(Unit* target) { m_mover = target ? target : this; }
         Unit* GetMover() const { return m_mover; }
@@ -2163,6 +2213,7 @@ class Player final: public Unit
         bool m_repopAtGraveyardPending;
         ObjectGuid m_selectedGobj; // For GM commands
         ObjectGuid m_escortingGuid;
+        ObjectGuid m_currentBankerGuid;
 
         void SendMountResult(UnitMountResult result) const;
         void SendDismountResult(UnitDismountResult result) const;
@@ -2174,6 +2225,7 @@ class Player final: public Unit
         UnitMountResult Mount(uint32 mount, uint32 spellId = 0) override;
         UnitDismountResult Unmount(bool from_aura = false) override;
 
+        bool CanUseBank(ObjectGuid bankerGUID = ObjectGuid()) const;
         bool CanInteractWithQuestGiver(Object* questGiver) const;
         Creature* FindNearestInteractableNpcWithFlag(uint32 npcFlags) const;
         Creature* GetNPCIfCanInteractWith(ObjectGuid guid, uint32 npcflagmask) const;
@@ -2281,10 +2333,9 @@ class Player final: public Unit
     private:
         Team m_team;
         ReputationMgr  m_reputationMgr;
-        bool m_DbSaveDisabled; // used for faction change
     public:
         static Team TeamForRace(uint8 race);
-        Team GetTeam() const { return m_team; }
+        Team GetTeam() const final { return m_team; }
         TeamId GetTeamId() const { return m_team == ALLIANCE ? TEAM_ALLIANCE : TEAM_HORDE; }
         static uint32 GetFactionForRace(uint8 race);
         void SetFactionForRace(uint8 race);
