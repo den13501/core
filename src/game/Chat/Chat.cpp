@@ -1170,6 +1170,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "unaura",         SEC_GAMEMASTER,     false, &ChatHandler::HandleUnAuraCommand,              "", nullptr },
         { "announce",       SEC_BASIC_ADMIN,    true,  &ChatHandler::HandleAnnounceCommand,            "", nullptr },
         { "notify",         SEC_BASIC_ADMIN,    true,  &ChatHandler::HandleNotifyCommand,              "", nullptr },
+        { "swapspec",       SEC_PLAYER,         false, &ChatHandler::HandleSwapSpec,                   "", nullptr }, //dualspec 雙天賦
         { "goname",         SEC_TICKETMASTER,   false, &ChatHandler::HandleGonameCommand,              "", nullptr },
         { "namego",         SEC_TICKETMASTER,   false, &ChatHandler::HandleNamegoCommand,              "", nullptr },
         { "group",          SEC_GAMEMASTER,     true, nullptr,                                         "", groupCommandTable },

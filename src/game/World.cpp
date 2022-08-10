@@ -557,6 +557,9 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_WHO_LIST,            "AllowTwoSide.WhoList", false);
     setConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_ADD_FRIEND,          "AllowTwoSide.AddFriend", false);
 
+    //dual spec 雙天賦
+    setConfig(CONFIG_DUAL_SPEC_TIME_DELTA, "DualSpecTimeDelta", 300);
+
     setConfig(CONFIG_UINT32_STRICT_PLAYER_NAMES,  "StrictPlayerNames",  0);
     setConfig(CONFIG_UINT32_STRICT_CHARTER_NAMES, "StrictCharterNames", 0);
     setConfig(CONFIG_UINT32_STRICT_PET_NAMES,     "StrictPetNames",     0);
@@ -1150,6 +1153,8 @@ void World::LoadConfigSettings(bool reload)
     // Smartlog data
     sLog.InitSmartlogEntries(sConfig.GetStringDefault("Smartlog.ExtraEntries", ""));
     sLog.InitSmartlogGuids(sConfig.GetStringDefault("Smartlog.ExtraGuids", ""));
+
+    setConfig(CONFIG_UINT32_DUALSPECSWAP_COST, "DualSpecSwap.Cost", 0); //Dual Swap cost 雙天賦花費
 }
 
 void charactersDatabaseWorkerThread()

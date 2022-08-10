@@ -2900,3 +2900,14 @@ DynamicRespawn.AffectLevelBelow         = 0
 DynamicRespawn.PlayersThreshold         = 0
 DynamicRespawn.PlayersMaxLevelDiff      = 0
 
+###################################################################################################################
+# DUAL SWAP SPEC CONFIGURATION
+#   DualSpecSwap.Cost 
+#       Cost of swapping spec, basic unit is coper
+#       Default: 0
+#   DualSpecTimeDelta 
+#       time duration to switch dual talent, dual spec command .swapspec
+#       Default: 300
+###################################################################################################################
+DualSwap.Cost = 0
+DualSpecTimeDelta = 300
