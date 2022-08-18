@@ -71,6 +71,71 @@ enum BattleBotSpells
 #define GO_WSG_DROPPED_SILVERWING_FLAG 179785
 #define GO_WSG_DROPPED_WARSONG_FLAG 179786
 
+void BattleBotAI::AddHKRanks() //Battlebot軍階依等級隨機分配
+{
+    uint32 hk_values[] = { 25,2000,5000,10000,15000,20000,25000,30000,35000,40000,45000,50000,55000,60000 };
+    if (me->GetLevel() >= 10 || me->GetLevel() <= 32)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 3)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 33 || me->GetLevel() <= 37)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 4)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 38 || me->GetLevel() <= 40)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 5)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 41 || me->GetLevel() <= 43)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 6)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 44 || me->GetLevel() <= 45)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 7)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 46 || me->GetLevel() <= 47)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 8)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 48 || me->GetLevel() <= 50)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 9)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 51 || me->GetLevel() <= 52)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 10)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 53 || me->GetLevel() <= 54)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 11)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 55 || me->GetLevel() <= 56)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 12)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 57 || me->GetLevel() <= 59)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 13)]);
+        me->GetHonorMgr().Update();
+    }
+    else if (me->GetLevel() >= 59 || me->GetLevel() <= 60)
+    {
+        me->GetHonorMgr().SetRankPoints(hk_values[urand(1, 14)]);
+        me->GetHonorMgr().Update();
+    }
+}
+
 uint32 BattleBotAI::GetMountSpellId() const
 {
     if (me->GetLevel() >= 60)
@@ -177,8 +242,8 @@ bool BattleBotAI::DrinkAndEat()
     if (me->GetVictim())
         return false;
 
-    bool const needToEat = me->GetHealthPercent() < 100.0f && !(me->GetBattleGround() && me->GetBattleGround()->GetStatus() == STATUS_WAIT_JOIN);
-    bool const needToDrink = (me->GetPowerType() == POWER_MANA) && (me->GetPowerPercent(POWER_MANA) < 100.0f);
+    bool const needToEat = me->GetHealthPercent() < 95.0f && !(me->GetBattleGround() && me->GetBattleGround()->GetStatus() == STATUS_WAIT_JOIN);
+    bool const needToDrink = (me->GetPowerType() == POWER_MANA) && (me->GetPowerPercent(POWER_MANA) < 95.0f);
 
     if (!needToEat && !needToDrink)
         return false;
@@ -694,6 +759,7 @@ void BattleBotAI::UpdateAI(uint32 const diff)
         PopulateSpellData();
         AddAllSpellReagents();
         me->UpdateSkillsToMaxSkillsForLevel();
+        AddHKRanks(); //為Battlebot加上軍階
         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
         SummonPetIfNeeded();
         me->SetHealthPercent(100.0f);
@@ -1060,7 +1126,7 @@ void BattleBotAI::UpdateOutOfCombatAI_Paladin()
         m_isBuffing = false;
     }
 
-    FindAndHealInjuredAlly();
+    FindAndHealInjuredAlly(90.0f, 50.0f);
 }
 
 void BattleBotAI::UpdateInCombatAI_Paladin()
@@ -1193,7 +1259,7 @@ void BattleBotAI::UpdateInCombatAI_Paladin()
         }
     }
 
-    FindAndHealInjuredAlly(me->IsTotalImmune() ? 80.0f : 40.0f, 50.0f);
+    FindAndHealInjuredAlly(me->IsTotalImmune() ? 80.0f : 60.0f, 35.0f);
 }
 
 void BattleBotAI::UpdateOutOfCombatAI_Shaman()
@@ -1329,7 +1395,7 @@ void BattleBotAI::UpdateInCombatAI_Shaman()
             return;
     }
 
-    FindAndHealInjuredAlly(40.0f);
+    FindAndHealInjuredAlly(50.0f, 25.0f);
 }
 
 void BattleBotAI::UpdateOutOfCombatAI_Hunter()
@@ -1832,7 +1898,7 @@ void BattleBotAI::UpdateInCombatAI_Priest()
 
     // Heal
     if (me->GetShapeshiftForm() == FORM_NONE &&
-        FindAndHealInjuredAlly(40.0f))
+        FindAndHealInjuredAlly(70.0f, 35.0f))
         return;
 
     // Dispels
@@ -2764,7 +2830,7 @@ void BattleBotAI::UpdateOutOfCombatAI_Druid()
         else
         {
             if ((me->GetPowerPercent(POWER_MANA) >  80.0f) &&
-                FindAndHealInjuredAlly(80.0f))
+                FindAndHealInjuredAlly(70.0f, 35.0f))
                 return;
         }
     }
@@ -2828,7 +2894,7 @@ void BattleBotAI::UpdateInCombatAI_Druid()
         }
 
         // Heal
-        if (FindAndHealInjuredAlly(80.0f))
+        if (FindAndHealInjuredAlly(70.0f, 35.0f))
             return;
 
         // Dispels
