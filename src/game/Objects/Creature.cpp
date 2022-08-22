@@ -692,12 +692,12 @@ void Creature::Update(uint32 update_diff, uint32 diff)
                 // Call AI respawn virtual function
                 if (AI())
                 {
-                    AI()->JustRespawned();
-
                     // If the creature AI needs to be re-initialized after respawn, do it now
                     // Useful for swapping AIs on mobs that change entry on respawn
                     if (HasCreatureState(CSTATE_INIT_AI_ON_RESPAWN))
                         AIM_Initialize();
+
+                    AI()->JustRespawned();
                 }
 
                 if (m_zoneScript)
@@ -2438,14 +2438,21 @@ void Creature::ApplyDynamicRespawnDelay(uint32& delay, CreatureData const* data)
 {
     if (!IsInWorld())
         return;
+
     // Only affects continents
     if (GetMapId() > 1)
         return;
 
+    // Only affects normal spawns
+    if (GetSubtype() != CREATURE_SUBTYPE_GENERIC)
+        return;
+
     // Only affects rares and above with the forced flag
-    if (GetCreatureInfo()->rank > CREATURE_ELITE_ELITE)
+    if (GetCreatureInfo()->rank >= CREATURE_ELITE_ELITE)
+    {
         if (!data || !(data->spawn_flags & SPAWN_FLAG_FORCE_DYNAMIC_ELITE))
             return;
+    }
 
     if (GetLevel() > sWorld.getConfig(CONFIG_UINT32_DYN_RESPAWN_AFFECT_LEVEL_BELOW))
         return;
@@ -2522,6 +2529,9 @@ void Creature::SaveRespawnTime()
 
 bool Creature::IsOutOfThreatArea(Unit* pVictim) const
 {
+    if (HasExtraFlag(CREATURE_FLAG_EXTRA_NO_LEASH_EVADE))
+        return false;
+
     // In dungeons, there is no threat area limit - only for active creatures (technical limitation, non actives are not updated without players around them)
     if (GetMap()->IsDungeon())
         return false;
@@ -3033,7 +3043,7 @@ void Creature::AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* /*
 
         m_cooldownMap.AddCooldown(sWorld.GetCurrentClockTime(), spellEntry.Id, recTime, spellEntry.Category, categoryRecTime);
     }
-    else if (GetCharmerGuid().IsPlayer() && !IsPet() && !spellEntry.GetCastTime())
+    else if (GetCharmerGuid().IsPlayer() && !IsPet() && !spellEntry.GetCastTime(this))
     {
         // Forced cooldown on using instant spells during mind control to prevent abuse.
         recTime = 10 * IN_MILLISECONDS;
