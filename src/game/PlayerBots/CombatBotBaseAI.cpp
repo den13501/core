@@ -447,9 +447,15 @@ void CombatBotBaseAI::PopulateSpellData()
                 }
                 else if (pSpellEntry->SpellName[0].find("Repentance") != std::string::npos)
                 {
-                if (!m_spells.paladin.pRepentance ||
-                    m_spells.paladin.pRepentance->Rank < pSpellEntry->Rank)
-                    m_spells.paladin.pRepentance = pSpellEntry;
+                    if (!m_spells.paladin.pRepentance ||
+                        m_spells.paladin.pRepentance->Rank < pSpellEntry->Rank)
+                        m_spells.paladin.pRepentance = pSpellEntry;
+                }
+                else if (pSpellEntry->SpellName[0].find("Purify") != std::string::npos)
+                {
+                    if (!m_spells.paladin.pPurify ||
+                        m_spells.paladin.pPurify->Rank < pSpellEntry->Rank)
+                        m_spells.paladin.pPurify = pSpellEntry;
                 }
 
                 break;

@@ -1001,25 +1001,30 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         {
             leaderDistance = me->GetDistance(pLeader);
 
-            // Remove Stealth if geting far behind the Leader
-            if (leaderDistance > (PB_MAX_FOLLOW_DIST * 2.5f) &&
-                me->HasAuraType(SPELL_AURA_MOD_STEALTH) &&
-                !pLeader->GetVictim())
+            // Check if is inside BG to avoid some inconsistent actions
+            if (!me->InBattleGround())
             {
-                me->RemoveSpellsCausingAura(SPELL_AURA_MOD_STEALTH);
-            }
 
-            // Teleport to leader if too far away.
-            if (leaderDistance > (PB_MAX_FOLLOW_DIST * 15.0f) || me->GetDistanceZ(pLeader) > (PB_MAX_FOLLOW_DIST * 3.2f))
-            {
-                if (!me->IsStopped())
-                    me->StopMoving();
-                me->GetMotionMaster()->Clear();
-                me->GetMotionMaster()->MoveIdle();
-                char name[128] = {};
-                strcpy(name, pLeader->GetName());
-                ChatHandler(me).HandleGonameCommand(name);
-                return;
+                // Remove Stealth if geting far behind the Leader
+                if (leaderDistance > (PB_MAX_FOLLOW_DIST * 2.5f) &&
+                    me->HasAuraType(SPELL_AURA_MOD_STEALTH) &&
+                    !pLeader->GetVictim())
+                {
+                    me->RemoveSpellsCausingAura(SPELL_AURA_MOD_STEALTH);
+                }
+
+                // Teleport to leader if too far away.
+                if (leaderDistance > (PB_MAX_FOLLOW_DIST * 15.0f) || me->GetDistanceZ(pLeader) > (PB_MAX_FOLLOW_DIST * 3.2f))
+                {
+                    if (!me->IsStopped())
+                        me->StopMoving();
+                    me->GetMotionMaster()->Clear();
+                    me->GetMotionMaster()->MoveIdle();
+                    char name[128] = {};
+                    strcpy(name, pLeader->GetName());
+                    ChatHandler(me).HandleGonameCommand(name);
+                    return;
+                }
             }
 
             if (leaderDistance > (PB_MAX_FOLLOW_DIST * 1.1f))
@@ -1409,6 +1414,17 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
             if (CanTryToCastSpell(pFriend, m_spells.paladin.pCleanse))
             {
                 if (DoCastSpell(pFriend, m_spells.paladin.pCleanse) == SPELL_CAST_OK)
+                    return;
+            }
+        }
+    }
+    else if (m_spells.paladin.pPurify)
+    {
+        if (Unit* pFriend = SelectDispelTarget(m_spells.paladin.pPurify))
+        {
+            if (CanTryToCastSpell(pFriend, m_spells.paladin.pPurify))
+            {
+                if (DoCastSpell(pFriend, m_spells.paladin.pPurify) == SPELL_CAST_OK)
                     return;
             }
         }
