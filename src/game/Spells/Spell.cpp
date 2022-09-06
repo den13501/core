@@ -5588,9 +5588,10 @@ SpellCastResult Spell::CheckCast(bool strict)
         }
     }
 
+    //跳過藏寶海灣的技能檢查(不判斷室內室外)
     if (m_caster->IsPlayer() && !((Player*)m_caster)->IsGameMaster() &&
             sWorld.getConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK) &&
-            VMAP::VMapFactory::createOrGetVMapManager()->isLineOfSightCalcEnabled())
+            VMAP::VMapFactory::createOrGetVMapManager()->isLineOfSightCalcEnabled() && ((Player*)m_caster)->GetAreaId() != 35)
     {
         if (m_spellInfo->Attributes & SPELL_ATTR_OUTDOORS_ONLY &&
                 !m_caster->GetTerrain()->IsOutdoors(m_caster->GetPositionX(), m_caster->GetPositionY(), m_caster->GetPositionZ()))
@@ -6761,8 +6762,9 @@ SpellCastResult Spell::CheckCast(bool strict)
                             return SPELL_FAILED_NO_MOUNTS_ALLOWED;
                     }
 
-                    if (m_casterUnit->GetAreaId() == 35)
-                        return SPELL_FAILED_NO_MOUNTS_ALLOWED;
+                    //移除藏寶海灣不能使用坐騎技能限制
+                    //if (m_casterUnit->GetAreaId() == 35)
+                    //    return SPELL_FAILED_NO_MOUNTS_ALLOWED;
 
                     if (m_casterUnit->IsInDisallowedMountForm())
                         return SPELL_FAILED_NOT_SHAPESHIFT;
@@ -7002,8 +7004,9 @@ SpellCastResult Spell::CheckCast(bool strict)
                 if (!isAQ40Mount && m_casterUnit->IsPlayer() && !sMapStorage.LookupEntry<MapEntry>(m_casterUnit->GetMapId())->IsMountAllowed() && !m_IsTriggeredSpell) //[-ZERO] && !m_spellInfo->AreaId)
                     return SPELL_FAILED_NO_MOUNTS_ALLOWED;
 
-                if (m_casterUnit->GetAreaId() == 35)
-                    return SPELL_FAILED_NO_MOUNTS_ALLOWED;
+                //移除藏寶海灣不能使用坐騎技能限制
+                //if (m_casterUnit->GetAreaId() == 35)
+                //    return SPELL_FAILED_NO_MOUNTS_ALLOWED;
 
                 if (m_casterUnit->IsInDisallowedMountForm())
                     return SPELL_FAILED_NOT_SHAPESHIFT;
