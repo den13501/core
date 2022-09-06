@@ -6450,7 +6450,9 @@ void Player::CheckAreaExploreAndOutdoor()
             }
         }
     }
-    else if (sWorld.getConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK) && !IsGameMaster())
+
+    //跳過藏寶海灣自動移除只能室外用的技能
+    else if (sWorld.getConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK) && !IsGameMaster() && GetAreaId() != 35)
         RemoveAurasWithAttribute(SPELL_ATTR_OUTDOORS_ONLY);
 
     if (areaFlag == 0xffff)
