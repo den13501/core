@@ -562,7 +562,7 @@ bool ChatHandler::HandleReviveCommand(char* args)
 
     if (target)
     {
-        target->ResurrectPlayer(0.5f);
+        target->ResurrectPlayer(0.5f, false, true);
         target->SpawnCorpseBones();
         PSendSysMessage(LANG_CHARACTER_REVIVED_ONLINE, playerLink(target->GetName()).c_str());
     }
@@ -5517,7 +5517,7 @@ bool ChatHandler::HandleGroupReviveCommand(char* args)
 
             if (pMember->IsDead())
             {
-                pMember->ResurrectPlayer(0.5f);
+                pMember->ResurrectPlayer(0.5f, false, true);
                 pMember->SpawnCorpseBones();
             }
         }

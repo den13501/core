@@ -1049,6 +1049,11 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #    Motd
 #        Message of the Day. Displayed at world login for every user ('@' for a newline).
 #
+#    Hardcore
+#        Enable permanent death
+#        Default: 0 (false)
+#                 1 (true)
+#
 ###################################################################################################################
 
 GameType = 1
@@ -1114,6 +1119,7 @@ BeepAtStart = 1
 ShowProgressBars = 0
 WaitAtStartupError = 0
 Motd = "Welcome to World of Warcraft!"
+Hardcore = 0
 
 ###################################################################################################################
 # PLAYER INTERACTION
