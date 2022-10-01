@@ -1677,8 +1677,18 @@ void Player::Update(uint32 update_diff, uint32 p_time)
             m_deathTimer -= p_time;
     }
 
-    if (sWorld.getConfig(CONFIG_BOOL_HARDCORE) && GetDeathState() == DEAD && !InBattleGround())
+    if (GetDeathState() == DEAD && sWorld.getConfig(CONFIG_BOOL_HARDCORE))
+    {
         SpawnCorpseBones();
+
+        if (InBattleGround())
+        {
+            if (!GetBattleGround()->GetAlivePlayersCountByTeam(GetTeam()))
+                GetBattleGround()->EndBattleGround(GetTeam() == ALLIANCE ? HORDE : ALLIANCE);
+            else
+                LeaveBattleground();
+        }
+    }
 
     UpdateEnchantTime(update_diff);
     UpdateHomebindTime(update_diff);
@@ -4892,7 +4902,7 @@ void Player::BuildPlayerRepop()
 
 void Player::ResurrectPlayer(float restore_percent, bool applySickness, bool ignoreHardcore)
 {
-    if (sWorld.getConfig(CONFIG_BOOL_HARDCORE) && !InBattleGround() && !ignoreHardcore)
+    if (sWorld.getConfig(CONFIG_BOOL_HARDCORE) && !ignoreHardcore)
         return;
 
     // Interrupt resurrect spells

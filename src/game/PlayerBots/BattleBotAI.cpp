@@ -790,6 +790,11 @@ void BattleBotAI::UpdateAI(uint32 const diff)
                 me->BuildPlayerRepop();
                 me->RepopAtGraveyard();
             }
+            else if (me->GetDeathState() == DEAD && sWorld.getConfig(CONFIG_BOOL_HARDCORE))
+            {
+                if (!me->GetBattleGround()->GetAlivePlayersCountByTeam(me->GetTeam()))
+                    me->GetBattleGround()->EndBattleGround(me->GetTeam() == ALLIANCE ? HORDE : ALLIANCE);
+            }
         }
         else
         {

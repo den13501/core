@@ -6772,7 +6772,7 @@ void Spell::EffectSpiritHeal(SpellEffectIndex /*eff_idx*/)
         player->RepopAtGraveyard();
 
     player->RemoveAurasDueToSpell(2584);
-    player->ResurrectPlayer(1.0f, false, true);
+    player->ResurrectPlayer(1.0f);
     player->SpawnCorpseBones();
     player->AutoReSummonPet();
 }
