@@ -160,7 +160,7 @@ GroupQueueInfo* BattleGroundQueue::AddGroup(Player* leader, Group* grp, BattleGr
     if (!isPremade)
         index += BG_TEAMS_COUNT;                            // BG_QUEUE_PREMADE_* -> BG_QUEUE_NORMAL_*
 
-    if (ginfo->groupTeam == HORDE)
+    if (ginfo->groupTeam == HORDE && !sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED)) // OSWoW : Crossfaction BGs
         index++;                                            // BG_QUEUE_*_ALLIANCE -> BG_QUEUE_*_HORDE
 
     DEBUG_LOG("Adding Group to BattleGroundQueue bgTypeId : %u, bracketId : %u, index : %u", bgTypeId, bracketId, index);
@@ -180,7 +180,8 @@ GroupQueueInfo* BattleGroundQueue::AddGroup(Player* leader, Group* grp, BattleGr
                 if (excludedMembers && (std::find(excludedMembers->begin(), excludedMembers->end(), member->GetGUIDLow()) != excludedMembers->end()))
                     continue;
 
-                if (grp->GetMembersCount() > group_limit) // queue players solo if group size is above limit set in config
+                // OSWoW : Paladins and Shamans are unique to their factions and need to queue solo with CFBGs enabled.
+                if (grp->GetMembersCount() > group_limit || (sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED) && (member->GetClass() == CLASS_SHAMAN || member->GetClass() == CLASS_SHAMAN))) // queue players solo if group size is above limit set in config
                 {
                     AddGroup(member, nullptr, bgTypeId, bracketId, false, instanceId, nullptr);
                     ChatHandler(member).PSendSysMessage("Group queue limit is set to %u. You have been queued solo.", group_limit);
@@ -191,6 +192,7 @@ GroupQueueInfo* BattleGroundQueue::AddGroup(Player* leader, Group* grp, BattleGr
                     pl_info.online = true;
                     pl_info.lastOnlineTime = 0;
                     pl_info.groupInfo = ginfo;
+                    pl_info.playerClass = member->GetClass();  // OSWoW : Crossfaction BGs
                     // add the pinfo to ginfo's list
                     ginfo->players[member->GetObjectGuid()] = &pl_info;
                     sLog.out(LOG_BG, "%s:%u [%u:%s] tag BG=%u (groupLeader '%s')",
@@ -206,6 +208,7 @@ GroupQueueInfo* BattleGroundQueue::AddGroup(Player* leader, Group* grp, BattleGr
             pl_info.online           = true;
             pl_info.lastOnlineTime   = 0;
             pl_info.groupInfo        = ginfo;
+            pl_info.playerClass = leader->GetClass();  // OSWoW : Crossfaction BGs
             ginfo->players[leader->GetObjectGuid()]  = &pl_info;
             sLog.out(LOG_BG, "%s:%u [%u:%s] tag BG=%u",
                      leader->GetName(),
@@ -317,17 +320,22 @@ void BattleGroundQueue::RemovePlayer(ObjectGuid guid, bool decreaseInvitedCount)
     // variable index removes useless searching in other team's queue
     uint32 index = BattleGround::GetTeamIndexByTeamId(group->groupTeam);
 
-    for (int32 bracket_id_tmp = MAX_BATTLEGROUND_BRACKETS - 1; bracket_id_tmp >= 0 && bracketId == -1; --bracket_id_tmp)
+    // OSWoW : Crossfaction BGs
+    if (sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED))
+        index = BG_TEAM_ALLIANCE;
+
+
+    for (int32 bracketId_tmp = MAX_BATTLEGROUND_BRACKETS - 1; bracketId_tmp >= 0 && bracketId == -1; --bracketId_tmp)
     {
         //we must check premade and normal team's queue - because when players from premade are joining bg,
         //they leave groupinfo so we can't use its players size to find out index
         for (uint32 j = index; j < BG_QUEUE_GROUP_TYPES_COUNT; j += BG_QUEUE_NORMAL_ALLIANCE)
         {
-            for (groupItrTmp = m_queuedGroups[bracket_id_tmp][j].begin(); groupItrTmp != m_queuedGroups[bracket_id_tmp][j].end(); ++groupItrTmp)
+            for (groupItrTmp = m_queuedGroups[bracketId_tmp][j].begin(); groupItrTmp != m_queuedGroups[bracketId_tmp][j].end(); ++groupItrTmp)
             {
                 if ((*groupItrTmp) == group)
                 {
-                    bracketId = bracket_id_tmp;
+                    bracketId = bracketId_tmp;
                     groupItr = groupItrTmp;
                     //we must store index to be able to erase iterator
                     index = j;
@@ -459,6 +467,11 @@ large groups are disadvantageous, because they will be kicked first if invitatio
 */
 void BattleGroundQueue::FillPlayersToBg(BattleGround* bg, BattleGroundBracketId bracketId)
 {
+    // OSWoW : Crossfaction BGs
+    if (MixPlayersToBG(bg, bracketId))
+        return;
+
+
     int32 hordeFree = bg->GetFreeSlotsForTeam(HORDE);
     int32 allyFree   = bg->GetFreeSlotsForTeam(ALLIANCE);
 
@@ -788,7 +801,8 @@ void BattleGroundQueue::Update(BattleGroundTypeId bgTypeId, BattleGroundBracketI
         m_selectionPools[BG_TEAM_ALLIANCE].Init();
         m_selectionPools[BG_TEAM_HORDE].Init();
         // if there are enough players in pools, start new battleground or non rated arena
-        if (CheckNormalMatch(bracketId, minPlayersPerTeam, maxPlayersPerTeam))
+        // OSWoW : Crossfaction BGs.
+        if (CheckMixedMatch(bracketId, minPlayersPerTeam, maxPlayersPerTeam) || CheckNormalMatch(bracketId, minPlayersPerTeam, maxPlayersPerTeam))
         {
             // we successfully created a pool
             BattleGround* bg2 = sBattleGroundMgr.CreateNewBattleGround(bgTypeId, bracketId);
@@ -1703,4 +1717,273 @@ bool BattleGroundQueue::PlayerLoggedIn(Player* player)
 
     itr->second.online          = true;
     return true;
+}
+
+bool BattleGroundQueue::CheckMixedMatch(BattleGroundBracketId bracket_id, uint32 minPlayers, uint32 maxPlayers)
+{
+	if (!sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED))
+		return false;
+
+	uint32 addedally = 0;
+	uint32 addedhorde = 0;
+
+	uint32 poolSize = 0;
+	bool makeally;
+
+	for (auto& itr : m_queuedGroups[bracket_id][BG_QUEUE_NORMAL_ALLIANCE])
+	{
+		GroupQueueInfo* ginfo = itr;
+		if (!ginfo) // OSWoW : Should never happen.
+			return false;
+		else if (!ginfo->isInvitedToBgInstanceGuid)
+		{
+			makeally = addedally < addedhorde;
+			if (addedally == addedhorde)
+				makeally = urand(0, 1);
+
+			for (auto& itr_2 : ginfo->players)
+			{
+				PlayerQueueInfo* pinfo = itr_2.second;
+				if (!pinfo) // OSWoW : Should never happen.
+				{
+					sLog.outInfo("Could not get memberslist from groupInfo in CheckMixedMatch(), something went wrong!");
+					return false;
+				}
+
+				uint8 pClass = pinfo->playerClass;
+				if (!pClass) // OSWoW : Should never happen either.
+				{
+					sLog.outInfo("Could not get class of player from groupInfo in CheckMixedMatch(), something went wrong!");
+					return false;
+				}
+
+				if (pClass == CLASS_PALADIN)
+				{
+					makeally = 1;
+					break;
+				}
+				else if (pClass == CLASS_SHAMAN)
+				{
+					makeally = 1;
+					break;
+				}
+			}
+
+			ginfo->groupTeam = makeally ? ALLIANCE : HORDE;
+
+			// OSWoW : Need to check if there is enough space in the selection pools to add any more new members to that pool.
+			poolSize = m_selectionPools[makeally ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE].GetPlayerCount();
+			if (m_selectionPools[makeally ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE].AddGroup(ginfo, maxPlayers, 0)
+				&& (poolSize < m_selectionPools[makeally ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE].GetPlayerCount()))
+				makeally ? addedally += ginfo->players.size() : addedhorde += ginfo->players.size();
+
+			if (m_selectionPools[BG_TEAM_ALLIANCE].GetPlayerCount() >= minPlayers &&
+				m_selectionPools[BG_TEAM_HORDE].GetPlayerCount() >= minPlayers)
+				break;
+		}
+	}
+
+	//if ofc like BG queue invitation is set in config, then we are happy
+	if (sWorld.getConfig(CONFIG_UINT32_BATTLEGROUND_INVITATION_TYPE) == 1)
+	{
+        BattleGround* bg;
+		int32 aliFree, hordeFree = int32(maxPlayers);
+
+		//iterator for iterating through bg queue
+		GroupsQueueType::const_iterator Ali_itr = m_queuedGroups[bracket_id][BG_QUEUE_NORMAL_ALLIANCE].begin();
+		//count of groups in queue - used to stop cycles
+		uint32 aliCount = m_queuedGroups[bracket_id][BG_QUEUE_NORMAL_ALLIANCE].size();
+		//index to queue which group is current
+		uint32 aliIndex = 0;
+		for (; aliIndex < aliCount; aliIndex++)
+			++Ali_itr;
+
+		//the same thing for horde
+		GroupsQueueType::const_iterator Horde_itr = m_queuedGroups[bracket_id][BG_QUEUE_NORMAL_HORDE].begin();
+		uint32 hordeCount = m_queuedGroups[bracket_id][BG_QUEUE_NORMAL_HORDE].size();
+		uint32 hordeIndex = 0;
+		for (; hordeIndex < hordeCount && m_selectionPools[BG_TEAM_HORDE].AddGroup((*Horde_itr), hordeFree, bg->GetClientInstanceID()); hordeIndex++)
+			++Horde_itr;
+
+		// OSWoW : If there is enough players to start a BG but the numbers of players on each team is uneven then attempt to even the numbers out.
+		// At first we need to compare free space in bg and our selection pool
+		int32 diffAli = aliFree - int32(m_selectionPools[BG_TEAM_ALLIANCE].GetPlayerCount());
+		int32 diffHorde = hordeFree - int32(m_selectionPools[BG_TEAM_HORDE].GetPlayerCount());
+		int8 bg_differential = 1; // default differential between Horde & Alliance
+		while (abs(diffAli - diffHorde) > bg_differential && (m_selectionPools[BG_TEAM_HORDE].GetPlayerCount() > 0 || m_selectionPools[BG_TEAM_ALLIANCE].GetPlayerCount() > 0))
+		{
+			//each cycle execution we need to kick at least 1 group
+			if (diffAli < diffHorde)
+			{
+				//kick alliance group, add to pool new group if needed
+				if (m_selectionPools[BG_TEAM_ALLIANCE].KickGroup(diffHorde - diffAli))
+				{
+					for (; aliIndex < aliCount && m_selectionPools[BG_TEAM_ALLIANCE].AddGroup((*Ali_itr), (aliFree >= diffHorde) ? aliFree - diffHorde : 0, bg->GetClientInstanceID()); aliIndex++)
+						++Ali_itr;
+				}
+				//if ali selection is already empty, then kick horde group, but if there are less horde than ali in bg - break;
+				if (!m_selectionPools[BG_TEAM_ALLIANCE].GetPlayerCount())
+				{
+					if (aliFree <= diffHorde + 1)
+						break;
+					m_selectionPools[BG_TEAM_HORDE].KickGroup(diffHorde - diffAli);
+				}
+			}
+			else
+			{
+				//kick horde group, add to pool new group if needed
+				if (m_selectionPools[BG_TEAM_HORDE].KickGroup(diffAli - diffHorde))
+				{
+					for (; hordeIndex < hordeCount && m_selectionPools[BG_TEAM_HORDE].AddGroup((*Horde_itr), (hordeFree >= diffAli) ? hordeFree - diffAli : 0, bg->GetClientInstanceID()); hordeIndex++)
+						++Horde_itr;
+				}
+				if (!m_selectionPools[BG_TEAM_HORDE].GetPlayerCount())
+				{
+					if (hordeFree <= diffAli + 1)
+						break;
+					m_selectionPools[BG_TEAM_ALLIANCE].KickGroup(diffAli - diffHorde);
+				}
+			}
+			//count diffs after small update
+			diffAli = aliFree - int32(m_selectionPools[BG_TEAM_ALLIANCE].GetPlayerCount());
+			diffHorde = hordeFree - int32(m_selectionPools[BG_TEAM_HORDE].GetPlayerCount());
+		}
+	}
+
+	if (sBattleGroundMgr.isTesting() ||
+		(m_selectionPools[BG_TEAM_ALLIANCE].GetPlayerCount() >= minPlayers &&
+			m_selectionPools[BG_TEAM_HORDE].GetPlayerCount() >= minPlayers))
+		return true;
+
+	return false;
+}
+
+bool BattleGroundQueue::MixPlayersToBG(BattleGround* bg, BattleGroundBracketId bracket_id)
+{
+	if (!sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED))
+		return false;
+
+	int32 allyFree = bg->GetFreeSlotsForTeam(ALLIANCE);
+	int32 hordeFree = bg->GetFreeSlotsForTeam(HORDE);
+
+	uint32 addedally = bg->GetMaxPlayersPerTeam() - bg->GetFreeSlotsForTeam(ALLIANCE);
+	uint32 addedhorde = bg->GetMaxPlayersPerTeam() - bg->GetFreeSlotsForTeam(HORDE);
+
+	uint32 poolSize = 0;
+	bool makeally;
+
+	for (auto& itr : m_queuedGroups[bracket_id][BG_QUEUE_NORMAL_ALLIANCE])
+	{
+		GroupQueueInfo* ginfo = itr;
+		if (!ginfo) // OSWoW : Should never happen.
+			return false;
+		else if (!ginfo->isInvitedToBgInstanceGuid)
+		{
+			makeally = addedally < addedhorde;
+			if (addedally == addedhorde)
+				makeally = urand(0, 1);
+
+			for (auto& itr_2 : ginfo->players)
+			{
+				PlayerQueueInfo* pinfo = itr_2.second;
+				if (!pinfo) // OSWoW : Should never happen.
+				{
+					sLog.outInfo("Could not get memberslist from groupInfo in MixPlayersToBg(), something went wrong!");
+					return false;
+				}
+
+				uint8 pClass = pinfo->playerClass;
+				if (!pClass) // OSWoW : Should never happen either.
+				{
+					sLog.outInfo("Could not get class of player from groupInfo in MixPlayersToBg(), something went wrong!");
+					return false;
+				}
+
+				if (pClass == CLASS_PALADIN)
+				{
+					makeally = 1;
+					break;
+				}
+				else if (pClass == CLASS_SHAMAN)
+				{
+					makeally = 1;
+					break;
+				}
+			}
+
+			ginfo->groupTeam = makeally ? ALLIANCE : HORDE;
+
+			// OSWoW : Need to check if there is enough space in the selection pools to add any more new members to that pool.
+			poolSize = m_selectionPools[makeally ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE].GetPlayerCount();
+			if (m_selectionPools[makeally ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE].AddGroup(ginfo, makeally ? allyFree : hordeFree, 0)
+				&& (poolSize < m_selectionPools[makeally ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE].GetPlayerCount()))
+				makeally ? addedally += ginfo->players.size() : addedhorde += ginfo->players.size();
+		}
+	}
+
+	//if ofc like BG queue invitation is set in config, then we are happy
+	if (sWorld.getConfig(CONFIG_UINT32_BATTLEGROUND_INVITATION_TYPE) == 1)
+	{
+		//iterator for iterating through bg queue
+		GroupsQueueType::const_iterator Ali_itr = m_queuedGroups[bracket_id][BG_QUEUE_NORMAL_ALLIANCE].begin();
+		//count of groups in queue - used to stop cycles
+		uint32 aliCount = m_queuedGroups[bracket_id][BG_QUEUE_NORMAL_ALLIANCE].size();
+		//index to queue which group is current
+		uint32 aliIndex = 0;
+		for (; aliIndex < aliCount; aliIndex++)
+			++Ali_itr;
+
+		//the same thing for horde
+		GroupsQueueType::const_iterator Horde_itr = m_queuedGroups[bracket_id][BG_QUEUE_NORMAL_HORDE].begin();
+		uint32 hordeCount = m_queuedGroups[bracket_id][BG_QUEUE_NORMAL_HORDE].size();
+		uint32 hordeIndex = 0;
+		for (; hordeIndex < hordeCount && m_selectionPools[BG_TEAM_HORDE].AddGroup((*Horde_itr), hordeFree, bg->GetClientInstanceID()); hordeIndex++)
+			++Horde_itr;
+
+		// OSWoW : If there is enough players to start a BG but the numbers of players on each team is uneven then attempt to even the numbers out.
+		// At first we need to compare free space in bg and our selection pool
+		int32 diffAli = allyFree - int32(m_selectionPools[BG_TEAM_ALLIANCE].GetPlayerCount());
+		int32 diffHorde = hordeFree - int32(m_selectionPools[BG_TEAM_HORDE].GetPlayerCount());
+		int8 bg_differential = 1; // default differential between Horde & Alliance
+		while (abs(diffAli - diffHorde) > bg_differential && (m_selectionPools[BG_TEAM_HORDE].GetPlayerCount() > 0 || m_selectionPools[BG_TEAM_ALLIANCE].GetPlayerCount() > 0))
+		{
+			//each cycle execution we need to kick at least 1 group
+			if (diffAli < diffHorde)
+			{
+				//kick alliance group, add to pool new group if needed
+				if (m_selectionPools[BG_TEAM_ALLIANCE].KickGroup(diffHorde - diffAli))
+				{
+					for (; aliIndex < aliCount && m_selectionPools[BG_TEAM_ALLIANCE].AddGroup((*Ali_itr), (allyFree >= diffHorde) ? allyFree - diffHorde : 0, bg->GetClientInstanceID()); aliIndex++)
+						++Ali_itr;
+				}
+				//if ali selection is already empty, then kick horde group, but if there are less horde than ali in bg - break;
+				if (!m_selectionPools[BG_TEAM_ALLIANCE].GetPlayerCount())
+				{
+					if (allyFree <= diffHorde + 1)
+						break;
+					m_selectionPools[BG_TEAM_HORDE].KickGroup(diffHorde - diffAli);
+				}
+			}
+			else
+			{
+				//kick horde group, add to pool new group if needed
+				if (m_selectionPools[BG_TEAM_HORDE].KickGroup(diffAli - diffHorde))
+				{
+					for (; hordeIndex < hordeCount && m_selectionPools[BG_TEAM_HORDE].AddGroup((*Horde_itr), (hordeFree >= diffAli) ? hordeFree - diffAli : 0, bg->GetClientInstanceID()); hordeIndex++)
+						++Horde_itr;
+				}
+				if (!m_selectionPools[BG_TEAM_HORDE].GetPlayerCount())
+				{
+					if (hordeFree <= diffAli + 1)
+						break;
+					m_selectionPools[BG_TEAM_ALLIANCE].KickGroup(diffAli - diffHorde);
+				}
+			}
+			//count diffs after small update
+			diffAli = allyFree - int32(m_selectionPools[BG_TEAM_ALLIANCE].GetPlayerCount());
+			diffHorde = hordeFree - int32(m_selectionPools[BG_TEAM_HORDE].GetPlayerCount());
+		}
+	}
+
+	return true;
 }

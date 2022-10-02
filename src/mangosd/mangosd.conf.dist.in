@@ -2590,6 +2590,11 @@ PvP.PoolSizePerFaction = 0
 #       To be efficient, you should have 'InitMaxPlayers * 2 > MinPlayersInQueue'
 #       Default: 0 - use database value
 #
+#    BattleGround.CrossfactionQueueing
+#        Enable crossfaction battleground queueing.
+#        Default: 0 - (Disabled)
+#                 1 - (Enabled)
+#
 ###################################################################################################################
 
 Battleground.CastDeserter = 1
@@ -2605,6 +2610,7 @@ BattleGround.RandomizeQueues = 0
 BattleGround.GroupQueueLimit = 40
 Alterac.MinPlayersInQueue = 0
 Alterac.InitMaxPlayers = 0
+BattleGround.CrossfactionQueueing = 0
 
 ###################################################################################################################
 # OUTDOOR PVP CONFIG

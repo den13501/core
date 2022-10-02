@@ -46,6 +46,7 @@ struct PlayerQueueInfo                                      // stores informatio
     bool    online;
     uint32  lastOnlineTime;                                 // for tracking and removing offline players from queue after 5 minutes
     GroupQueueInfo* groupInfo;                              // pointer to the associated groupqueueinfo
+    uint8 playerClass;                                      // OSWoW : class of player in the group
 };
 
 typedef std::map<ObjectGuid, PlayerQueueInfo*> GroupQueueInfoPlayers;
@@ -93,6 +94,11 @@ class BattleGroundQueue
         void RemovePlayer(ObjectGuid guid, bool decreaseInvitedCount);
         void PlayerInvitedToBgUpdateAverageWaitTime(GroupQueueInfo* ginfo, BattleGroundBracketId bracketId);
         uint32 GetAverageQueueWaitTime(GroupQueueInfo* ginfo, BattleGroundBracketId bracketId);
+
+        // OSWoW : Crossfaction BGs
+        bool CheckMixedMatch(BattleGroundBracketId bracket_id, uint32 minPlayers, uint32 maxPlayers);
+        bool MixPlayersToBG(BattleGround* bg, BattleGroundBracketId bracket_id);
+
         bool IsPlayerInvited(ObjectGuid guid, uint32 const bgInstanceGuid, uint32 const removeTime);
         bool GetPlayerGroupInfoData(ObjectGuid guid, GroupQueueInfo* ginfo);
         void PlayerLoggedOut(ObjectGuid guid);

@@ -531,6 +531,49 @@ void BattleGround::RewardReputationToTeam(uint32 factionId, uint32 reputation, T
 {
     FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(factionId);
 
+    // OSWoW : Crossfaction BGs to award rep to players properly.
+    FactionEntry const* crossFactionEntry = nullptr;
+    uint16 adjustedFactionId;
+    if (sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED))
+    {
+        switch (factionId)
+        {
+            case 890:
+            {
+                adjustedFactionId = 889;
+                break;
+            }
+            case 889:
+            {
+                adjustedFactionId = 890;
+                break;
+            }
+            case 730:
+            {
+                adjustedFactionId = 729;
+                break;
+            }
+            case 729:
+            {
+                adjustedFactionId = 730;
+                break;
+            }
+            case 510:
+            {
+                adjustedFactionId = 509;
+                break;
+            }
+            case 509:
+            {
+                adjustedFactionId = 510;
+                break;
+            }
+            default:
+                break;
+        }
+        if (adjustedFactionId)
+            crossFactionEntry = sObjectMgr.GetFactionEntry(adjustedFactionId);
+    }
     if (!factionEntry)
         return;
 
@@ -547,7 +590,17 @@ void BattleGround::RewardReputationToTeam(uint32 factionId, uint32 reputation, T
         Team team = itr.second.playerTeam;
         if (!team) team = pPlayer->GetTeam();
 
-        if (team == teamId)
+        // OSWoW : Crossfaction BGs to award rep to players properly.
+        if (sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED) && pPlayer->GetOTeam() != teamId)
+        {
+            if (crossFactionEntry && team == teamId)
+            {
+                int32 rep_change;
+                rep_change = pPlayer->CalculateReputationGain(REPUTATION_SOURCE_SPELL, reputation, adjustedFactionId);
+                pPlayer->GetReputationMgr().ModifyReputation(crossFactionEntry, rep_change);
+            }
+        }
+        else if (team == teamId)
         {
             int32 rep_change;
             rep_change = pPlayer->CalculateReputationGain(REPUTATION_SOURCE_SPELL, reputation, factionId);
@@ -958,6 +1011,9 @@ void BattleGround::StartBattleGround()
 
 void BattleGround::AddPlayer(Player* pPlayer)
 {
+    // OSWoW : Crossfaction BGs.
+    pPlayer->CFJoinBattleGround();
+
     // score struct must be created in inherited class
 
     ObjectGuid guid = pPlayer->GetObjectGuid();

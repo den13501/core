@@ -918,6 +918,8 @@ bool Player::Create(uint32 guidlow, std::string const& name, uint8 race, uint8 c
     // original spells
     LearnDefaultSpells();
 
+    SetFakeValues();    // OSWoW : Crossfaction BGs
+
     // Phasing
     SetWorldMask(WORLD_DEFAULT_CHAR);
 
@@ -14909,6 +14911,8 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     SetFactionForRace(GetRace());
     SetCharm(nullptr);
 
+    SetFakeValues();    // OSWoW : Crossfaction BGs
+
     // load home bind and check in same time class/race pair, it used later for restore broken positions
     if (!_LoadHomeBind(holder->GetResult(PLAYER_LOGIN_QUERY_LOADHOMEBIND)))
         return false;
@@ -18721,6 +18725,9 @@ void Player::SetBattleGroundEntryPoint(Player* leader /*= nullptr*/, bool queued
 
 void Player::LeaveBattleground(bool teleportToEntryPoint)
 {
+    // OSWoW : Crossfaction BGs.
+    CFLeaveBattleGround();
+
     //ClearUpdateMask(true);
     if (BattleGround* bg = GetBattleGround())
     {
@@ -22210,4 +22217,233 @@ void Player::CastHighestStealthRank()
         RemoveSpellCooldown(*stealthSpellEntry);
 
     CastSpell(nullptr, stealthSpellEntry, true);
+}
+
+// OSWoW : Crossfaction BGs
+void Player::CFJoinBattleGround()
+{
+    if (!sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED))
+        return;
+    // OSWoW : Paladins and Shamans are unique to their factions.
+    if (GetClass() == CLASS_PALADIN || GetClass() == CLASS_SHAMAN)
+        return;
+    FixLanguageSkills();
+    if (!NativeTeam())
+    {
+        SetByteValue(UNIT_FIELD_BYTES_0, 0, GetFRace());
+        SetFactionTemplateId(GetFFaction());
+
+        // Give us a mount to use if we changed factions and have a mount.
+        uint16 maxMountSkill = 0;
+        for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
+        {
+            if (Item* mount = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            {
+                if (mount->GetProto()->RequiredSkill == 762 && maxMountSkill < mount->GetProto()->RequiredSkillRank)
+                    maxMountSkill = mount->GetProto()->RequiredSkillRank;
+            }
+        }
+
+        for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
+        {
+            if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            {
+                if (pBag->GetProto()->Class == ITEM_CLASS_CONTAINER && pBag->GetProto()->SubClass == ITEM_SUBCLASS_CONTAINER)
+                {
+                    for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
+                    {
+                        if (Item* mount = GetItemByPos(i, j))
+                        {
+                            if (mount->GetProto()->RequiredSkill == 762 && maxMountSkill < mount->GetProto()->RequiredSkillRank)
+                                maxMountSkill = mount->GetProto()->RequiredSkillRank;
+                        }
+                    }
+                }
+            }
+        }
+        m_mountID = 0;
+        m_mountGUID = 0;
+        if (maxMountSkill != 0)
+        {
+            switch (GetFRace())    // Give us a mount from the faction we morphed into.
+            {
+            case RACE_HUMAN:
+            {
+                if (maxMountSkill == 150)
+                    m_mountID = 18776;
+                else
+                    m_mountID = 5655;
+                break;
+            }
+            case RACE_ORC:
+            {
+                if (maxMountSkill == 150)
+                    m_mountID = 18796;
+                else
+                    m_mountID = 5668;
+                break;
+            }
+            case RACE_DWARF:
+            {
+                if (maxMountSkill == 150)
+                    m_mountID = 18786;
+                else
+                    m_mountID = 5873;
+                break;
+            }
+            case RACE_NIGHTELF:
+            {
+                if (maxMountSkill == 150)
+                    m_mountID = 13086;
+                else
+                    m_mountID = 8629;
+                break;
+            }
+            case RACE_UNDEAD:
+            {
+                if (maxMountSkill == 150)
+                    m_mountID = 18791;
+                else
+                    m_mountID = 13333;
+                break;
+            }
+            case RACE_TAUREN:
+            {
+                if (maxMountSkill == 150)
+                    m_mountID = 18794;
+                else
+                    m_mountID = 15290;
+                break;
+            }
+            case RACE_GNOME:
+            {
+                if (maxMountSkill == 150)
+                    m_mountID = 18772;
+                else
+                    m_mountID = 13321;
+                break;
+            }
+            case RACE_TROLL:
+            {
+                if (maxMountSkill == 150)
+                    m_mountID = 18789;
+                else
+                    m_mountID = 8588;
+                break;
+            }
+            }
+        }
+        if (m_mountID != 0)
+        {
+            if (Item* mount = AddItem(8588, 1))
+                m_mountGUID = mount->GetGUID();
+        }
+    }
+    FakeDisplayID();
+    sWorld.InvalidatePlayerDataToAllClient(GetObjectGuid());
+}
+void Player::CFLeaveBattleGround()
+{
+    if (!sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED))
+        return;
+    // OSWoW : Paladins and Shamans are unique to their factions.
+    if (GetClass() == CLASS_PALADIN || GetClass() == CLASS_SHAMAN)
+        return;
+    FixLanguageSkills(true, true);
+    SetByteValue(UNIT_FIELD_BYTES_0, 0, GetORace());
+    SetFactionTemplateId(GetOFaction());
+    if (HasAura(20584, EFFECT_INDEX_0))    // Fixes bug with wisp form.
+        RemoveAurasDueToSpell(20584);
+    if (m_mountGUID != 0)    // Remove the mount now.
+        GetItemByGuid(m_mountGUID);
+    InitPlayerDisplayIds();
+    sWorld.InvalidatePlayerDataToAllClient(GetObjectGuid());
+}
+void Player::FakeDisplayID()
+{
+    if (!sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED))
+        return;
+    if (!NativeTeam())
+    {
+        PlayerInfo const* info = sObjectMgr.GetPlayerInfo(GetRace(), GetClass());
+        if (!info)
+        {
+            for (int i = 1; i <= CLASS_DRUID; i++)
+            {
+                info = sObjectMgr.GetPlayerInfo(GetRace(), i);
+                if (info)
+                    break;
+            }
+        }
+        if (!info)
+        {
+            sLog.outError("Player %u has incorrect race/class pair. Can't init display ids.", GetGUIDLow());
+            return;
+        }
+        SetObjectScale(DEFAULT_OBJECT_SCALE);
+        uint8 gender = GetGender();
+        switch (gender)
+        {
+        case GENDER_FEMALE:
+            SetDisplayId(info->displayId_f);
+            SetNativeDisplayId(info->displayId_f);
+            break;
+        case GENDER_MALE:
+            SetDisplayId(info->displayId_m);
+            SetNativeDisplayId(info->displayId_m);
+            break;
+        default:
+            sLog.outError("Invalid gender %u for player", gender);
+            return;
+        }
+    }
+}
+void Player::FixLanguageSkills(bool force, bool native)
+{
+    if (!sWorld.getConfig(CONFIG_BOOL_CFBG_ENABLED))
+        return;
+    if (!force)
+        native = NativeTeam();
+    // SpellId, OriginalSpell
+    auto spells = std::unordered_map<uint32, bool>();
+    for (auto& i : sObjectMgr.GetPlayerInfo(GetORace(), GetClass())->spell)
+        if (auto spell = sSpellMgr.GetSpellEntry(i))
+            if (spell->Effect[0] == SPELL_EFFECT_LANGUAGE)
+                spells[spell->Id] = true;
+    for (auto& i : sObjectMgr.GetPlayerInfo(GetFRace(), GetClass())->spell)
+        if (auto spell = sSpellMgr.GetSpellEntry(i))
+            if (spell->Effect[0] == SPELL_EFFECT_LANGUAGE)
+                spells[spell->Id] = false;
+    for (auto& i : spells)
+    {
+        if (i.second == native)
+            LearnSpell(i.first, true);
+        else
+            this->RemoveSpell(i.first);
+    }
+}
+void Player::SetFakeValues()
+{
+    m_oRace = GetByteValue(UNIT_FIELD_BYTES_0, 0);
+    m_oFaction = GetUInt32Value(UNIT_FIELD_FACTIONTEMPLATE);
+    m_fRace = 0;
+    m_mountID = 0;
+    m_mountGUID = 0;
+    // OSWoW : Paladins and Shamans are unique to their factions.
+    if (GetClass() == CLASS_PALADIN || GetClass() == CLASS_SHAMAN)
+        m_fRace = m_oRace;
+    while (m_fRace == 0)
+    {
+        for (uint8 i = RACE_HUMAN; i <= RACE_GOBLIN; ++i)
+        {
+            if (i == RACE_GOBLIN) // Do not allow Goblins in queue.
+                continue;
+            PlayerInfo const* info = sObjectMgr.GetPlayerInfo(i, GetClass());
+            if (!info || Player::TeamForRace(i) == GetOTeam())
+                continue;
+            if (urand(0, 5) == 0)
+                m_fRace = i;
+        }
+    }
+    m_fFaction = GetFactionForRace(m_fRace);
 }

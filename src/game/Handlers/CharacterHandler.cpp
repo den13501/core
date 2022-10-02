@@ -731,6 +731,19 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
     if (!alreadyOnline && !pCurrChar->IsStandingUp() && !pCurrChar->HasUnitState(UNIT_STAT_STUNNED))
         pCurrChar->SetStandState(UNIT_STAND_STATE_STAND);
 
+    // OSWoW : Crossfaction BGs
+    if (pCurrChar->GetClass() != CLASS_PALADIN && pCurrChar->GetClass() != CLASS_SHAMAN)
+    {
+        if (!pCurrChar->NativeTeam())
+        {
+            pCurrChar->SetByteValue(UNIT_FIELD_BYTES_0, 0, pCurrChar->GetFRace());
+            pCurrChar->SetFactionTemplateId(pCurrChar->GetFFaction());
+            pCurrChar->FakeDisplayID();
+        }
+
+        pCurrChar->FixLanguageSkills();
+    }
+
     m_playerLoading = false;
     m_clientMoverGuid = pCurrChar->GetObjectGuid();
     delete holder;

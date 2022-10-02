@@ -2335,12 +2335,39 @@ class Player final: public Unit
     private:
         Team m_team;
         ReputationMgr  m_reputationMgr;
+        bool m_DbSaveDisabled; // OSWoW : used for faction change
     public:
         static Team TeamForRace(uint8 race);
-        Team GetTeam() const final { return m_team; }
+        Team GetOTeam() const { return m_team; }; // OSWoW : Crossfaction BGs
         TeamId GetTeamId() const { return m_team == ALLIANCE ? TEAM_ALLIANCE : TEAM_HORDE; }
         static uint32 GetFactionForRace(uint8 race);
         void SetFactionForRace(uint8 race);
+        // LilleCarl : Crossfaction BGs
+        Team GetTeam() const final
+        {
+            if (GetBattleGround())
+                return m_bgData.bgTeam ? m_bgData.bgTeam : GetOTeam();
+            return GetOTeam();
+        }
+        
+        bool NativeTeam() const { return GetTeam() == GetOTeam(); }
+        uint8 GetFRace() const { return m_fRace; }
+        uint8 GetORace() const { return m_oRace; }
+        uint32 GetOFaction() const { return m_oFaction; }
+        uint32 GetFFaction() const { return m_fFaction; }
+        
+        void CFJoinBattleGround();
+        void CFLeaveBattleGround();
+        void FakeDisplayID();
+        void FixLanguageSkills(bool force = false, bool native = false);
+        void SetFakeValues();
+        uint8 m_fRace;
+        uint8 m_oRace;
+        uint32 m_fFaction;
+        uint32 m_oFaction;
+        uint32 m_mountID;	// OSWoW : added mount support
+        uint64 m_mountGUID;	// OSWoW : added mount support
+        // ! LilleCarl : Crossfaction BGs
 
         ReputationMgr&       GetReputationMgr() { return m_reputationMgr; }
         ReputationMgr const& GetReputationMgr() const { return m_reputationMgr; }
