@@ -8014,12 +8014,32 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
                 if (pVictim != nullptr)
                 {
                     uint32 level = pVictim->GetLevel();
-                    bones->loot.gold = (uint32)(urand(50, 150) * 0.016f * pow(((float)level) / 5.76f, 2.5f) * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
                     bones->loot.m_personal = true; // Everyone can loot the corpse
+                    if (sWorld.getConfig(CONFIG_BOOL_HARDCORE))
+                        bones->loot.gold = pVictim->GetMoney();
+                    else
+                        bones->loot.gold = (uint32)(urand(50, 150) * 0.016f * pow(((float)level) / 5.76f, 2.5f) * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
 
-                    if (BattleGround* pBG = pVictim->GetBattleGround())
-                        if (uint32 refLootId = pBG->GetPlayerSkinRefLootId())
-                            loot->FillLoot(refLootId, LootTemplates_Reference, this, true);
+                    uint32 slots[3][2] =
+                    {
+                        { SLOT_HEAD, SLOT_HANDS },
+                        { SLOT_FINGER1, SLOT_BACK },
+                        { SLOT_MAIN_HAND, SLOT_EMPTY }
+                    };
+
+                    for (int i = 0; i < 3; i++)
+                    {
+                        Item* item = pVictim->GetItemByPos(INVENTORY_SLOT_BAG_0, urand(slots[i][0], slots[i][1]));
+
+                        if (item)
+                        {
+                            LootStoreItem storeitem = LootStoreItem(item->GetProto()->ItemId, 100, 0, 0, 1, 1);
+                            bones->loot.AddItem(storeitem);
+                        }
+                    }
+
+                    if (uint32 refLootId = pBG->GetPlayerSkinRefLootId())
+                        loot->FillLoot(refLootId, LootTemplates_Reference, this, true);
                 }
             }
 

@@ -785,7 +785,7 @@ void BattleBotAI::UpdateAI(uint32 const diff)
         
         if (me->InBattleGround())
         {
-            if (me->GetDeathState() == CORPSE)
+            if (me->GetDeathState() == CORPSE && !sWorld.getConfig(CONFIG_BOOL_HARDCORE))
             {
                 me->BuildPlayerRepop();
                 me->RepopAtGraveyard();
