@@ -1049,8 +1049,16 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #    Motd
 #        Message of the Day. Displayed at world login for every user ('@' for a newline).
 #
-#    Hardcore
-#        Enable permanent death
+#    Permadeath
+#        Enable permanent death which keeps a player as a ghost after they have died
+#        Default: 0 (false)
+#                 1 (true)
+#
+#    RandomLootPvP
+#        Enable random loot in PvP which allows players to loot gear from dead players
+#
+#    FlexibleRaids
+#        Enable flexible raids which adjust the difficulty based on the number of players (minimum 10)
 #        Default: 0 (false)
 #                 1 (true)
 #
@@ -1119,7 +1127,9 @@ BeepAtStart = 1
 ShowProgressBars = 0
 WaitAtStartupError = 0
 Motd = "Welcome to World of Warcraft!"
-Hardcore = 0
+Permadeath = 0
+RandomLootPvP = 0
+FlexibleRaids = 0
 
 ###################################################################################################################
 # PLAYER INTERACTION
