@@ -1050,15 +1050,18 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #        Message of the Day. Displayed at world login for every user ('@' for a newline).
 #
 #    Permadeath
-#        Enable permanent death which keeps a player as a ghost after they have died
+#        Enable permanent death which keeps a player as a ghost after they have
+#        released their spirit. Players can still be resurrected as a corpse.
 #        Default: 0 (false)
 #                 1 (true)
 #
 #    RandomLootPvP
-#        Enable random loot in PvP which allows players to loot gear from dead players
+#        Enable random loot from dead players
+#        Default: 0 (false)
+#                 1 (true)
 #
 #    FlexibleRaids
-#        Enable flexible raids which adjust the difficulty based on the number of players (minimum 10)
+#        Enable flexible raids which adjusts the difficulty based on the number of players (minimum 10)
 #        Default: 0 (false)
 #                 1 (true)
 #

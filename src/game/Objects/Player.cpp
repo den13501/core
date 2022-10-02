@@ -4900,9 +4900,9 @@ void Player::BuildPlayerRepop()
     SetDeathState(DEAD);
 }
 
-void Player::ResurrectPlayer(float restore_percent, bool applySickness, bool ignoreHardcore)
+void Player::ResurrectPlayer(float restore_percent, bool applySickness, bool ignorePermadeath)
 {
-    if (sWorld.getConfig(CONFIG_BOOL_PERMADEATH) && !ignoreHardcore)
+    if (sWorld.getConfig(CONFIG_BOOL_PERMADEATH) && !ignorePermadeath)
         return;
 
     // Interrupt resurrect spells
@@ -8019,6 +8019,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
                     if (sWorld.getConfig(CONFIG_BOOL_RANDOM_LOOT_PVP))
                     {
                         bones->loot.gold = pVictim->GetMoney();
+
                         uint32 slots[3][2] =
                         {
                             { SLOT_HEAD, SLOT_HANDS },
