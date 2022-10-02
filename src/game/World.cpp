@@ -1552,7 +1552,8 @@ void World::SetInitialWorldSettings()
 
     sLog.outString("Loading Loot Tables...");
     sLog.outString();
-    LoadLootTables();
+    LootIdSet ids_set;
+    LoadLootTables(ids_set);
     sLog.outString(">>> Loot Tables loaded");
     sLog.outString();
 
@@ -1712,6 +1713,7 @@ void World::SetInitialWorldSettings()
     ///- Initialize Battlegrounds
     sLog.outString("Starting BattleGround System");
     sBattleGroundMgr.CreateInitialBattleGrounds();
+    CheckLootTemplates_Reference(ids_set);
 
     sLog.outString("Starting ZoneScripts");
     sZoneScriptMgr.InitZoneScripts();
