@@ -1049,22 +1049,6 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #    Motd
 #        Message of the Day. Displayed at world login for every user ('@' for a newline).
 #
-#    Permadeath
-#        Enable permanent death which keeps a player as a ghost after they have
-#        released their spirit. Players can still be resurrected as a corpse.
-#        Default: 0 (false)
-#                 1 (true)
-#
-#    RandomLootPvP
-#        Enable random loot from dead players
-#        Default: 0 (false)
-#                 1 (true)
-#
-#    FlexibleRaids
-#        Enable flexible raids which adjusts the difficulty based on the number of players (minimum 10)
-#        Default: 0 (false)
-#                 1 (true)
-#
 ###################################################################################################################
 
 GameType = 1
@@ -1130,9 +1114,6 @@ BeepAtStart = 1
 ShowProgressBars = 0
 WaitAtStartupError = 0
 Motd = "Welcome to World of Warcraft!"
-Permadeath = 0
-RandomLootPvP = 0
-FlexibleRaids = 0
 
 ###################################################################################################################
 # PLAYER INTERACTION
@@ -2919,3 +2900,27 @@ DynamicRespawn.AffectLevelBelow         = 0
 DynamicRespawn.PlayersThreshold         = 0
 DynamicRespawn.PlayersMaxLevelDiff      = 0
 
+###################################################################################################################
+# HARDCORE
+#
+#    Hardcore.Permadeath
+#        Enable permanent death which keeps a player as a ghost after they have
+#        released their spirit. Players can still be resurrected as a corpse.
+#        Default: 0 (false)
+#                 1 (true)
+#
+#    Hardcore.RandomLootPvP
+#        Enable random loot from dead players and optionally delete items
+#        Default: 0 (no loot)
+#                 1 (random loot)
+#                 2 (random loot and delete)
+#
+#    FlexibleRaids
+#        Enable flexible raids which adjusts the difficulty based on the number of players
+#        Default: 0  (off)
+#                 1+ (minimum players)
+#
+###################################################################################################################
+Hardcore.Permadeath = 0
+Hardcore.RandomLootPvP = 0
+Hardcore.FlexibleRaids = 0

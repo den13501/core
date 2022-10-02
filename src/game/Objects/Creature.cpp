@@ -884,7 +884,7 @@ void Creature::Update(uint32 update_diff, uint32 diff)
 
             RegenerateAll(update_diff, IsEvadeBecauseTargetNotReachable());
 
-            if (!IsInCombat() && sWorld.getConfig(CONFIG_BOOL_FLEXIBLE_RAIDS))
+            if (!IsInCombat() && sWorld.getConfig(CONFIG_UINT32_HARDCORE_FLEXIBLE_RAIDS))
             {
                 InitStatsForLevel(GetHealthPercent(), GetPowerPercent(POWER_MANA));
                 UpdateAllStats();
@@ -1597,7 +1597,7 @@ void Creature::InitStatsForLevel(float percentHealth, float percentMana)
     CreatureClassLevelStats const* pCLS = GetClassLevelStats();
 
     // health
-    float const healthMod = _GetHealthMod(rank);
+    float const healthMod = _GetHealthMod(rank) * _GetScaledHealthMultiplier();
     uint32 const health = std::max(1u, uint32(roundf(healthMod * pCLS->health * cinfo->health_multiplier)));
     uint32 const baseHealth = std::max(1u, uint32(roundf(healthMod * pCLS->base_health)));
 
@@ -1625,7 +1625,7 @@ void Creature::InitStatsForLevel(float percentHealth, float percentMana)
     SetModifierValue(UNIT_MOD_MANA, BASE_VALUE, float(mana));
 
     // damage
-    float const damageMod = _GetDamageMod(rank);
+    float const damageMod = _GetDamageMod(rank) * _GetScaledDamageMultiplier();
     float const meleeDamageAverage = pCLS->melee_damage * cinfo->damage_multiplier * damageMod;
     float const meleeDamageVariance = meleeDamageAverage * cinfo->damage_variance;
     float const rangedDamageAverage = pCLS->ranged_damage * cinfo->damage_multiplier * damageMod;
@@ -1654,7 +1654,65 @@ void Creature::InitStatsForLevel(float percentHealth, float percentMana)
     SetCreateStat(STAT_SPIRIT, pCLS->spirit);
 }
 
-float getConfigHealthMod(int32 rank)
+float Creature::_GetScaledHealthMultiplier()
+{
+    uint32 minPlayers = sWorld.getConfig(CONFIG_UINT32_HARDCORE_FLEXIBLE_RAIDS);
+    float multiplier = 1.0f;
+
+    if (minPlayers)
+    {
+        if (IsControlledByPlayer())
+            return multiplier;
+
+        Map* map = GetMap();
+        if (!map)
+            return multiplier;
+
+        if (!map->IsRaid())
+            return multiplier;
+
+        uint32 maxPlayers = map->GetMapEntry()->maxPlayers;
+
+        uint32 nplayers = map->GetPlayersCountExceptGMs();
+        nplayers = nplayers < minPlayers ? minPlayers : nplayers;
+
+        multiplier = 1 / (maxPlayers - (2 + (maxPlayers / 5.0f)));
+        multiplier = multiplier + (1 - multiplier) / (maxPlayers - 1) * (nplayers - 1);
+    }
+
+    return multiplier;
+}
+
+float Creature::_GetScaledDamageMultiplier()
+{
+    uint32 minPlayers = sWorld.getConfig(CONFIG_UINT32_HARDCORE_FLEXIBLE_RAIDS);
+    float multiplier = 1.0f;
+
+    if (minPlayers)
+    {
+        if (IsControlledByPlayer())
+            return multiplier;
+
+        Map* map = GetMap();
+        if (!map)
+            return multiplier;
+
+        if (!map->IsRaid())
+            return multiplier;
+
+        uint32 maxPlayers = map->GetMapEntry()->maxPlayers;
+
+        uint32 nplayers = map->GetPlayersCountExceptGMs();
+        nplayers = nplayers < minPlayers ? minPlayers : nplayers;
+
+        multiplier = 1 / (2 + (maxPlayers / 5.0f));;
+        multiplier = multiplier + (1 - multiplier) / (maxPlayers - 1) * (nplayers - 1);
+    }
+
+    return multiplier;
+}
+
+float Creature::_GetHealthMod(int32 rank)
 {
     switch (rank)                                           // define rates for each elite rank
     {
@@ -1673,7 +1731,7 @@ float getConfigHealthMod(int32 rank)
     }
 }
 
-float getConfigDamageMod(int32 rank)
+float Creature::_GetDamageMod(int32 rank)
 {
     switch (rank)                                           // define rates for each elite rank
     {
@@ -1692,7 +1750,7 @@ float getConfigDamageMod(int32 rank)
     }
 }
 
-float getConfigSpellDamageMod(int32 rank)
+float Creature::_GetSpellDamageMod(int32 rank)
 {
     switch (rank)                                           // define rates for each elite rank
     {
@@ -1709,97 +1767,6 @@ float getConfigSpellDamageMod(int32 rank)
         default:
             return sWorld.getConfig(CONFIG_FLOAT_RATE_CREATURE_ELITE_ELITE_SPELLDAMAGE);
     }
-}
-
-
-float Creature::_GetHealthMod(int32 rank)
-{
-    float healthMod = getConfigHealthMod(rank);
-
-    if (sWorld.getConfig(CONFIG_BOOL_FLEXIBLE_RAIDS))
-    {
-        if (IsControlledByPlayer())
-            return healthMod;
-
-        Map* map = GetMap();
-        if (!map)
-            return healthMod;
-
-        if (!map->IsRaid())
-            return healthMod;
-
-        uint32 maxPlayers = map->GetMapEntry()->maxPlayers;
-
-        uint32 nplayers = map->GetPlayersCountExceptGMs();
-        nplayers = nplayers < 10 ? 10 : nplayers;
-
-        float multiplier = 1 / (maxPlayers - (2 + (maxPlayers / 5.0f)));
-        multiplier = multiplier + (1 - multiplier) / (maxPlayers - 1) * (nplayers - 1);
-
-        return healthMod * multiplier;
-    }
-
-    return healthMod;
-}
-
-float Creature::_GetDamageMod(int32 rank) const
-{
-    float damageMod = getConfigDamageMod(rank);
-
-    if (sWorld.getConfig(CONFIG_BOOL_FLEXIBLE_RAIDS))
-    {
-        if (IsControlledByPlayer())
-            return damageMod;
-
-        Map* map = GetMap();
-        if (!map)
-            return damageMod;
-
-        if (!map->IsRaid())
-            return damageMod;
-
-        uint32 maxPlayers = map->GetMapEntry()->maxPlayers;
-
-        uint32 nplayers = map->GetPlayersCountExceptGMs();
-        nplayers = nplayers < 10 ? 10 : nplayers;
-
-        float multiplier = 1 / (2 + (maxPlayers / 5.0f));;
-        multiplier = multiplier + (1 - multiplier) / (maxPlayers - 1) * (nplayers - 1);
-
-        return damageMod * multiplier;
-    }
-
-    return damageMod;
-}
-
-float Creature::_GetSpellDamageMod(int32 rank)
-{
-    float spellDamageMod = getConfigSpellDamageMod(rank);
-
-    if (sWorld.getConfig(CONFIG_BOOL_FLEXIBLE_RAIDS))
-    {
-        if (IsControlledByPlayer())
-            return spellDamageMod;
-
-        Map* map = GetMap();
-        if (!map)
-            return spellDamageMod;
-
-        if (!map->IsRaid())
-            return spellDamageMod;
-
-        uint32 maxPlayers = map->GetMapEntry()->maxPlayers;
-
-        uint32 nplayers = map->GetPlayersCountExceptGMs();
-        nplayers = nplayers < 10 ? 10 : nplayers;
-
-        float multiplier = 1 / (2 + (maxPlayers / 5.0f));;
-        multiplier = multiplier + (1 - multiplier) / (maxPlayers - 1) * (nplayers - 1);
-
-        return spellDamageMod * multiplier;
-    }
-
-    return spellDamageMod;
 }
 
 bool Creature::CreateFromProto(uint32 guidlow, CreatureInfo const* cinfo, uint32 firstCreatureId, CreatureData const* data /*=nullptr*/, GameEventCreatureData const* eventData /*=nullptr*/)
@@ -3541,7 +3508,7 @@ void Creature::ResetStats()
     if (m_creatureInfo)
     {
         CreatureClassLevelStats const* pCLS = GetClassLevelStats();
-        float const damageMod = _GetDamageMod(m_creatureInfo->rank);
+        float const damageMod = _GetDamageMod(m_creatureInfo->rank) * _GetScaledDamageMultiplier();
         float const meleeDamageAverage = pCLS->melee_damage * m_creatureInfo->damage_multiplier * damageMod;
         float const meleeDamageVariance = meleeDamageAverage * m_creatureInfo->damage_variance;
         float const rangedDamageAverage = pCLS->ranged_damage * m_creatureInfo->damage_multiplier * damageMod;
@@ -3561,10 +3528,10 @@ void Creature::ResetStats()
 }
 
 // TODO: remove this
-void Creature::GetDefaultDamageRange(float& dmgMin, float& dmgMax) const
+void Creature::GetDefaultDamageRange(float& dmgMin, float& dmgMax)
 {
     CreatureClassLevelStats const* pCLS = GetClassLevelStats();
-    float const damageMod = _GetDamageMod(m_creatureInfo->rank);
+    float const damageMod = _GetDamageMod(m_creatureInfo->rank) * _GetScaledDamageMultiplier();
     float const meleeDamageAverage = pCLS->melee_damage * m_creatureInfo->damage_multiplier * damageMod;
     float const meleeDamageVariance = meleeDamageAverage * m_creatureInfo->damage_variance;
     dmgMin = meleeDamageAverage - meleeDamageVariance;

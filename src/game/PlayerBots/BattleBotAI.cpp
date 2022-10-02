@@ -785,12 +785,12 @@ void BattleBotAI::UpdateAI(uint32 const diff)
         
         if (me->InBattleGround())
         {
-            if (me->GetDeathState() == CORPSE && !sWorld.getConfig(CONFIG_BOOL_PERMADEATH))
+            if (me->GetDeathState() == CORPSE && !sWorld.getConfig(CONFIG_BOOL_HARDCORE_PERMADEATH))
             {
                 me->BuildPlayerRepop();
                 me->RepopAtGraveyard();
             }
-            else if (me->GetDeathState() == DEAD && sWorld.getConfig(CONFIG_BOOL_PERMADEATH))
+            else if (me->GetDeathState() == DEAD && sWorld.getConfig(CONFIG_BOOL_HARDCORE_PERMADEATH))
             {
                 if (!me->GetBattleGround()->GetAlivePlayersCountByTeam(me->GetTeam()))
                     me->GetBattleGround()->EndBattleGround(me->GetTeam() == ALLIANCE ? HORDE : ALLIANCE);

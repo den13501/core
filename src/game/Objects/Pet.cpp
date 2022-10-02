@@ -1410,8 +1410,8 @@ bool Pet::InitStatsForLevel(uint32 petlevel, Unit* owner)
         SetCreateResistance(SPELL_SCHOOL_ARCANE, cinfo->arcane_res);
     }
 
-    float healthMod = owner->IsPlayer() ? 1.0f : _GetHealthMod(cinfo->rank);
-    float damageMod = owner->IsPlayer() ? 1.0f : _GetDamageMod(cinfo->rank);
+    float healthMod = owner->IsPlayer() ? 1.0f : _GetHealthMod(cinfo->rank) * _GetScaledHealthMultiplier();
+    float damageMod = owner->IsPlayer() ? 1.0f : _GetDamageMod(cinfo->rank) * _GetScaledDamageMultiplier();
 
     switch (getPetType())
     {

@@ -927,10 +927,6 @@ void World::LoadConfigSettings(bool reload)
             setConfig(CONFIG_UINT32_DEBUFF_LIMIT, 8);
     }
 
-    setConfig(CONFIG_BOOL_PERMADEATH, "Permadeath", 0);
-    setConfig(CONFIG_BOOL_RANDOM_LOOT_PVP, "RandomLootPvP", 0);
-    setConfig(CONFIG_BOOL_FLEXIBLE_RAIDS, "FlexibleRaids", 0);
-
     setConfig(CONFIG_UINT32_ANTICRASH_OPTIONS, "Anticrash.Options", 0);
     setConfig(CONFIG_UINT32_ANTICRASH_REARM_TIMER, "Anticrash.Rearm.Timer", 0);
 
@@ -1154,6 +1150,11 @@ void World::LoadConfigSettings(bool reload)
     // Smartlog data
     sLog.InitSmartlogEntries(sConfig.GetStringDefault("Smartlog.ExtraEntries", ""));
     sLog.InitSmartlogGuids(sConfig.GetStringDefault("Smartlog.ExtraGuids", ""));
+
+    // Hardcore
+    setConfig(CONFIG_BOOL_HARDCORE_PERMADEATH, "Hardcore.Permadeath", 0);
+    setConfig(CONFIG_UINT32_HARDCORE_RANDOM_LOOT_PVP, "Hardcore.RandomLootPvP", 0);
+    setConfig(CONFIG_UINT32_HARDCORE_FLEXIBLE_RAIDS, "Hardcore.FlexibleRaids", 0);
 }
 
 void CharactersDatabaseWorkerThread()

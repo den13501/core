@@ -1677,7 +1677,7 @@ void Player::Update(uint32 update_diff, uint32 p_time)
             m_deathTimer -= p_time;
     }
 
-    if (GetDeathState() == DEAD && sWorld.getConfig(CONFIG_BOOL_PERMADEATH))
+    if (GetDeathState() == DEAD && sWorld.getConfig(CONFIG_BOOL_HARDCORE_PERMADEATH))
     {
         SpawnCorpseBones();
 
@@ -4902,7 +4902,7 @@ void Player::BuildPlayerRepop()
 
 void Player::ResurrectPlayer(float restore_percent, bool applySickness, bool ignorePermadeath)
 {
-    if (sWorld.getConfig(CONFIG_BOOL_PERMADEATH) && !ignorePermadeath)
+    if (sWorld.getConfig(CONFIG_BOOL_HARDCORE_PERMADEATH) && !ignorePermadeath)
         return;
 
     // Interrupt resurrect spells
@@ -8016,7 +8016,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
                     uint32 level = pVictim->GetLevel();
                     bones->loot.m_personal = true; // Everyone can loot the corpse
 
-                    if (sWorld.getConfig(CONFIG_BOOL_RANDOM_LOOT_PVP))
+                    if (sWorld.getConfig(CONFIG_UINT32_HARDCORE_RANDOM_LOOT_PVP))
                     {
                         bones->loot.gold = pVictim->GetMoney();
 

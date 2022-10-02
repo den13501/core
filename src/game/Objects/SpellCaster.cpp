@@ -1255,8 +1255,9 @@ float SpellCaster::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellPr
     Item* pWeapon = GetTypeId() == TYPEID_PLAYER ? ((Player*)this)->GetWeaponForAttack(BASE_ATTACK, true, false) : nullptr;
 
     // Creature damage
-    if (GetTypeId() == TYPEID_UNIT && !((Creature*)this)->IsPet())
-        DoneTotalMod *= ((Creature*)this)->_GetSpellDamageMod(((Creature*)this)->GetCreatureInfo()->rank);
+    Creature* creature = (Creature*)this;
+    if (creature && GetTypeId() == TYPEID_UNIT && !creature->IsPet())
+        DoneTotalMod *= creature->_GetSpellDamageMod(creature->GetCreatureInfo()->rank) * creature->_GetScaledDamageMultiplier();
 
     if (pUnit)
     {
