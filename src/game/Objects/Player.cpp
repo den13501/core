@@ -10428,7 +10428,7 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
         if (pItem->GetProto()->Bonding == BIND_WHEN_PICKED_UP ||
                 pItem->GetProto()->Bonding == BIND_QUEST_ITEM ||
                 (pItem->GetProto()->Bonding == BIND_WHEN_EQUIPPED && IsBagPos(pos)))
-            pItem->SetBinding(true);
+            pItem->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BINDING));
 
         if (bag == INVENTORY_SLOT_BAG_0)
         {
@@ -10473,7 +10473,7 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
         if (pItem2->GetProto()->Bonding == BIND_WHEN_PICKED_UP ||
                 pItem2->GetProto()->Bonding == BIND_QUEST_ITEM ||
                 (pItem2->GetProto()->Bonding == BIND_WHEN_EQUIPPED && IsBagPos(pos)))
-            pItem2->SetBinding(true);
+            pItem2->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BINDING));
 
         pItem2->SetCount(pItem2->GetCount() + count);
         if (IsInWorld() && update)
@@ -10666,7 +10666,7 @@ void Player::VisualizeItem(uint8 slot, Item* pItem)
 
     // check also  BIND_WHEN_PICKED_UP and BIND_QUEST_ITEM for .additem or .additemset case by GM (not binded at adding to inventory)
     if (pItem->GetProto()->Bonding == BIND_WHEN_EQUIPPED || pItem->GetProto()->Bonding == BIND_WHEN_PICKED_UP || pItem->GetProto()->Bonding == BIND_QUEST_ITEM)
-        pItem->SetBinding(true);
+        pItem->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BINDING));
 
     DEBUG_LOG("STORAGE: EquipItem slot = %u, item = %u", slot, pItem->GetEntry());
 

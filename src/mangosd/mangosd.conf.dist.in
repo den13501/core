@@ -2904,23 +2904,29 @@ DynamicRespawn.PlayersMaxLevelDiff      = 0
 # HARDCORE
 #
 #    Hardcore.Permadeath
-#        Enable permanent death which keeps a player as a ghost after they have
+#        Permanent death which keeps a player as a ghost after they have
 #        released their spirit. Players can still be resurrected as a corpse.
 #        Default: 0 (false)
 #                 1 (true)
 #
 #    Hardcore.RandomLootPvP
-#        Enable random loot from dead players and optionally delete items
+#        Enable random loot from dead players and optionally delete items from the looted player
 #        Default: 0 (no loot)
 #                 1 (random loot)
 #                 2 (random loot and delete)
 #
-#    FlexibleRaids
-#        Enable flexible raids which adjusts the difficulty based on the number of players
+#    Hardcore.FlexibleRaids
+#        Set a minimum number of players for a raid to scale to
 #        Default: 0  (off)
 #                 1+ (minimum players)
+#
+#    Hardcore.ItemBinding
+#        Enable or disable binding of items to players
+#        Default: 1 (items bind)
+#                 0 (items do not bind)
 #
 ###################################################################################################################
 Hardcore.Permadeath = 0
 Hardcore.RandomLootPvP = 0
 Hardcore.FlexibleRaids = 0
+Hardcore.ItemBinding = 1

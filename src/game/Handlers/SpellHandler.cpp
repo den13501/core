@@ -29,6 +29,7 @@
 #include "Spell.h"
 #include "SpellAuras.h"
 #include "GameObject.h"
+#include "World.h"
 
 using namespace Spells;
 
@@ -122,7 +123,7 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
         if (!pItem->IsSoulBound())
         {
             pItem->SetState(ITEM_CHANGED, pUser);
-            pItem->SetBinding(true);
+            pItem->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BINDING));
         }
     }
 

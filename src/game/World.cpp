@@ -1155,6 +1155,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_HARDCORE_PERMADEATH, "Hardcore.Permadeath", 0);
     setConfig(CONFIG_UINT32_HARDCORE_RANDOM_LOOT_PVP, "Hardcore.RandomLootPvP", 0);
     setConfig(CONFIG_UINT32_HARDCORE_FLEXIBLE_RAIDS, "Hardcore.FlexibleRaids", 0);
+    setConfig(CONFIG_BOOL_HARDCORE_ITEM_BINDING, "Hardcore.ItemBinding", 1);
 }
 
 void CharactersDatabaseWorkerThread()

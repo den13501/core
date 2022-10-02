@@ -5932,7 +5932,7 @@ void Spell::EffectDisEnchant(SpellEffectIndex /*eff_idx*/)
 
     Player* pCaster = static_cast<Player*>(m_caster);
 
-    itemTarget->SetBinding(true);
+    itemTarget->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BINDING));
     pCaster->UpdateCraftSkill(m_spellInfo->Id);
     pCaster->SendLoot(itemTarget->GetObjectGuid(), LOOT_DISENCHANTING);
 
