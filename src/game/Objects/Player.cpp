@@ -8007,18 +8007,20 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
             if (!bones->lootForBody)
             {
                 bones->lootForBody = true;
-                // uint32 pLevel = bones->loot.gold;
                 bones->loot.clear();
-                // It may need a better formula
-                // Now it works like this: lvl10: ~6copper, lvl70: ~9silver
+
                 if (pVictim != nullptr)
                 {
                     uint32 level = pVictim->GetLevel();
                     bones->loot.m_personal = true; // Everyone can loot the corpse
+                    uint32 randomLootPvP = sWorld.getConfig(CONFIG_UINT32_HARDCORE_RANDOM_LOOT_PVP);
 
-                    if (sWorld.getConfig(CONFIG_UINT32_HARDCORE_RANDOM_LOOT_PVP))
+                    if (randomLootPvP)
                     {
                         bones->loot.gold = pVictim->GetMoney();
+
+                        if (randomLootPvP == 2)
+                            pVictim->SetMoney(0);
 
                         uint32 slots[3][2] =
                         {
@@ -8035,8 +8037,17 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
                             {
                                 LootStoreItem storeitem = LootStoreItem(item->GetProto()->ItemId, 100, 0, 0, 1, 1);
                                 bones->loot.AddItem(storeitem);
+
+                                if (randomLootPvP == 2)
+                                    pVictim->RemoveItem(INVENTORY_SLOT_BAG_0, item->GetSlot(), true);
                             }
                         }
+                    }
+                    else
+                    {
+                        // It may need a better formula
+                        // Now it works like this: lvl10: ~6copper, lvl70: ~9silver
+                        bones->loot.gold = (uint32)(urand(50, 150) * 0.016f * pow(((float)level) / 5.76f, 2.5f) * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
                     }
                 }
             }
@@ -19972,7 +19983,7 @@ void Player::ResurectUsingRequestData()
         return;
     }
 
-    ResurrectPlayer(0.0f, false, true);
+    ResurrectPlayer(0.0f, false, GetDeathState() == CORPSE);
 
     if (GetMaxHealth() > m_resurrectHealth)
         SetHealth(m_resurrectHealth);

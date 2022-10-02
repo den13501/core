@@ -6249,7 +6249,7 @@ void Spell::EffectSelfResurrect(SpellEffectIndex eff_idx)
     }
 
     Player* plr = ((Player*)unitTarget);
-    plr->ResurrectPlayer(0.0f, false, true);
+    plr->ResurrectPlayer(0.0f, false, plr->GetDeathState() == CORPSE);
 
     plr->SetHealth(ditheru(health));
     plr->SetPower(POWER_MANA, ditheru(mana));
