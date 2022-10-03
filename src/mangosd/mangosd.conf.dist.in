@@ -2920,7 +2920,7 @@ DynamicRespawn.PlayersMaxLevelDiff      = 0
 #        Default: 0  (off)
 #                 1+ (minimum players)
 #
-#    Hardcore.ItemBinding
+#    Hardcore.ItemBonding
 #        Enable or disable binding of items to players
 #        Default: 1 (items bind)
 #                 0 (items do not bind)
@@ -2929,4 +2929,4 @@ DynamicRespawn.PlayersMaxLevelDiff      = 0
 Hardcore.Permadeath = 0
 Hardcore.RandomLootPvP = 0
 Hardcore.FlexibleRaids = 0
-Hardcore.ItemBinding = 1
+Hardcore.ItemBonding = 1

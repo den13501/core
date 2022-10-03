@@ -123,7 +123,7 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
         if (!pItem->IsSoulBound())
         {
             pItem->SetState(ITEM_CHANGED, pUser);
-            pItem->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BINDING));
+            pItem->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BONDING));
         }
     }
 
