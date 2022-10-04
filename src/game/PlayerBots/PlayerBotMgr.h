@@ -31,7 +31,8 @@ struct PlayerBotEntry
 {
     uint64 playerGUID;
     std::string name;
-    uint32 accountId;
+    uint32 accountId;  // Temporary account ID
+    uint32 mainAccountId;
 
     uint32 chance;
     uint8 state; //Online, in queue or offline
@@ -80,7 +81,7 @@ class PlayerBotMgr
         bool AddOrRemoveBot();
 
         bool AddBot(PlayerBotAI* ai);
-        bool AddBot(uint32 playerGuid, bool chatBot = false, PlayerBotAI* pAI = nullptr);
+        bool AddBot(uint32 playerGuid, bool chatBot = false, PlayerBotAI* pAI = nullptr, uint32 mainAccountId = 0);
         bool DeleteBot(std::map<uint32, std::shared_ptr<PlayerBotEntry>>::iterator iter);
         bool DeleteBot(uint32 playerGuid);
 
