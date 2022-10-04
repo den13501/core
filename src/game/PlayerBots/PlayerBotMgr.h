@@ -31,7 +31,7 @@ struct PlayerBotEntry
 {
     uint64 playerGUID;
     std::string name;
-    uint32 accountId;  // Temporary account ID
+    uint32 accountId; // Temporary account ID
     uint32 mainAccountId;
 
     uint32 chance;
@@ -81,7 +81,7 @@ class PlayerBotMgr
         bool AddOrRemoveBot();
 
         bool AddBot(PlayerBotAI* ai);
-        bool AddBot(uint32 playerGuid, bool chatBot = false, PlayerBotAI* pAI = nullptr);
+        bool AddBot(uint32 playerGuid, bool chatBot = false, PlayerBotAI* pAI = nullptr, uint32 mainAccountId = 0);
         bool DeleteBot(std::map<uint32, std::shared_ptr<PlayerBotEntry>>::iterator iter);
         bool DeleteBot(uint32 playerGuid);
 
@@ -102,7 +102,7 @@ class PlayerBotMgr
         bool IsChatBot(uint32 playerGuid);
         bool IsSavingAllowed() { return m_confAllowSaving; }
 
-        uint32 GenBotAccountId() { return ++m_maxAccountId; }
+        uint32 GenBotAccountId() { return m_nextAccountId--; }
         PlayerBotStats& GetStats(){ return m_stats; }
         void Start() { m_confEnableRandomBots = true; }
     protected:
@@ -111,7 +111,7 @@ class PlayerBotMgr
         uint32 m_lastBotsRefresh;
         uint32 m_lastUpdate;
         uint32 m_totalChance;
-        uint32 m_maxAccountId;
+        uint32 m_nextAccountId;
 
         std::map<uint32 /*pl guid*/, std::shared_ptr<PlayerBotEntry>> m_bots;
         std::map<uint32 /*account*/, uint32> m_tempBots;
