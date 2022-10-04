@@ -343,16 +343,20 @@ bool PlayerBotMgr::AddBot(PlayerBotAI* ai)
     return AddBot(e->playerGUID, false);
 }
 
-bool PlayerBotMgr::AddBot(uint32 playerGUID, bool chatBot, PlayerBotAI* pAI, uint32 mainAccountId)
+bool PlayerBotMgr::AddBot(uint32 playerGUID, bool chatBot, PlayerBotAI* pAI)
 {
     uint32 accountId = 0;
+    uint32 mainAccountId = 0;
     auto iter = m_bots.find(playerGUID);
-    if (mainAccountId)
+    if (iter == m_bots.end())
+    {
         accountId = GenBotAccountId();
-    else if (iter == m_bots.end())
-        accountId = sObjectMgr.GetPlayerAccountIdByGUID(playerGUID);
+        mainAccountId = sObjectMgr.GetPlayerAccountIdByGUID(playerGUID);
+    }
     else
+    {
         accountId = iter->second->accountId;
+    }
 
     if (!accountId)
     {
@@ -379,7 +383,7 @@ bool PlayerBotMgr::AddBot(uint32 playerGUID, bool chatBot, PlayerBotAI* pAI, uin
     }
     else
     {
-        sLog.outInfo("[PlayerBotMgr] Adding temporary PlayerBot with GUID %u.", playerGUID);
+        sLog.outInfo("[PlayerBotMgr] Adding PlayerBot with GUID %u.", playerGUID);
         e = std::make_shared<PlayerBotEntry>();
         e->state         = PB_STATE_LOADING;
         e->playerGUID    = playerGUID;
@@ -953,7 +957,7 @@ bool ChatHandler::HandlePartyBotLoadCommand(char* args)
 
     PartyBotAI* pAI = new PartyBotAI(pPlayer, pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
 
-    if (!sPlayerBotMgr.AddBot(guid, false, pAI, pPlayer->GetSession()->GetAccountId()))
+    if (!sPlayerBotMgr.AddBot(guid, false, pAI))
     {
         delete pAI;
         SendSysMessage("Error spawning bot.");
