@@ -22,7 +22,7 @@ INSTANTIATE_SINGLETON_1(PlayerBotMgr);
 PlayerBotMgr::PlayerBotMgr()
 {
     m_totalChance = 0;
-    m_maxAccountId = 0;
+    m_nextAccountId = UINT32_MAX;  // Use low IDs for players and high IDs for bots
 
     // Config
     m_confMinRandomBots         = 3;
@@ -68,22 +68,9 @@ void PlayerBotMgr::Load()
     // 2- Configuration
     LoadConfig();
 
-    // 3- Load usable account ID
-    QueryResult* result = LoginDatabase.PQuery(
-                              "SELECT MAX(`id`)"
-                              " FROM `account`");
-    if (!result)
-    {
-        sLog.outError("Playerbot: unable to load max account id.");
-        return;
-    }
-    Field* fields = result->Fetch();
-    m_maxAccountId = fields[0].GetUInt32() + 10000;
-    delete result;
-
-    // 4- LoadFromDB
+    // 3- LoadFromDB
     sLog.outString(">> [PlayerBotMgr] Loading Bots ...");
-    result = CharacterDatabase.PQuery(
+    QueryResult* result = CharacterDatabase.PQuery(
                  "SELECT char_guid, chance, ai"
                  " FROM playerbot");
     if (!result)
@@ -92,7 +79,7 @@ void PlayerBotMgr::Load()
     {
         do
         {
-            fields = result->Fetch();
+            Field* fields = result->Fetch();
             uint32 guid = fields[0].GetUInt32();
             uint32 acc = GenBotAccountId();
             uint32 chance = fields[1].GetUInt32();
@@ -111,7 +98,7 @@ void PlayerBotMgr::Load()
         sLog.outString("%u bots loaded", m_bots.size());
     }
 
-    // 5- Check config/DB
+    // 4- Check config/DB
     if (m_confMinRandomBots >= m_bots.size() && !m_bots.empty())
         m_confMinRandomBots = m_bots.size() - 1;
     if (m_confMaxRandomBots > m_bots.size())
@@ -119,21 +106,21 @@ void PlayerBotMgr::Load()
     if (m_confMaxRandomBots <= m_confMinRandomBots)
         m_confMaxRandomBots = m_confMinRandomBots + 1;
 
-    // 6- Start initial bots
+    // 5- Start initial bots
     if (m_confEnableRandomBots)
     {
         for (uint32 i = 0; i < m_confMinRandomBots; i++)
             AddRandomBot();
     }
 
-    // 7- Fill stats info
+    // 6- Fill stats info
     m_stats.confMaxOnline = m_confMaxRandomBots;
     m_stats.confMinOnline = m_confMinRandomBots;
     m_stats.totalBots = m_bots.size();
     m_stats.confRandomBotsRefresh = m_confRandomBotsRefresh;
     m_stats.confUpdateDiff = m_confUpdateDiff;
 
-    // 8- Show stats if debug
+    // 7- Show stats if debug
     if (m_confDebug)
     {
         sLog.outString("[PlayerBotMgr] Between %u and %u bots online", m_confMinRandomBots, m_confMaxRandomBots);
@@ -343,12 +330,12 @@ bool PlayerBotMgr::AddBot(PlayerBotAI* ai)
     return AddBot(e->playerGUID, false);
 }
 
-bool PlayerBotMgr::AddBot(uint32 playerGUID, bool chatBot, PlayerBotAI* pAI)
+bool PlayerBotMgr::AddBot(uint32 playerGUID, bool chatBot, PlayerBotAI* pAI, uint32 mainAccountId)
 {
     uint32 accountId = 0;
     auto iter = m_bots.find(playerGUID);
     if (iter == m_bots.end())
-        accountId = sObjectMgr.GetPlayerAccountIdByGUID(playerGUID);
+        accountId = GenBotAccountId();
     else
         accountId = iter->second->accountId;
 
@@ -377,13 +364,14 @@ bool PlayerBotMgr::AddBot(uint32 playerGUID, bool chatBot, PlayerBotAI* pAI)
     }
     else
     {
-        sLog.outInfo("[PlayerBotMgr] Adding temporary PlayerBot with GUID %u.", playerGUID);
+        sLog.outInfo("[PlayerBotMgr] Adding PlayerBot with GUID %u.", playerGUID);
         e = std::make_shared<PlayerBotEntry>();
-        e->state        = PB_STATE_LOADING;
-        e->playerGUID   = playerGUID;
-        e->chance       = 10;
-        e->accountId    = accountId;
-        e->isChatBot    = chatBot;
+        e->state         = PB_STATE_LOADING;
+        e->playerGUID    = playerGUID;
+        e->chance        = 10;
+        e->accountId     = accountId;
+        e->mainAccountId = mainAccountId;
+        e->isChatBot     = chatBot;
         if (pAI)
         {
             e->ai.reset(pAI);
@@ -950,7 +938,8 @@ bool ChatHandler::HandlePartyBotLoadCommand(char* args)
 
     PartyBotAI* pAI = new PartyBotAI(pPlayer, pPlayer->GetMapId(), pPlayer->GetMap()->GetInstanceId(), x, y, z, pPlayer->GetOrientation());
 
-    if (!sPlayerBotMgr.AddBot(guid, false, pAI))
+    uint32 accountId = m_session->GetAccountId();
+    if (!sPlayerBotMgr.AddBot(guid, false, pAI, accountId))
     {
         delete pAI;
         SendSysMessage("Error spawning bot.");

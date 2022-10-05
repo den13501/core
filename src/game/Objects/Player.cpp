@@ -16501,7 +16501,12 @@ void Player::SaveToDB(bool online, bool force)
                               "?, ?, ?, ?, ?, ?)");
 
     uberInsert.addUInt32(GetGUIDLow());
-    uberInsert.addUInt32(GetSession()->GetAccountId());
+
+    uint32 accountId = IsBot() ? GetSession()->GetBot()->mainAccountId : GetSession()->GetAccountId();
+    if (!accountId)
+        sLog.outError("[PLAYER SAVE] Player %s is being saved with no account", GetGuidStr().c_str());
+    uberInsert.addUInt32(accountId);
+
     uberInsert.addString(m_name);
     uberInsert.addUInt8(GetRace());
     uberInsert.addUInt8(GetClass());
