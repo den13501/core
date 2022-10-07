@@ -103,7 +103,7 @@ class Creature : public Unit
 
         // Awful things used in awful scripts. TODO: remove
         void ResetStats();
-        void GetDefaultDamageRange(float& dmgMin, float& dmgMax) const;
+        void GetDefaultDamageRange(float& dmgMin, float& dmgMax);
         int32 GetDefaultArmor() const;
 
         CreatureClassLevelStats const* GetClassLevelStats() const;
@@ -240,6 +240,8 @@ class Creature : public Unit
         static float _GetHealthMod(int32 rank);             ///< Get custom factor to scale health (default 1, CONFIG_FLOAT_RATE_CREATURE_*_HP)
         static float _GetDamageMod(int32 rank);             ///< Get custom factor to scale damage (default 1, CONFIG_FLOAT_RATE_*_DAMAGE)
         static float _GetSpellDamageMod(int32 rank);        ///< Get custom factor to scale spell damage (default 1, CONFIG_FLOAT_RATE_*_SPELLDAMAGE)
+        float _GetScaledHealthMultiplier();                       ///< Get custom factor to scale health (default 1, CONFIG_UINT32_HARDCORE_FLEXIBLE_RAIDS)
+        float _GetScaledDamageMultiplier();                       ///< Get custom factor to scale damage (default 1, CONFIG_UINT32_HARDCORE_FLEXIBLE_RAIDS)
 
         VendorItemData const* GetVendorItems() const;
         VendorItemData const* GetVendorTemplateItems() const;

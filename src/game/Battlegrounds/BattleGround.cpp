@@ -623,7 +623,7 @@ void BattleGround::EndBattleGround(Team winner)
 
         if (!pPlayer->IsAlive())
         {
-            pPlayer->ResurrectPlayer(1.0f);
+            pPlayer->ResurrectPlayer(1.0f, false, pPlayer->GetDeathState() == CORPSE);
             pPlayer->SpawnCorpseBones();
         }
         else

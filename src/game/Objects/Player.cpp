@@ -1678,6 +1678,19 @@ void Player::Update(uint32 update_diff, uint32 p_time)
             m_deathTimer -= p_time;
     }
 
+    if (GetDeathState() == DEAD && sWorld.getConfig(CONFIG_BOOL_HARDCORE_PERMADEATH))
+    {
+        SpawnCorpseBones();
+
+        if (InBattleGround())
+        {
+            if (!GetBattleGround()->GetAlivePlayersCountByTeam(GetTeam()))
+                GetBattleGround()->EndBattleGround(GetTeam() == ALLIANCE ? HORDE : ALLIANCE);
+            else
+                LeaveBattleground();
+        }
+    }
+
     UpdateEnchantTime(update_diff);
     UpdateHomebindTime(update_diff);
 
@@ -4889,8 +4902,11 @@ void Player::BuildPlayerRepop()
     SetDeathState(DEAD);
 }
 
-void Player::ResurrectPlayer(float restore_percent, bool applySickness)
+void Player::ResurrectPlayer(float restore_percent, bool applySickness, bool ignorePermadeath)
 {
+    if (sWorld.getConfig(CONFIG_BOOL_HARDCORE_PERMADEATH) && !ignorePermadeath)
+        return;
+
     // Interrupt resurrect spells
     InterruptSpellsCastedOnMe(false, true);
 
@@ -7993,19 +8009,48 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
             if (!bones->lootForBody)
             {
                 bones->lootForBody = true;
-                // uint32 pLevel = bones->loot.gold;
                 bones->loot.clear();
-                // It may need a better formula
-                // Now it works like this: lvl10: ~6copper, lvl70: ~9silver
+
                 if (pVictim != nullptr)
                 {
                     uint32 level = pVictim->GetLevel();
-                    bones->loot.gold = (uint32)(urand(50, 150) * 0.016f * pow(((float)level) / 5.76f, 2.5f) * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
                     bones->loot.m_personal = true; // Everyone can loot the corpse
+                    uint32 randomLootPvP = sWorld.getConfig(CONFIG_UINT32_HARDCORE_RANDOM_LOOT_PVP);
 
-                    if (BattleGround* pBG = pVictim->GetBattleGround())
-                        if (uint32 refLootId = pBG->GetPlayerSkinRefLootId())
-                            loot->FillLoot(refLootId, LootTemplates_Reference, this, true);
+                    if (randomLootPvP)
+                    {
+                        bones->loot.gold = pVictim->GetMoney();
+
+                        if (randomLootPvP == 2)
+                            pVictim->SetMoney(0);
+
+                        uint32 slots[3][2] =
+                        {
+                            { SLOT_HEAD, SLOT_HANDS },
+                            { SLOT_FINGER1, SLOT_BACK },
+                            { SLOT_MAIN_HAND, SLOT_EMPTY }
+                        };
+
+                        for (int i = 0; i < 3; i++)
+                        {
+                            Item* item = pVictim->GetItemByPos(INVENTORY_SLOT_BAG_0, urand(slots[i][0], slots[i][1]));
+
+                            if (item)
+                            {
+                                LootStoreItem storeitem = LootStoreItem(item->GetProto()->ItemId, 100, 0, 0, 1, 1);
+                                bones->loot.AddItem(storeitem);
+
+                                if (randomLootPvP == 2)
+                                    pVictim->RemoveItem(INVENTORY_SLOT_BAG_0, item->GetSlot(), true);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // It may need a better formula
+                        // Now it works like this: lvl10: ~6copper, lvl70: ~9silver
+                        bones->loot.gold = (uint32)(urand(50, 150) * 0.016f * pow(((float)level) / 5.76f, 2.5f) * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
+                    }
                 }
             }
 
@@ -10396,7 +10441,7 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
         if (pItem->GetProto()->Bonding == BIND_WHEN_PICKED_UP ||
                 pItem->GetProto()->Bonding == BIND_QUEST_ITEM ||
                 (pItem->GetProto()->Bonding == BIND_WHEN_EQUIPPED && IsBagPos(pos)))
-            pItem->SetBinding(true);
+            pItem->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BONDING));
 
         if (bag == INVENTORY_SLOT_BAG_0)
         {
@@ -10441,7 +10486,7 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
         if (pItem2->GetProto()->Bonding == BIND_WHEN_PICKED_UP ||
                 pItem2->GetProto()->Bonding == BIND_QUEST_ITEM ||
                 (pItem2->GetProto()->Bonding == BIND_WHEN_EQUIPPED && IsBagPos(pos)))
-            pItem2->SetBinding(true);
+            pItem2->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BONDING));
 
         pItem2->SetCount(pItem2->GetCount() + count);
         if (IsInWorld() && update)
@@ -10634,7 +10679,7 @@ void Player::VisualizeItem(uint8 slot, Item* pItem)
 
     // check also  BIND_WHEN_PICKED_UP and BIND_QUEST_ITEM for .additem or .additemset case by GM (not binded at adding to inventory)
     if (pItem->GetProto()->Bonding == BIND_WHEN_EQUIPPED || pItem->GetProto()->Bonding == BIND_WHEN_PICKED_UP || pItem->GetProto()->Bonding == BIND_QUEST_ITEM)
-        pItem->SetBinding(true);
+        pItem->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BONDING));
 
     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "STORAGE: EquipItem slot = %u, item = %u", slot, pItem->GetEntry());
 
@@ -19941,7 +19986,7 @@ void Player::ResurectUsingRequestData()
         return;
     }
 
-    ResurrectPlayer(0.0f, false);
+    ResurrectPlayer(0.0f, false, GetDeathState() == CORPSE);
 
     if (GetMaxHealth() > m_resurrectHealth)
         SetHealth(m_resurrectHealth);

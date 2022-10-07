@@ -5934,7 +5934,7 @@ void Spell::EffectDisEnchant(SpellEffectIndex /*eff_idx*/)
 
     Player* pCaster = static_cast<Player*>(m_caster);
 
-    itemTarget->SetBinding(true);
+    itemTarget->SetBinding(sWorld.getConfig(CONFIG_BOOL_HARDCORE_ITEM_BONDING));
     pCaster->UpdateCraftSkill(m_spellInfo->Id);
     pCaster->SendLoot(itemTarget->GetObjectGuid(), LOOT_DISENCHANTING);
 
@@ -6251,7 +6251,7 @@ void Spell::EffectSelfResurrect(SpellEffectIndex eff_idx)
     }
 
     Player* plr = ((Player*)unitTarget);
-    plr->ResurrectPlayer(0.0f);
+    plr->ResurrectPlayer(0.0f, false, plr->GetDeathState() == CORPSE);
 
     plr->SetHealth(ditheru(health));
     plr->SetPower(POWER_MANA, ditheru(mana));

@@ -883,6 +883,13 @@ void Creature::Update(uint32 update_diff, uint32 diff)
                 break;
 
             RegenerateAll(update_diff, IsEvadeBecauseTargetNotReachable());
+
+            if (!IsInCombat() && sWorld.getConfig(CONFIG_UINT32_HARDCORE_FLEXIBLE_RAIDS))
+            {
+                InitStatsForLevel(GetHealthPercent(), GetPowerPercent(POWER_MANA));
+                UpdateAllStats();
+            }
+
             break;
         }
         case CORPSE_FALLING:
@@ -1590,7 +1597,7 @@ void Creature::InitStatsForLevel(float percentHealth, float percentMana)
     CreatureClassLevelStats const* pCLS = GetClassLevelStats();
 
     // health
-    float const healthMod = _GetHealthMod(rank);
+    float const healthMod = _GetHealthMod(rank) * _GetScaledHealthMultiplier();
     uint32 const health = std::max(1u, uint32(roundf(healthMod * pCLS->health * cinfo->health_multiplier)));
     uint32 const baseHealth = std::max(1u, uint32(roundf(healthMod * pCLS->base_health)));
 
@@ -1618,7 +1625,7 @@ void Creature::InitStatsForLevel(float percentHealth, float percentMana)
     SetModifierValue(UNIT_MOD_MANA, BASE_VALUE, float(mana));
 
     // damage
-    float const damageMod = _GetDamageMod(rank);
+    float const damageMod = _GetDamageMod(rank) * _GetScaledDamageMultiplier();
     float const meleeDamageAverage = pCLS->melee_damage * cinfo->damage_multiplier * damageMod;
     float const meleeDamageVariance = meleeDamageAverage * cinfo->damage_variance;
     float const rangedDamageAverage = pCLS->ranged_damage * cinfo->damage_multiplier * damageMod;
@@ -1645,6 +1652,64 @@ void Creature::InitStatsForLevel(float percentHealth, float percentMana)
     SetCreateStat(STAT_STAMINA, pCLS->stamina);
     SetCreateStat(STAT_INTELLECT, pCLS->intellect);
     SetCreateStat(STAT_SPIRIT, pCLS->spirit);
+}
+
+float Creature::_GetScaledHealthMultiplier()
+{
+    uint32 minPlayers = sWorld.getConfig(CONFIG_UINT32_HARDCORE_FLEXIBLE_RAIDS);
+    float multiplier = 1.0f;
+
+    if (minPlayers)
+    {
+        if (IsControlledByPlayer())
+            return multiplier;
+
+        Map* map = GetMap();
+        if (!map)
+            return multiplier;
+
+        if (!map->IsRaid())
+            return multiplier;
+
+        uint32 maxPlayers = map->GetMapEntry()->maxPlayers;
+
+        uint32 nplayers = map->GetPlayersCountExceptGMs();
+        nplayers = nplayers < minPlayers ? minPlayers : nplayers;
+
+        multiplier = 1 / (maxPlayers - (2 + (maxPlayers / 5.0f)));
+        multiplier = multiplier + (1 - multiplier) / (maxPlayers - 1) * (nplayers - 1);
+    }
+
+    return multiplier;
+}
+
+float Creature::_GetScaledDamageMultiplier()
+{
+    uint32 minPlayers = sWorld.getConfig(CONFIG_UINT32_HARDCORE_FLEXIBLE_RAIDS);
+    float multiplier = 1.0f;
+
+    if (minPlayers)
+    {
+        if (IsControlledByPlayer())
+            return multiplier;
+
+        Map* map = GetMap();
+        if (!map)
+            return multiplier;
+
+        if (!map->IsRaid())
+            return multiplier;
+
+        uint32 maxPlayers = map->GetMapEntry()->maxPlayers;
+
+        uint32 nplayers = map->GetPlayersCountExceptGMs();
+        nplayers = nplayers < minPlayers ? minPlayers : nplayers;
+
+        multiplier = 1 / (2 + (maxPlayers / 5.0f));;
+        multiplier = multiplier + (1 - multiplier) / (maxPlayers - 1) * (nplayers - 1);
+    }
+
+    return multiplier;
 }
 
 float Creature::_GetHealthMod(int32 rank)
@@ -3433,7 +3498,7 @@ void Creature::ResetStats()
     if (m_creatureInfo)
     {
         CreatureClassLevelStats const* pCLS = GetClassLevelStats();
-        float const damageMod = _GetDamageMod(m_creatureInfo->rank);
+        float const damageMod = _GetDamageMod(m_creatureInfo->rank) * _GetScaledDamageMultiplier();
         float const meleeDamageAverage = pCLS->melee_damage * m_creatureInfo->damage_multiplier * damageMod;
         float const meleeDamageVariance = meleeDamageAverage * m_creatureInfo->damage_variance;
         float const rangedDamageAverage = pCLS->ranged_damage * m_creatureInfo->damage_multiplier * damageMod;
@@ -3453,10 +3518,10 @@ void Creature::ResetStats()
 }
 
 // TODO: remove this
-void Creature::GetDefaultDamageRange(float& dmgMin, float& dmgMax) const
+void Creature::GetDefaultDamageRange(float& dmgMin, float& dmgMax)
 {
     CreatureClassLevelStats const* pCLS = GetClassLevelStats();
-    float const damageMod = _GetDamageMod(m_creatureInfo->rank);
+    float const damageMod = _GetDamageMod(m_creatureInfo->rank) * _GetScaledDamageMultiplier();
     float const meleeDamageAverage = pCLS->melee_damage * m_creatureInfo->damage_multiplier * damageMod;
     float const meleeDamageVariance = meleeDamageAverage * m_creatureInfo->damage_variance;
     dmgMin = meleeDamageAverage - meleeDamageVariance;
