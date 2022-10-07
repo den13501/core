@@ -69,12 +69,12 @@ void PlayerBotMgr::Load()
     LoadConfig();
 
     // 3- LoadFromDB
-    sLog.outString(">> [PlayerBotMgr] Loading Bots ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">> [PlayerBotMgr] Loading Bots ...");
     QueryResult* result = CharacterDatabase.PQuery(
                  "SELECT char_guid, chance, ai"
                  " FROM playerbot");
     if (!result)
-        sLog.outString("Table `playerbot` is empty.");
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Table `playerbot` is empty.");
     else
     {
         do
@@ -95,7 +95,7 @@ void PlayerBotMgr::Load()
         }
         while (result->NextRow());
         delete result;
-        sLog.outString("%u bots loaded", m_bots.size());
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "%u bots loaded", m_bots.size());
     }
 
     // 4- Check config/DB
@@ -123,8 +123,8 @@ void PlayerBotMgr::Load()
     // 7- Show stats if debug
     if (m_confDebug)
     {
-        sLog.outString("[PlayerBotMgr] Between %u and %u bots online", m_confMinRandomBots, m_confMaxRandomBots);
-        sLog.outString("[PlayerBotMgr] %u now loading", m_stats.loadingCount);
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[PlayerBotMgr] Between %u and %u bots online", m_confMinRandomBots, m_confMaxRandomBots);
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[PlayerBotMgr] %u now loading", m_stats.loadingCount);
     }
 }
 
@@ -144,20 +144,20 @@ void PlayerBotMgr::DeleteAll()
     m_tempBots.clear();
 
     if (m_confDebug)
-        sLog.outString("[PlayerBotMgr] Deleting all bots [OK]");
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[PlayerBotMgr] Deleting all bots [OK]");
 }
 
 void PlayerBotMgr::OnBotLogin(PlayerBotEntry *e)
 {
     e->state = PB_STATE_ONLINE;
     if (m_confDebug)
-        sLog.outString("[PlayerBot][Login]  '%s' GUID:%u Acc:%u", e->name.c_str(), e->playerGUID, e->accountId);
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[PlayerBot][Login]  '%s' GUID:%u Acc:%u", e->name.c_str(), e->playerGUID, e->accountId);
 }
 void PlayerBotMgr::OnBotLogout(PlayerBotEntry *e)
 {
     e->state = PB_STATE_OFFLINE;
     if (m_confDebug)
-        sLog.outString("[PlayerBot][Logout] '%s' GUID:%u Acc:%u", e->name.c_str(), e->playerGUID, e->accountId);
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[PlayerBot][Logout] '%s' GUID:%u Acc:%u", e->name.c_str(), e->playerGUID, e->accountId);
 }
 
 void PlayerBotMgr::OnPlayerInWorld(Player* player)
@@ -275,7 +275,7 @@ void PlayerBotMgr::Update(uint32 diff)
         }
         else
         {
-            sLog.outError("PLAYERBOT: Unable to load session id %u", iter->second->accountId);
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "PLAYERBOT: Unable to load session id %u", iter->second->accountId);
             DeleteBot(iter);
 
             if (iter->second->customBot)
@@ -341,13 +341,13 @@ bool PlayerBotMgr::AddBot(uint32 playerGUID, bool chatBot, PlayerBotAI* pAI, uin
 
     if (!accountId)
     {
-        sLog.outError("[PlayerBotMgr] Player %u account not found!", playerGUID);
+        sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "Compte du joueur %u introuvable ...", playerGUID);
         return false;
     }
 
     if (sWorld.FindSession(accountId))
     {
-        sLog.outError("[PlayerBotMgr] Account %u is already online!", accountId);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[PlayerBotMgr] Account %u is already online!", accountId);
         return false;
     }
 
@@ -364,7 +364,7 @@ bool PlayerBotMgr::AddBot(uint32 playerGUID, bool chatBot, PlayerBotAI* pAI, uin
     }
     else
     {
-        sLog.outInfo("[PlayerBotMgr] Adding PlayerBot with GUID %u.", playerGUID);
+        sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "[PlayerBotMgr] Adding temporary PlayerBot with GUID %u.", playerGUID);
         e = std::make_shared<PlayerBotEntry>();
         e->state         = PB_STATE_LOADING;
         e->playerGUID    = playerGUID;
