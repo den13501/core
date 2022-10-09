@@ -1066,7 +1066,7 @@ class Player final: public Unit
         void SetVirtualItemSlot(uint8 i, Item* item);
         void QuickEquipItem(uint16 pos, Item* pItem);
         void VisualizeItem(uint8 slot, Item* pItem);
-        void SetVisibleItemSlot(uint8 slot, Item* pItem);
+        //void SetVisibleItemSlot(uint8 slot, Item* pItem);
         // in trade, guild bank, mail....
         void RemoveItemDependentAurasAndCasts(Item* pItem);
         void UpdateEnchantTime(uint32 time);
@@ -1144,6 +1144,7 @@ class Player final: public Unit
         void SetAmmo(uint32 item);
         void RemoveAmmo();
         void SendProficiency(ItemClass itemClass, uint32 itemSubclassMask) const;
+        void SetVisibleItemSlot(uint8 slot, Item* pItem);
         Item* BankItem(ItemPosCountVec const& dest, Item* pItem, bool update)
         {
             return StoreItem(dest, pItem, update);

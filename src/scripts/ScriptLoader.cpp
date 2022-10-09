@@ -247,6 +247,8 @@ void AddSC_war_effort();
 
 void AddSC_npc_j_eevee();                            // J'Eevee, the Imp in a Jar
 
+void AddSC_Transmog();                               // Transmog mod
+
 void AddScripts()
 {
     //Nostalrius
@@ -489,4 +491,6 @@ void AddScripts()
     AddSC_winterspring();
 
     AddSC_npc_j_eevee();
+    // transmog
+    AddSC_Transmog();
 }

@@ -78,6 +78,10 @@ extern uint32 GetSkillLevel(Player* pPlayer,uint32 skill);
 #define ADD_GOSSIP_ITEM(a, b, c, d)   PlayerTalkClass->GetGossipMenu().AddMenuItem(a, b, c, d)
 #define ADD_GOSSIP_ITEM_EXTENDED(a, b, c, d, e, f)   PlayerTalkClass->GetGossipMenu().AddMenuItem(a, b, c, d, e, f)
 
+//cmangos ADD_GOSSIP_ITEM funcion
+#define ADD_GOSSIP_ITEM_CM(icon, text, sender, optionId)   PlayerTalkClass->GetGossipMenu().AddMenuItem(icon, text, sender, optionId, "", 0)
+#define ADD_GOSSIP_ITEM_EXTENDED_CM(icon, text, sender, optionId, boxMessage, boxMoney, code)   PlayerTalkClass->GetGossipMenu().AddMenuItem(icon, text, sender, optionId, boxMessage, code)
+
 // This fuction Sends the current menu to show to client, a - NPCTEXTID(uint32) , b - npc guid(uint64)
 #define SEND_GOSSIP_MENU(a, b)      PlayerTalkClass->SendGossipMenu(a, b)
 
