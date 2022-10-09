@@ -1,3 +1,4 @@
+#include "scriptPCH.h"
 #include "Transmogrification.h"
 
 Transmogrification* Transmogrification::instance()
@@ -132,14 +133,19 @@ std::string Transmogrification::GetItemIcon(uint32 entry, uint32 width, uint32 h
     ss << "|TInterface";
     const ItemPrototype* temp = sObjectMgr.GetItemPrototype(entry);
     const ItemDisplayInfoEntry* dispInfo = nullptr;
+    
     if (temp)
     {
+        /* This is for wotlk
         GameObjectDisplayInfoEntry const* info = sGameObjectDisplayInfoStore.LookupEntry(temp->DisplayInfoID);
-        dispInfo = sItemStorage.LookupEntry<ItemDisplayInfoEntry>(temp->DisplayInfoID);
+        dispInfo = sItemDisplayInfoStore.LookupEntry(temp->DisplayInfoID);
         if (dispInfo)
             //ss << "/ICONS/" << dispInfo->inventoryIcon;
             ss << "/ICONS/" << dispInfo->ID;
+        */
+        return "";
     }
+
     if (!dispInfo)
         ss << "/InventoryItems/WoWUnknownItem01";
     ss << ":" << width << ":" << height << ":" << x << ":" << y << "|t";

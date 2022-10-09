@@ -1,6 +1,6 @@
 #ifndef DEF_TRANSMOGRIFICATION_H
 #define DEF_TRANSMOGRIFICATION_H
-
+#include "scriptPCH.h"
 #include "World.h"
 
 #include <unordered_map>
