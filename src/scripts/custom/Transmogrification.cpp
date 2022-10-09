@@ -52,7 +52,7 @@ void Transmogrification::LoadPlayerSets(ObjectGuid pGUID)
                     break;
                 if (slot >= EQUIPMENT_SLOT_END)
                 {
-                    sLog.outError("Item entry (FakeEntry: %u, player: %s, slot: %u, presetId: %u) has invalid slot, ignoring.", entry, std::to_string(pGUID).c_str(), slot, uint32(PresetID));
+                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Item entry (FakeEntry: %u, player: %s, slot: %u, presetId: %u) has invalid slot, ignoring.", entry, std::to_string(pGUID).c_str(), slot, uint32(PresetID));
                     continue;
                 }
                 if (sObjectMgr.GetItemPrototype(entry))
@@ -268,7 +268,7 @@ TransmogAcoreStrings Transmogrification::Transmogrify(Player* player, ObjectGuid
 {
     if (slot >= EQUIPMENT_SLOT_END)
     {
-        sLog.outError("Transmogrify wrong slot: %u", slot);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Transmogrify wrong slot: %u", slot);
         return LANG_ERR_TRANSMOG_INVALID_SLOT;
     }
 
