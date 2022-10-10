@@ -88,7 +88,7 @@ bool OnGossipHello(Player* player, Creature* creature)
 {
     WorldSession* session = player->GetSession();
     if (sTransmogrifier->GetEnableTransmogInfo())
-        player->ADD_GOSSIP_ITEM_CM(GOSSIP_ICON_MONEY_BAG, "How does transmogrification work?", EQUIPMENT_SLOT_END + 9, 0);
+        player->ADD_GOSSIP_ITEM_CM(GOSSIP_ICON_MONEY_BAG, "要如何使用塑型呢？", EQUIPMENT_SLOT_END + 9, 0);
     for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
     {
         if (const char* slotName = sTransmogrifier->GetSlotName(slot, session))
@@ -364,7 +364,7 @@ bool GossipHello_TransmogNPC(Player* pPlayer, Creature* pUnit)
     pPlayer->PlayerTalkClass->ClearMenus();
 
     if (sTransmogrifier->GetEnableTransmogInfo())
-        pPlayer->ADD_GOSSIP_ITEM_CM(GOSSIP_ICON_MONEY_BAG, "How does transmogrification work?", EQUIPMENT_SLOT_END + 9, 0);
+        pPlayer->ADD_GOSSIP_ITEM_CM(GOSSIP_ICON_MONEY_BAG, "要如何使用塑型呢？", EQUIPMENT_SLOT_END + 9, 0);
 
     // Only show the menu option for items that you have equipped
     for (uint8 Slot = EQUIPMENT_SLOT_START; Slot < EQUIPMENT_SLOT_END; Slot++)
@@ -469,7 +469,7 @@ bool GossipHello_TransmogNPC(Player* pPlayer, Creature* pUnit)
     }
 
     // Remove all transmogrifiers
-    pPlayer->ADD_GOSSIP_ITEM_CM(GOSSIP_ICON_BATTLE, "Remove all transmogrifications.", EQUIPMENT_SLOT_END + 2, 0);
+    pPlayer->ADD_GOSSIP_ITEM_CM(GOSSIP_ICON_BATTLE, "移除所有的塑型。", EQUIPMENT_SLOT_END + 2, 0);
     pPlayer->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, pUnit->GetObjectGuid());
 
     return true;
