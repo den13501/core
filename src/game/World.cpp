@@ -82,6 +82,7 @@
 #include "InstanceStatistics.h"
 #include "GuardMgr.h"
 #include "TransportMgr.h"
+#include "custom/Transmogrification.h"
 
 #include <chrono>
 
@@ -1150,6 +1151,8 @@ void World::LoadConfigSettings(bool reload)
 
     setConfig(CONFIG_UINT32_CREATURE_SUMMON_LIMIT, "MaxCreatureSummonLimit", DEFAULT_CREATURE_SUMMON_LIMIT);
 
+    sTransmogrification->LoadConfig(reload); //transmog
+
     // Smartlog data
     sLog.InitSmartlogEntries(sConfig.GetStringDefault("Smartlog.ExtraEntries", ""));
     sLog.InitSmartlogGuids(sConfig.GetStringDefault("Smartlog.ExtraGuids", ""));
@@ -1777,6 +1780,14 @@ void World::SetInitialWorldSettings()
     sSpellMgr.LoadSpellGroupStackRules();
 
     sObjectMgr.LoadPlayerPremadeTemplates();
+
+    sTransmogrification->LoadConfig(false);
+    CharacterDatabase.Execute("DELETE FROM custom_transmogrification WHERE NOT EXISTS (SELECT 1 FROM item_instance WHERE item_instance.guid = custom_transmogrification.GUID)");
+#ifdef PRESETS
+    // Clean even if disabled
+    // Dont delete even if player has more presets than should
+    CharacterDatabase.Execute("DELETE FROM `custom_transmogrification_sets` WHERE NOT EXISTS(SELECT 1 FROM characters WHERE characters.guid = custom_transmogrification_sets.Owner)");
+#endif
 
     if (getConfig(CONFIG_BOOL_RESTORE_DELETED_ITEMS))
     {

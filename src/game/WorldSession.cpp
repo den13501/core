@@ -46,6 +46,7 @@
 #include "Auth/Sha1.h"
 #include "Chat.h"
 #include "MasterPlayer.h"
+#include "custom/Transmogrification.h"
 
 #include <openssl/md5.h>
 
@@ -611,6 +612,18 @@ void WorldSession::LogoutPlayer(bool Save)
         ///- Send update to group
         if (Group* group = _player->GetGroup())
             group->UpdatePlayerOnlineStatus(_player, false);
+
+        //Start Transmog 
+        ObjectGuid pGUID = _player->GetObjectGuid();
+        for (Transmogrification::transmog2Data::const_iterator it = sTransmogrification->entryMap[pGUID].begin(); it != sTransmogrification->entryMap[pGUID].end(); ++it)
+            sTransmogrification->dataMap.erase(it->first);
+        sTransmogrification->entryMap.erase(pGUID);
+
+#ifdef PRESETS
+        if (sTransmogrification->GetEnableSets())
+            sTransmogrification->UnloadPlayerSets(pGUID);
+#endif
+        //End Transmog
 
         ///- Update cached data at logout
         sObjectMgr.UpdatePlayerCache(_player);

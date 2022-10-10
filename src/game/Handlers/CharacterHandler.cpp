@@ -44,6 +44,7 @@
 #include "MasterPlayer.h"
 #include "PlayerBroadcaster.h"
 #include "PlayerBotMgr.h"
+#include "custom/Transmogrification.h"
 
 class LoginQueryHolder : public SqlQueryHolder
 {
@@ -722,6 +723,41 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
     
     if (!alreadyOnline && !pCurrChar->IsStandingUp() && !pCurrChar->HasUnitState(UNIT_STAT_STUNNED))
         pCurrChar->SetStandState(UNIT_STAND_STATE_STAND);
+
+    ObjectGuid playerGUID = _player->GetObjectGuid();
+    sTransmogrification->entryMap.erase(playerGUID);
+    QueryResult* xmog = CharacterDatabase.PQuery("SELECT GUID, FakeEntry FROM custom_transmogrification WHERE Owner = %u", _player->GetObjectGuid());
+    if (xmog)
+    {
+        do
+        {
+            const ObjectGuid itemGUID = ObjectGuid(HIGHGUID_ITEM, (xmog[0][0].GetUInt32()));
+            uint32 fakeEntry = (*xmog)[1].GetUInt32();
+            if (sObjectMgr.GetItemPrototype(fakeEntry))
+            {
+                sTransmogrification->dataMap[itemGUID] = playerGUID;
+                sTransmogrification->entryMap[playerGUID][itemGUID] = fakeEntry;
+            }
+            else
+            {
+                //sLog->outError(LOG_FILTER_SQL, "Item entry (Entry: %u, itemGUID: %u, playerGUID: %u) does not exist, ignoring.", fakeEntry, GUID_LOPART(itemGUID), player->GetObjectGuidLow());
+                // CharacterDatabase.PExecute("DELETE FROM custom_transmogrification WHERE FakeEntry = %u", fakeEntry);
+            }
+        } while (xmog->NextRow());
+
+        for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+        {
+            if (Item* item = _player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+                _player->SetVisibleItemSlot(slot, item);
+        }
+
+        delete xmog;
+    }
+
+#ifdef PRESETS
+    if (sTransmogrification->GetEnableSets())
+        sTransmogrification->LoadPlayerSets(playerGUID);
+#endif
 
     m_playerLoading = false;
     m_clientMoverGuid = pCurrChar->GetObjectGuid();
