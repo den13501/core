@@ -44,7 +44,7 @@
 #include "MasterPlayer.h"
 #include "PlayerBroadcaster.h"
 #include "PlayerBotMgr.h"
-#include "../custom/Transmogrification.h"
+#include "custom/Transmogrification.h"
 
 class LoginQueryHolder : public SqlQueryHolder
 {
