@@ -80,7 +80,7 @@
 #include "GameEventMgr.h"
 #include "world/scourge_invasion.h"
 #include "world/world_event_wareffort.h"
-#include "../custom/Transmogrification.h"
+#include "custom/Transmogrification.h"
 
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
 

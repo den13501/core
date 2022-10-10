@@ -81,7 +81,7 @@
 #include "InstanceStatistics.h"
 #include "GuardMgr.h"
 #include "TransportMgr.h"
-#include "../custom/Transmogrification.h"
+#include "custom/Transmogrification.h"
 
 #include <chrono>
 

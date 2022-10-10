@@ -46,7 +46,7 @@
 #include "Auth/Sha1.h"
 #include "Chat.h"
 #include "MasterPlayer.h"
-#include "../custom/Transmogrification.h"
+#include "custom/Transmogrification.h"
 
 #include <openssl/md5.h>
 
