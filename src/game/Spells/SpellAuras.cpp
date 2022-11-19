@@ -3200,6 +3200,10 @@ void Unit::ModPossess(Unit* pTarget, bool apply, AuraRemoveMode m_removeMode)
 
                 pCreature->AttackedBy(pCaster);
             }
+
+            // remove pvp flag on charm end if creature is not pvp flagged by default
+            if (pCreature->IsPvP() && !pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_PVP))
+                pCreature->SetPvP(false);
         }
         else
             pTarget->StopMoving(true);
@@ -3431,7 +3435,13 @@ void Aura::HandleModCharm(bool apply, bool Real)
                     target->SetFactionTemplateId(cinfo->faction);
             }
             else if (cinfo)                             // normal creature
+            {
                 target->SetFactionTemplateId(cinfo->faction);
+
+                // remove pvp flag on charm end if creature is not pvp flagged by default
+                if (pCreatureTarget->IsPvP() && !pCreatureTarget->HasExtraFlag(CREATURE_FLAG_EXTRA_PVP))
+                    pCreatureTarget->SetPvP(false);
+            }
 
             // restore UNIT_FIELD_BYTES_0
             if (cinfo && caster && caster->IsPlayer() && caster->GetClass() == CLASS_WARLOCK && cinfo->type == CREATURE_TYPE_DEMON)
@@ -6910,7 +6920,7 @@ void SpellAuraHolder::_RemoveSpellAuraHolder()
         }
 
         // reset cooldown state for spells
-        if (caster && GetSpellProto()->HasAttribute(SPELL_ATTR_DISABLED_WHILE_ACTIVE))
+        if (caster && GetSpellProto()->HasAttribute(SPELL_ATTR_COOLDOWN_ON_EVENT))
         {
             // some spells need to start cooldown at aura fade (like stealth)
             caster->AddCooldown(*GetSpellProto());

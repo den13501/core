@@ -850,8 +850,6 @@ void Guild::Roster(WorldSession* session /*= nullptr*/)
         session->SendPacket(&data);
     else
         BroadcastPacket(&data);
-
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Sent (SMSG_GUILD_ROSTER)");
 }
 
 void Guild::Query(WorldSession* session)
@@ -876,7 +874,6 @@ void Guild::Query(WorldSession* session)
     data << int32(m_BackgroundColor);
 
     session->SendPacket(&data);
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Sent (SMSG_GUILD_QUERY_RESPONSE)");
 }
 
 void Guild::SetEmblem(int32 emblemStyle, int32 emblemColor, int32 borderStyle, int32 borderColor, int32 backgroundColor)
@@ -1016,6 +1013,4 @@ void Guild::BroadcastEvent(GuildEvents event, ObjectGuid guid, char const* str1 
         data << guid;
 
     BroadcastPacket(&data);
-
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Sent SMSG_GUILD_EVENT");
 }
