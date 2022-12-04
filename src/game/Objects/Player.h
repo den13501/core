@@ -2336,6 +2336,7 @@ class Player final: public Unit
     private:
         Team m_team;
         ReputationMgr  m_reputationMgr;
+        std::set<uint32> m_temporaryAtWarFactions;
     public:
         static Team TeamForRace(uint8 race);
         Team GetTeam() const final { return m_team; }
@@ -2349,6 +2350,8 @@ class Player final: public Unit
         void RewardReputation(Unit* pVictim, float rate);
         void RewardReputation(Quest const* pQuest);
         int32 CalculateReputationGain(ReputationSource source, int32 rep, int32 faction, uint32 creatureOrQuestLevel = 0, bool noAuraBonus = false);
+        void SetTemporaryAtWarWithFaction(uint32 factionId) { m_temporaryAtWarFactions.insert(factionId); }
+        void ClearTemporaryWarWithFactions();
 
         bool ChangeRace(uint8 newRace);
         bool ChangeItemsForRace(uint8 oldRace, uint8 newRace);
@@ -2626,8 +2629,8 @@ class Player final: public Unit
 
         // LFG
         void SetLFGAreaId(uint32 areaId) { m_LFGAreaId = areaId; }
-        uint32 GetLFGAreaId() { return m_LFGAreaId; }
-        bool IsInLFG() { return m_LFGAreaId > 0; }
+        uint32 GetLFGAreaId() const { return m_LFGAreaId; }
+        bool IsInLFG() const { return m_LFGAreaId > 0; }
 
         // BattleGround Group System
         void SetBattleGroundRaid(Group* group, int8 subgroup = -1);

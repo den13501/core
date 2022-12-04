@@ -1765,6 +1765,9 @@ void Player::OnDisconnected()
 
         if (ObjectGuid lootGuid = GetLootGuid())
             GetSession()->DoLootRelease(lootGuid);
+
+        if (GetCurrentCinematicEntry() != 0)
+            CinematicEnd();
     }
 
     // Player should be leave from channels
@@ -2666,7 +2669,7 @@ void Player::RegenerateAll()
     Regenerate(POWER_ENERGY);
     Regenerate(POWER_MANA);
 
-    m_regenTimer += REGEN_TIME_FULL;
+    m_regenTimer += REGEN_TIME_PLAYER_FULL;
 }
 
 void Player::Regenerate(Powers power)
@@ -2770,7 +2773,7 @@ void Player::RegenerateHealth()
         {
             AuraList const& lModHealthRegen = GetAurasByType(SPELL_AURA_MOD_REGEN);
             for (const auto i : lModHealthRegen)
-                addvalue += i->GetModifier()->m_amount * (float(REGEN_TIME_FULL) / float(i->GetModifier()->periodictime));
+                addvalue += i->GetModifier()->m_amount * (float(REGEN_TIME_PLAYER_FULL) / float(i->GetModifier()->periodictime));
         }
     }
 
@@ -3292,7 +3295,7 @@ void Player::RemoveFromGroup(Group* group, ObjectGuid guid)
 #if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_8_4
 uint32 Player::GetWhoListPartyStatus() const
 {
-    if (sLFGMgr.IsPlayerInQueue(GetObjectGuid()))
+    if (IsInLFG())
         return WHO_PARTY_STATUS_LFG;
 
     if (GetGroup())
@@ -22478,5 +22481,20 @@ void Log::Player(uint32 accountId, LogType logType, char const* subType, LogLeve
     {
         // Player logs should never go to the console
         OutFile(logType, logLevel, log);
+    }
+}
+
+void Player::ClearTemporaryWarWithFactions()
+{
+    if (!m_temporaryAtWarFactions.empty())
+    {
+        for (auto const& factionId : m_temporaryAtWarFactions)
+        {
+            if (FactionEntry const* pFactionEntry = sObjectMgr.GetFactionEntry(factionId))
+                if (GetReputationMgr().GetRank(pFactionEntry) > REP_HOSTILE)
+                    if (GetReputationMgr().SetAtWar(pFactionEntry->reputationListID, false))
+                        SendFactionAtWar(pFactionEntry->reputationListID, false);
+        }
+        m_temporaryAtWarFactions.clear();
     }
 }
