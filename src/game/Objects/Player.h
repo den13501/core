@@ -2336,7 +2336,10 @@ class Player final: public Unit
     private:
         Team m_team;
         ReputationMgr  m_reputationMgr;
+        std::set<uint32> m_temporaryAtWarFactions;
+
         bool m_DbSaveDisabled; // OSWoW : used for faction change
+
     public:
         static Team TeamForRace(uint8 race);
         Team GetOTeam() const { return m_team; }; // OSWoW : Crossfaction BGs
@@ -2376,6 +2379,8 @@ class Player final: public Unit
         void RewardReputation(Unit* pVictim, float rate);
         void RewardReputation(Quest const* pQuest);
         int32 CalculateReputationGain(ReputationSource source, int32 rep, int32 faction, uint32 creatureOrQuestLevel = 0, bool noAuraBonus = false);
+        void SetTemporaryAtWarWithFaction(uint32 factionId) { m_temporaryAtWarFactions.insert(factionId); }
+        void ClearTemporaryWarWithFactions();
 
         bool ChangeRace(uint8 newRace);
         bool ChangeItemsForRace(uint8 oldRace, uint8 newRace);
