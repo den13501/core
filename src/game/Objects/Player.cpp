@@ -13393,7 +13393,17 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questE
     uint32 xp = uint32(pQuest->XPValue(this) * (GetPersonalXpRate() >= 0.0f ? GetPersonalXpRate() : sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST)));
 
     if (GetLevel() < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
-        GiveXP(xp , nullptr);
+    { 
+        GiveXP(xp, nullptr);
+
+        //Pet can gain xp from quest
+        if ((xp) && (sWorld.getConfig(CONFIG_BOOL_PET_XPGAIN_QUEST)))
+        {
+            xp = xp / 5;
+            if (Pet* pet = GetPet())
+                pet->GivePetXP(xp); //只要玩家任務獲得任驗同時，寵物也會得到1/5經驗
+        }
+    }
     else if (int32 money = pQuest->GetRewMoneyMaxLevelAtComplete())
         LogModifyMoney(money, "QuestMaxLevel", questEnder->GetObjectGuid(), quest_id);
 
