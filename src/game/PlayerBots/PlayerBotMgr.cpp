@@ -909,6 +909,22 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
                 botClass = PickRandomValue(CLASS_WARRIOR, CLASS_HUNTER, CLASS_ROGUE, CLASS_MAGE, CLASS_WARLOCK, CLASS_SHAMAN); //部落dps randon加入CLASS_SHAMAN
             botRole = CombatBotBaseAI::IsMeleeDamageClass(botClass) ? ROLE_MELEE_DPS : ROLE_RANGE_DPS;
         }
+        else if (option == "mdps")
+        {
+            if (pPlayer->GetTeam() == ALLIANCE)
+                botClass = PickRandomValue(CLASS_WARRIOR, CLASS_ROGUE, CLASS_PALADIN); //聯盟meleedps randon加入CLASS_PALADIN
+            else
+                botClass = PickRandomValue(CLASS_WARRIOR, CLASS_ROGUE, CLASS_SHAMAN); //部落meleedps randon加入CLASS_SHAMAN
+            botRole = ROLE_MELEE_DPS;
+        }
+        else if (option == "rdps")
+        {
+            if (pPlayer->GetTeam() == ALLIANCE)
+                botClass = PickRandomValue(CLASS_HUNTER, CLASS_MAGE, CLASS_WARLOCK);
+            else
+                botClass = PickRandomValue(CLASS_HUNTER, CLASS_MAGE, CLASS_WARLOCK, CLASS_SHAMAN); //部落rangedps randon加入CLASS_SHAMAN
+            botRole = ROLE_RANGE_DPS;
+        }
         else if (option == "healer")
         {
             std::vector<uint32> dpsClasses = { CLASS_PRIEST, CLASS_DRUID };
