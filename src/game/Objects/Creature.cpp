@@ -54,6 +54,8 @@
 #include "TemporarySummon.h"
 #include "GuardMgr.h"
 
+using namespace std;
+
 TrainerSpell const* TrainerSpellData::Find(uint32 spell_id) const
 {
     TrainerSpellMap::const_iterator itr = spellList.find(spell_id);
@@ -1654,6 +1656,52 @@ void Creature::InitStatsForLevel(float percentHealth, float percentMana)
 
 float Creature::_GetHealthMod(int32 rank)
 {
+    //BEGIN-custom feature, option to nerf instance, scale creature's health or damage
+        uint32 dungeons[] = {
+            36, // Deadmine 死礦
+            109, // Sunken Temple 沉沒的神廟
+            209, // Zul'Farrak 祖爾法拉克
+            229, // Blackrock Spire 黑石塔
+            230, // Blackrock Depths 黑石深淵
+            309, // Zul'gurub 祖爾格拉布
+            349, // Maraudon 馬拉頓
+            429  // Dire Maul 厄運之槌
+        };
+
+        uint32 map = GetMapId();
+
+        bool dungeon = find(begin(dungeons), end(dungeons), map) != end(dungeons);
+
+        if (dungeon)
+        {
+            switch (sWorld.getConfig(CONFIG_UINT32_INSTANCE_HP_LEVEL))
+            {
+                case 0:
+                    return 1.0f;
+                case 1:
+                    return .95f;
+                case 2:
+                    return .85f;
+                case 3:
+                    return .75f;
+                case 4:
+                    return .65f;
+                case 5:
+                    return .55f;
+                case 6:
+                    return .45f;
+                case 7:
+                    return .35f;
+                case 8:
+                    return .25f;
+                case 9:
+                    return .15f;
+                default:
+                    return 1.0f;
+            }
+        }
+        //END-custom feature, option to nerf instance, scale creature's health or damage
+
     switch (rank)                                           // define rates for each elite rank
     {
         case CREATURE_ELITE_NORMAL:

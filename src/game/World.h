@@ -340,7 +340,9 @@ enum eConfigUInt32Values
     CONFIG_UINT32_PARTY_BOT_RANDOM_GEAR_LEVEL_DIFFERENCE,
     CONFIG_UINT32_PVP_POOL_SIZE_PER_FACTION,
 
-    CONFIG_UINT32_DUALSPECSWAP_COST, //dual swap cost 雙天賦切換費用	
+    CONFIG_UINT32_DUALSPECSWAP_COST, //dual swap cost 雙天賦切換費用
+
+    CONFIG_UINT32_INSTANCE_HP_LEVEL, // custom feature, scale creature's health of specific instance dungeon
 
     CONFIG_UINT32_LFG_MATCHMAKING_TIMER,
     CONFIG_UINT32_VALUE_COUNT
@@ -444,7 +446,7 @@ enum eConfigFloatValues
     CONFIG_FLOAT_AC_MOVEMENT_CHEAT_TELEPORT_DISTANCE,
     CONFIG_FLOAT_AC_MOVEMENT_CHEAT_WALL_CLIMB_ANGLE,
     CONFIG_FLOAT_VALUE_COUNT,
-    CONFIG_FLOAT_RATE_XP_PET_BASIC // Cusom pet basic xp rate
+    CONFIG_FLOAT_RATE_XP_PET_BASIC // Custom pet basic xp rate
 };
 
 /// Configuration elements

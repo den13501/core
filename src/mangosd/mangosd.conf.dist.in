@@ -2909,3 +2909,23 @@ DualSpecTimeDelta = 300
 ###################################################################################################################
 Rate.XP.Pet.Basic                       = 1.0
 PetXPGain.Quest.Enabled                 = 0
+
+###################################################################################################################
+# Custom - Dungeon/Raid Instance nerf setting
+#   To enable nerf creatures' health value within the map id of dungeon/instance  for groups
+#   Currently implement on 
+#      MapID:36 = Deadmine
+#
+#	Instance.HP.NerfLevel
+#       case 0 = 1.0f(default)
+#       case 1 = 0.95f
+#       case 2 = 0.85f
+#       case 3 = 0.75f
+#       case 4 = 0.65f
+#       case 5 = 0.55f
+#       case 6 = 0.45f
+#       case 7 = 0.35f
+#       case 8 = 0.25f
+#       case 9 = 0.15f
+###################################################################################################################
+Instance.HP.NerfLevel                   = 1

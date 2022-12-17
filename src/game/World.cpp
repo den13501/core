@@ -461,7 +461,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_FLOAT_RATE_XP_KILL_ELITE,           "Rate.XP.Kill.Elite",    1.0f);
     setConfig(CONFIG_FLOAT_RATE_XP_QUEST,                "Rate.XP.Quest",   1.0f);
     setConfig(CONFIG_FLOAT_RATE_XP_EXPLORE,              "Rate.XP.Explore", 1.0f);
-    setConfig(CONFIG_FLOAT_RATE_XP_PET_BASIC,            "Rate.XP.Pet.Basic", 1.0f); // Cusom pet basic xp rate 
+    setConfig(CONFIG_FLOAT_RATE_XP_PET_BASIC,            "Rate.XP.Pet.Basic", 1.0f); // Cutom pet basic xp rate
     setConfigMin(CONFIG_FLOAT_RATE_XP_PERSONAL_MIN,      "Rate.XP.Personal.Min", 1.0f, 0.0f);
     setConfigMin(CONFIG_FLOAT_RATE_XP_PERSONAL_MAX,      "Rate.XP.Personal.Max", 1.0f, 0.0f);
     setConfig(CONFIG_FLOAT_RATE_REPUTATION_GAIN,           "Rate.Reputation.Gain", 1.0f);
@@ -1175,6 +1175,9 @@ void World::LoadConfigSettings(bool reload)
 
     // Switch for Hunter's pet xp gaining while master complete quest.
     setConfig(CONFIG_BOOL_PET_XPGAIN_QUEST, "PetXPGain.Quest.Enabled", false);
+    
+    // Cusom scale creature health rate in specific dungeon
+    setConfig(CONFIG_UINT32_INSTANCE_HP_LEVEL, "Instance.HP.NerfLevel", 0);
 }
 
 void CharactersDatabaseWorkerThread()
