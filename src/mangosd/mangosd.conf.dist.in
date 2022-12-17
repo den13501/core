@@ -424,6 +424,10 @@ Anticrash.Rearm.Timer = 60000
 #        Default: 0  - Decide automatically based on patch
 #                      In patch 1.7 the limit was increased from 8 to 16
 #
+#    Disable.DebuffLimit
+#        Custom feature, enable this will expand debuff cap from 16 to 40
+#        Default: 0  - Keep debuff limit in 16  
+#
 ###################################################################################################################
 
 WowPatch = 10
@@ -444,6 +448,7 @@ Progression.NoRespecPriceDecay = 1
 Progression.NoQuestXpToGold = 1
 Progression.UnlinkedAuctionHouses = 1
 DebuffLimit = 0
+Disable.DebuffLimit = 0
 
 ###################################################################################################################
 # SERVER LOGGING

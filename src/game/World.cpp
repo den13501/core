@@ -935,14 +935,18 @@ void World::LoadConfigSettings(bool reload)
     setConfigMinMax(CONFIG_UINT32_SPELL_EFFECT_DELAY, "Spell.EffectDelay", 400, 0, 1000);
     setConfigMinMax(CONFIG_UINT32_SPELL_PROC_DELAY, "Spell.ProcDelay", 400, 0, 1000);
     setConfigMinMax(CONFIG_UINT32_DEBUFF_LIMIT, "DebuffLimit", 0, 0, 40);
-    // If max debuff slots is at 0, decide based on patch.
-    if (getConfig(CONFIG_UINT32_DEBUFF_LIMIT) == 0)
+    if (getConfig(CONFIG_BOOL_DISABLE_DEBUFF_LIMIT) == 0)
     {
-        if (GetWowPatch() >= WOW_PATCH_107)
-            setConfig(CONFIG_UINT32_DEBUFF_LIMIT, 16);
-        else
-            setConfig(CONFIG_UINT32_DEBUFF_LIMIT, 8);
+        // If max debuff slots is at 0, decide based on patch.
+        if (getConfig(CONFIG_UINT32_DEBUFF_LIMIT) == 0)
+        {
+            if (GetWowPatch() >= WOW_PATCH_107)
+                setConfig(CONFIG_UINT32_DEBUFF_LIMIT, 16);
+            else
+                setConfig(CONFIG_UINT32_DEBUFF_LIMIT, 8);
+        }
     }
+    else setConfig(CONFIG_UINT32_DEBUFF_LIMIT, 40); // If disable debuff limit, debuff will change to 40  
 
     setConfig(CONFIG_UINT32_ANTICRASH_OPTIONS, "Anticrash.Options", 0);
     setConfig(CONFIG_UINT32_ANTICRASH_REARM_TIMER, "Anticrash.Rearm.Timer", 0);
@@ -1178,6 +1182,9 @@ void World::LoadConfigSettings(bool reload)
     
     // Cusom scale creature health rate in specific dungeon
     setConfig(CONFIG_UINT32_INSTANCE_HP_LEVEL, "Instance.HP.NerfLevel", 0);
+
+    // Cusom disable debuff limits, enable this option, debuff will be from 16 to 40
+    setConfig(CONFIG_BOOL_DISABLE_DEBUFF_LIMIT, "Disable.DebuffLimit", 0);
 }
 
 void CharactersDatabaseWorkerThread()

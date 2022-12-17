@@ -599,7 +599,8 @@ enum eConfigBoolValues
     CONFIG_BOOL_GM_CHEAT_GOD,
     CONFIG_BOOL_LFG_MATCHMAKING,
     CONFIG_BOOL_VALUE_COUNT,
-    CONFIG_BOOL_PET_XPGAIN_QUEST //give hunter's pet xp from quest
+    CONFIG_BOOL_PET_XPGAIN_QUEST, //give hunter's pet xp from quest
+    CONFIG_BOOL_DISABLE_DEBUFF_LIMIT // debuff limits from 16 -> 40
 };
 
 /// Type of server
