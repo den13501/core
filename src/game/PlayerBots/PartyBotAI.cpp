@@ -127,6 +127,60 @@ Player* PartyBotAI::GetPartyLeader() const
     return nullptr;
 }
 
+//Custom Function
+void PartyBotAI::MoveToTarget(Unit* pTarget, float pDistance)
+{
+    float x, y, z;
+    float distance;
+    float angle = frand(PB_MIN_FOLLOW_ANGLE, PB_MAX_FOLLOW_ANGLE);
+    if (pDistance > 1.0)
+        distance = frand(0.5f, pDistance);
+    else
+        distance = pDistance;
+
+    pTarget->GetNearPoint(me, x, y, z, 0, distance, angle);
+
+    me->GetMotionMaster()->Clear();
+    me->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
+}
+
+//Custom Function
+void PartyBotAI::RunAwayFromTargetPlus(Unit* pTarget, bool pFollowLeader, float pDist)
+{
+    float minLeadDist = pDist < 20.0f ? 20.0f : pDist;
+
+    if (pFollowLeader)
+    {
+        if (Player* pLeader = GetPartyLeader())
+        {
+            if (!pLeader->IsDead() &&
+                pLeader->IsInWorld() &&
+                pLeader->GetMap() == me->GetMap())
+            {
+                float leaderDistance = me->GetDistance(pLeader);
+                float leadToMonsDist = pLeader->GetDistance(pTarget);
+                if (leaderDistance > minLeadDist || leadToMonsDist > minLeadDist)
+                {
+                    MoveToTarget(pLeader, 6.0f);
+                    return;
+                }
+            }
+        }
+    }
+
+    float distance = pDist - me->GetDistance(pTarget) + frand(0.0f, 0.5f);
+    if (distance < 0.0f)
+        return;
+
+    float angle = me->GetAngle(pTarget) - M_PI_F + frand(-0.5f, 0.5f);
+    float x, y, z;
+
+    me->GetNearPoint(me, x, y, z, 0.0f, distance, angle);
+
+    me->GetMotionMaster()->Clear();
+    me->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
+}
+
 bool PartyBotAI::RunAwayFromTarget(Unit* pTarget)
 {
     if (Player* pLeader = GetPartyLeader())
@@ -786,7 +840,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         if (!pVictim)
         {
             if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
-                me->GetMotionMaster()->MoveFollow(pLeader, urand(PB_MIN_FOLLOW_DIST, PB_MAX_FOLLOW_DIST), frand(PB_MIN_FOLLOW_ANGLE, PB_MAX_FOLLOW_ANGLE));
+                me->GetMotionMaster()->MoveFollow(pLeader, urand(PB_MIN_FOLLOW_DIST, PB_MAX_FOLLOW_DIST), frand(PB_MIN_FOLLOW_ANGLE, PB_MAX_FOLLOW_ANGLE)); //跟隨隊長(玩家)
         }
         else
         {
@@ -1609,11 +1663,7 @@ void PartyBotAI::UpdateInCombatAI_Mage()
                         CanTryToCastSpell(me, m_spells.mage.pFrostNova))
                     {
                         DoCastSpell(me, m_spells.mage.pFrostNova);
-                    }
-
-                    if (RunAwayFromTarget(pVictim))
-                    {
-                        me->SetCasterChaseDistance(25.0f);
+                        RunAwayFromTargetPlus(pVictim);
                         return;
                     }
                 }

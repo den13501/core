@@ -69,6 +69,8 @@ public:
     bool DrinkAndEat();
     bool ShouldAutoRevive() const;
     bool RunAwayFromTarget(Unit* pTarget);
+    void RunAwayFromTargetPlus(Unit* pTarget, bool pFollowLeader = true, float pDistance = 12.0f); //custom function
+    void MoveToTarget(Unit* pTarget, float pDistance = 1.0f); //custom function
     bool CrowdControlMarkedTargets();
     bool EnterCombatDruidForm();
     bool ShouldEnterStealth() const;
