@@ -387,7 +387,7 @@ struct boss_jeklikAI : public ScriptedAI
     }
 };
 
-// Flying Bat
+// Flying Bat npc=14750, gurubashi-bat-rider
 struct mob_batriderAI : public ScriptedAI
 {
     mob_batriderAI(Creature* pCreature) : ScriptedAI(pCreature)
