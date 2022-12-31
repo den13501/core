@@ -16,9 +16,7 @@ AuctionHouseVendorBotMgr::~AuctionHouseVendorBotMgr() {
 }
 
 void AuctionHouseVendorBotMgr::Load() {
-	sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
-    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">> AuctionHouseVendorBot");
-	sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+    sLog.Out(LOG_BASIC, LOG_LVL_BASIC, ">> AuctionHouseVendorBot");
 
     loaded_ = true;
 }
@@ -78,7 +76,7 @@ void AuctionHouseVendorBotMgr::onItemDiscardedFromBuyBack(Player* player, Item* 
 
 void AuctionHouseVendorBotMgr::onItemBoughtBackFromBuyBack(Player* player, Item* item) {
     const auto* itemProto = item->GetProto();
-    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">> !!!!!!!!!!!!!!!!!!! onItemBoughtBackFromBuyBack  ==>> %s x%d", itemProto->Name1, item->GetCount());
+    sLog.Out(LOG_BASIC, LOG_LVL_BASIC, ">> !!!!!!!!!!!!!!!!!!! onItemBoughtBackFromBuyBack  ==>> %s x%d", itemProto->Name1, item->GetCount());
 
     itemTrackInfoHash_.erase(item);
     // RemoveItemFromBuyBackSlot(slot, false);
@@ -114,7 +112,7 @@ void AuctionHouseVendorBotMgr::onAuctionSuccessfull(AuctionEntry* auction) {
     const auto* itemProto = item->GetProto();
     MANGOS_ASSERT(itemProto);
 
-    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">> [+] AHVendorBot sold auction for %s x%d [ g%u s%u c%u]",
+    sLog.Out(LOG_BASIC, LOG_LVL_BASIC, ">> [+] AHVendorBot sold auction for %s x%d [ g%u s%u c%u]",
         itemProto->Name1,
         item->GetCount(),
         auction->buyout / 100000, (auction->buyout / 100) % 100, auction->buyout % 100
@@ -171,7 +169,7 @@ void AuctionHouseVendorBotMgr::createAuction(Item* item, const AuctionHouseEntry
     auctionHouse->AddAuction(auctionEntry);
     auctionEntry->SaveToDB();
 
-    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">> [<] AHVendorBot created auction for %s x%d [ g%u s%u c%u]",
+    sLog.Out(LOG_BASIC, LOG_LVL_BASIC, ">> [<] AHVendorBot created auction for %s x%d [ g%u s%u c%u]",
         item->GetProto()->Name1,
         item->GetCount(),
         buyout / 100000, (buyout / 100) % 100, buyout % 100
