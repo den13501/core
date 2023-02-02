@@ -51,16 +51,6 @@ using namespace Spells;
 
 extern pEffect SpellEffects[TOTAL_SPELL_EFFECTS];
 
-bool IsQuestTameSpell(uint32 spellId)
-{
-    SpellEntry const* spellproto = sSpellMgr.GetSpellEntry(spellId);
-    if (!spellproto)
-        return false;
-
-    return spellproto->Effect[EFFECT_INDEX_0] == SPELL_EFFECT_THREAT
-           && spellproto->Effect[EFFECT_INDEX_1] == SPELL_EFFECT_APPLY_AURA && spellproto->EffectApplyAuraName[EFFECT_INDEX_1] == SPELL_AURA_DUMMY;
-}
-
 SpellCastTargets::SpellCastTargets()
 {
     m_unitTarget = nullptr;
@@ -680,6 +670,41 @@ void Spell::FillTargetMap()
         for (const auto iunit : tmpUnitMap)
             AddUnitTarget(iunit, SpellEffectIndex(i));
     }
+
+    if (!m_UniqueTargetInfo.empty())
+    {
+        if (m_spellInfo->HasAttribute(SPELL_ATTR_EX2_FAIL_ON_ALL_TARGETS_IMMUNE))
+        {
+            bool allImmune = true;
+            for (auto& ihit : m_UniqueTargetInfo)
+            {
+                if (ihit.missCondition != SPELL_MISS_IMMUNE && ihit.missCondition != SPELL_MISS_IMMUNE2)
+                {
+                    allImmune = false;
+                    break;
+                }
+            }
+
+            if (allImmune)
+            {
+                SendCastResult(SPELL_FAILED_IMMUNE); // guessed error
+                finish(false);
+            }
+        }
+
+        if (m_spellInfo->HasAttribute(SPELL_ATTR_EX_REQUIRE_ALL_TARGETS))
+        {
+            for (auto& ihit : m_UniqueTargetInfo)
+            {
+                if (ihit.targetGUID == m_targets.getUnitTargetGuid() && ihit.missCondition != SPELL_MISS_NONE)
+                {
+                    for (auto& ihit2 : m_UniqueTargetInfo)
+                        ihit2.effectMask = 0;
+                    return;
+                }
+            }
+        }
+    }
 }
 
 void Spell::prepareDataForTriggerSystem()
@@ -782,7 +807,7 @@ void Spell::prepareDataForTriggerSystem()
             break;
         case SPELL_DAMAGE_CLASS_RANGED:
             // Auto attack
-            if (m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_AUTOREPEAT_FLAG)
+            if (m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_AUTO_REPEAT)
             {
                 m_procAttacker = PROC_FLAG_DEAL_RANGED_ATTACK;
                 m_procVictim   = PROC_FLAG_TAKE_RANGED_ATTACK;
@@ -799,9 +824,6 @@ void Spell::prepareDataForTriggerSystem()
                     m_procAttacker = PROC_FLAG_DEAL_RANGED_ABILITY;
                     m_procVictim   = PROC_FLAG_TAKE_RANGED_ABILITY;
                 }
-
-                if (m_spellInfo->IsAreaOfEffectSpell())
-                    m_procAttacker |= PROC_FLAG_SUCCESSFUL_AOE;
             }
             break;
         default:
@@ -828,29 +850,9 @@ void Spell::prepareDataForTriggerSystem()
                     m_procAttacker = PROC_FLAG_DEAL_HELPFUL_ABILITY;
                     m_procVictim = PROC_FLAG_TAKE_HELPFUL_ABILITY;
                 }
-
-                if (m_spellInfo->IsDispel())
-                    m_procAttacker |= PROC_FLAG_SUCCESSFUL_CURE_SPELL_CAST;
-
-                if (aoe)
-                    m_procAttacker |= PROC_FLAG_SUCCESSFUL_AOE;
-
-                if (m_spellInfo->IsSpellAppliesPeriodicAura())
-                {
-                    m_procAttacker |= PROC_FLAG_SUCCESSFUL_PERIODIC_SPELL_HIT;
-                    m_procVictim |= PROC_FLAG_TAKEN_PERIODIC_SPELL_HIT;
-                }
-
-                // Always proc with PROC_FLAG_SUCCESSFUL_SPELL_CAST if not AoE or triggered spell
-                if (!aoe && !IsTriggered())
-                {
-                    m_procAttacker |= PROC_FLAG_SUCCESSFUL_SPELL_CAST;
-                    if (m_powerCost > 0 && m_spellInfo->powerType == POWER_MANA)
-                        m_procAttacker |= PROC_FLAG_SUCCESSFUL_MANA_SPELL_CAST;
-                }
             }
             // Wands auto attack
-            else if (m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_AUTOREPEAT_FLAG)
+            else if (m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_AUTO_REPEAT)
             {
                 m_procAttacker = PROC_FLAG_DEAL_RANGED_ATTACK;
                 m_procVictim   = PROC_FLAG_TAKE_RANGED_ATTACK;
@@ -867,23 +869,12 @@ void Spell::prepareDataForTriggerSystem()
                     m_procAttacker = PROC_FLAG_DEAL_HARMFUL_ABILITY;
                     m_procVictim = PROC_FLAG_TAKE_HARMFUL_ABILITY;
                 }
-
-                if (aoe)
-                    m_procAttacker |= PROC_FLAG_SUCCESSFUL_AOE;
-
-                if (m_spellInfo->IsSpellAppliesPeriodicAura())
-                {
-                    m_procAttacker |= PROC_FLAG_SUCCESSFUL_PERIODIC_SPELL_HIT;
-                    m_procVictim |= PROC_FLAG_TAKEN_PERIODIC_SPELL_HIT;
-                }
-
-                if (!aoe && !IsTriggered())
-                {
-                    m_procAttacker |= PROC_FLAG_SUCCESSFUL_SPELL_CAST;
-                    if (m_powerCost > 0 && m_spellInfo->powerType == POWER_MANA)
-                        m_procAttacker |= PROC_FLAG_SUCCESSFUL_MANA_SPELL_CAST;
-                }
             }
+
+            // Hunter trap spells - Entrapment
+            if (m_spellInfo->IsFitToFamily<SPELLFAMILY_HUNTER, CF_HUNTER_FIRE_TRAP_EFFECTS, CF_HUNTER_FREEZING_TRAP_EFFECT, CF_HUNTER_FROST_TRAP_AURA>())
+                m_procAttacker |= PROC_FLAG_ON_TRAP_ACTIVATION;
+
             break;
         }
     }
@@ -1194,10 +1185,12 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
         return;
 
     // Get original caster (if exist) and calculate damage/healing from him data
-    SpellCaster* pRealCaster = GetAffectiveCasterObject();
-    SpellCaster* pCaster = pRealCaster ? pRealCaster : m_caster;
-    Unit* pUnitCaster = pCaster->ToUnit();
-    Unit* pRealUnitCaster = ToUnit(pRealCaster);
+    SpellCaster* pCaster = GetAffectiveCasterObject();
+    if (!pCaster)
+        pCaster = m_caster;
+    Unit* pRealUnitCaster = m_originalCaster ? m_originalCaster : m_casterUnit;
+    // prefer unit owner in case of hunter trap, but with fallback (used for procs only)
+    SpellCaster* pRealCaster = pRealUnitCaster ? pRealUnitCaster : m_caster;
 
     SpellMissInfo missInfo = target->missCondition;
     // Need init unitTarget by default unit (can changed in code on reflect)
@@ -1228,22 +1221,6 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
             procAttacker &= ~(PROC_FLAG_DEAL_MELEE_ABILITY);
             procAttacker |= PROC_FLAG_DEAL_HARMFUL_SPELL;
         }
-        else if (procAttacker & (PROC_FLAG_SUCCESSFUL_SPELL_CAST | PROC_FLAG_SUCCESSFUL_MANA_SPELL_CAST))
-        {
-            // Secondary target on a successful spell cast. Remove these flags so we're not
-            // proccing beneficial auras multiple times. Also remove negative spell hit for
-            // chain lightning + clearcasting. Leave positive effects
-            // eg. Chain heal/lightning & Zandalarian Hero Charm
-            procAttacker &= ~(PROC_FLAG_SUCCESSFUL_SPELL_CAST | PROC_FLAG_SUCCESSFUL_MANA_SPELL_CAST |
-                PROC_FLAG_DEAL_HARMFUL_SPELL);
-        }
-        else if (procAttacker & (PROC_FLAG_SUCCESSFUL_AOE | PROC_FLAG_DEAL_HARMFUL_SPELL))
-        {
-            // Do not allow secondary hits for negative aoe spells (such as Arcane Explosion) 
-            // to proc beneficial abilities such as Clearcasting. Positive aoe spells can
-            // still trigger, as in the case of prayer of healing and inspiration...
-            procAttacker &= ~(PROC_FLAG_SUCCESSFUL_AOE | PROC_FLAG_DEAL_HARMFUL_SPELL);
-        }
     }
 
     // drop proc flags in case target not affected negative effects in negative spell
@@ -1252,7 +1229,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
     if (((procAttacker | procVictim) & NEGATIVE_TRIGGER_MASK) &&
             !(target->effectMask & m_negativeEffectMask) && (missInfo == SPELL_MISS_NONE || missInfo == SPELL_MISS_REFLECT))
     {
-        procAttacker = procAttacker & PROC_FLAG_SUCCESSFUL_SPELL_CAST;
+        procAttacker = PROC_FLAG_NONE;
         procVictim   = PROC_FLAG_NONE;
     }
 
@@ -1398,12 +1375,11 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
                     // stored in unused spell effect basepoints in main spell code
                     uint32 spellid = m_currentBasePoints[EFFECT_INDEX_1];
                     spellInfo = sSpellMgr.GetSpellEntry(spellid);
-                    procAttacker |= (PROC_FLAG_SUCCESSFUL_SPELL_CAST | PROC_FLAG_SUCCESSFUL_MANA_SPELL_CAST);
                 }
             }
 
-            pCaster->ProcDamageAndSpell(ProcSystemArguments(unitTarget, 
-                pRealCaster && !m_spellInfo->HasAttribute(SPELL_ATTR_EX3_SUPPRESS_CASTER_PROCS) ? procAttacker : PROC_FLAG_NONE,
+            pRealCaster->ProcDamageAndSpell(ProcSystemArguments(unitTarget,
+               !m_spellInfo->HasAttribute(SPELL_ATTR_EX3_SUPPRESS_CASTER_PROCS) ? procAttacker : PROC_FLAG_NONE,
                 m_spellInfo->HasAttribute(SPELL_ATTR_EX3_SUPPRESS_TARGET_PROCS) ? PROC_FLAG_NONE : procVictim,
                 procEx,
                 addhealth,
@@ -1414,10 +1390,11 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
 
         int32 gain = pCaster->DealHeal(unitTarget, addhealth, m_spellInfo, crit);
 
-        float classThreatModifier = pUnitCaster && pUnitCaster->GetClass() == CLASS_PALADIN ? 0.25f : 0.5f;
-
         if (pRealUnitCaster)
+        {
+            float classThreatModifier = pRealUnitCaster->GetClass() == CLASS_PALADIN ? 0.25f : 0.5f;
             unitTarget->GetHostileRefManager().threatAssist(pRealUnitCaster, float(gain) * classThreatModifier * sSpellMgr.GetSpellThreatMultiplier(m_spellInfo), m_spellInfo);
+        }
     }
     // Do damage and triggers
     else if (m_damage && unitTarget->IsAlive())
@@ -1490,8 +1467,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
         // Do triggers for unit (reflect triggers passed on hit phase for correct drop charge)
         if (m_canTrigger)
         {
-            pCaster->ProcDamageAndSpell(ProcSystemArguments(unitTarget,
-                pRealCaster && !m_spellInfo->HasAttribute(SPELL_ATTR_EX3_SUPPRESS_CASTER_PROCS) ? procAttacker : PROC_FLAG_NONE,
+            pRealCaster->ProcDamageAndSpell(ProcSystemArguments(unitTarget,
+               !m_spellInfo->HasAttribute(SPELL_ATTR_EX3_SUPPRESS_CASTER_PROCS) ? procAttacker : PROC_FLAG_NONE,
                 m_spellInfo->HasAttribute(SPELL_ATTR_EX3_SUPPRESS_TARGET_PROCS) ? PROC_FLAG_NONE : procVictim,
                 procEx,
                 damageInfo.damage,
@@ -1595,7 +1572,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
             // Override proc flags for offensive dispel
             if (pCaster->IsHostileTo(unitTarget))
             {
-                procAttacker &= ~(PROC_FLAG_DEAL_HELPFUL_ABILITY | PROC_FLAG_SUCCESSFUL_CURE_SPELL_CAST);
+                procAttacker &= ~PROC_FLAG_DEAL_HELPFUL_ABILITY;
                 procAttacker |= PROC_FLAG_DEAL_HARMFUL_SPELL;
 
                 procVictim &= ~PROC_FLAG_TAKE_HELPFUL_ABILITY;
@@ -1603,8 +1580,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
             }
         }
 
-        pCaster->ProcDamageAndSpell(ProcSystemArguments(unitTarget,
-            pRealCaster && !m_spellInfo->HasAttribute(SPELL_ATTR_EX3_SUPPRESS_CASTER_PROCS) ? procAttacker : PROC_FLAG_NONE,
+        pRealCaster->ProcDamageAndSpell(ProcSystemArguments(unitTarget,
+           !m_spellInfo->HasAttribute(SPELL_ATTR_EX3_SUPPRESS_CASTER_PROCS) ? procAttacker : PROC_FLAG_NONE,
             m_spellInfo->HasAttribute(SPELL_ATTR_EX3_SUPPRESS_TARGET_PROCS) ? PROC_FLAG_NONE : procVictim,
             procEx,
             dmg,
@@ -1697,15 +1674,6 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
 
     if (pRealCaster && pRealCaster != unit)
     {
-        // Recheck  UNIT_FLAG_SPAWNING for delayed spells
-        if (unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING) &&
-            unit->GetCharmerOrOwnerGuid() != m_caster->GetObjectGuid())
-        {
-            pRealCaster->SendSpellMiss(unit, m_spellInfo->Id, SPELL_MISS_EVADE);
-            ResetEffectDamageAndHeal();
-            return;
-        }
-
         if (!pRealCaster->IsFriendlyTo(unit))
         {
             if (m_damage) // Example: stealth.
@@ -1796,7 +1764,10 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
             //   NPCs are in combat.
             if (pRealUnitCaster)
             {
-                if (unit->IsInCombat())
+                // Test cases:
+                // Blessing of Wisdom flags you for PvP, but does not put you in combat.
+                // Beast Lore neither flags you for PvP, nor puts you in combat.
+                if (unit->IsInCombat() && !m_spellInfo->HasAttribute(SPELL_ATTR_EX_NO_THREAT))
                 {
                     if (!IsTriggeredByAura() && !m_spellInfo->HasAttribute(SPELL_ATTR_EX2_NO_INITIAL_THREAT))
                     {
@@ -1804,7 +1775,8 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
                         unit->GetHostileRefManager().threatAssist(pRealUnitCaster, 0.0f, m_spellInfo);
                     }
                 }
-                else if (unit->IsPvP() && unit->IsPlayer())
+                else if (unit->IsPvP() && unit->IsCharmerOrOwnerPlayerOrPlayerItself() &&
+                         IsFriendlyTarget(m_spellInfo->EffectImplicitTargetA[GetFirstEffectIndexInMask(effectMask)]))
                 {
                     if (Player* pPlayer = pRealUnitCaster->GetCharmerOrOwnerPlayerOrPlayerItself())
                         pPlayer->UpdatePvP(true);
@@ -2320,7 +2292,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 if (!prev->IsWithinDist(*next, CHAIN_SPELL_JUMP_RADIUS))
                     break;
 
-                if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS) && !prev->IsWithinLOSInMap(*next))
+                if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) && !prev->IsWithinLOSInMap(*next))
                 {
                     ++next;
                     continue;
@@ -2380,7 +2352,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 if (!prev->IsWithinDist(*next, CHAIN_SPELL_JUMP_RADIUS))
                     break;
 
-                if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS) && !prev->IsWithinLOSInMap(*next))
+                if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) && !prev->IsWithinLOSInMap(*next))
                 {
                     ++next;
                     continue;
@@ -2451,10 +2423,10 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 //   Lightning) will no longer land if target cannot be seen by the caster
                 //   due to stealth or invisibility.
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
-                MaNGOS::AnyAoEVisibleTargetUnitInObjectRangeCheck u_check(pUnitTarget, originalCaster, max_range);
+                MaNGOS::AnyAoEVisibleTargetUnitInObjectRangeCheck u_check(m_spellInfo->HasAttribute(SPELL_ATTR_EX2_CHAIN_FROM_CASTER) ? m_caster : pUnitTarget, originalCaster, max_range);
                 MaNGOS::UnitListSearcher<MaNGOS::AnyAoEVisibleTargetUnitInObjectRangeCheck> searcher(tempTargetUnitMap, u_check);
 #else
-                MaNGOS::AnyAoETargetUnitInObjectRangeCheck u_check(pUnitTarget, originalCaster, max_range);
+                MaNGOS::AnyAoETargetUnitInObjectRangeCheck u_check(m_spellInfo->HasAttribute(SPELL_ATTR_EX2_CHAIN_FROM_CASTER) ? m_caster : pUnitTarget, originalCaster, max_range);
                 MaNGOS::UnitListSearcher<MaNGOS::AnyAoETargetUnitInObjectRangeCheck> searcher(tempTargetUnitMap, u_check);
 #endif
                 Cell::VisitAllObjects(m_caster, searcher, max_range);
@@ -2477,7 +2449,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     if (!prev->IsWithinDist(*next, CHAIN_SPELL_JUMP_RADIUS))
                         break;
 
-                    if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS) && !prev->IsWithinLOSInMap(*next))
+                    if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) && !prev->IsWithinLOSInMap(*next))
                     {
                         ++next;
                         continue;
@@ -3070,7 +3042,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     if (!prev->IsWithinDist(*next, CHAIN_SPELL_JUMP_RADIUS))
                         break;
 
-                    if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS) && !prev->IsWithinLOSInMap(*next))
+                    if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) && !prev->IsWithinLOSInMap(*next))
                     {
                         ++next;
                         continue;
@@ -3595,7 +3567,19 @@ SpellCastResult Spell::prepare(Aura* triggeredByAura, uint32 chance)
         ReSetTimer();
 
         if (!m_IsTriggeredSpell && m_casterUnit)
-            m_casterUnit->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_ACTION_CANCELS, m_spellInfo->Id, false, !ShouldRemoveStealthAuras(), m_spellInfo->HasAttribute(SPELL_ATTR_EX2_ALLOW_WHILE_INVISIBLE));
+        {
+            uint32 interruptFlags = AURA_INTERRUPT_ACTION_CANCELS;
+
+            // Remove Invisibility Option on interacting with BG banners.
+            // Comment from Classic Wowhead (originally on Thottbot)
+            // By Amarillis on 2006/06/11 (Patch 1.10.2)
+            // Some basics for these potions
+            // - Drink this potion before trying to run past mobs in instance. Do not perform any interactions/cast any spells/try and switch any Arathi Basin flags etc or youw ill appear.
+            if (m_targets.getGOTarget())
+                interruptFlags |= AURA_INTERRUPT_LOOTING_CANCELS;
+
+            m_casterUnit->RemoveAurasWithInterruptFlags(interruptFlags, m_spellInfo->Id, false, !ShouldRemoveStealthAuras(), m_spellInfo->HasAttribute(SPELL_ATTR_EX2_ALLOW_WHILE_INVISIBLE));
+        }
 
         OnSpellLaunch();
 
@@ -3951,10 +3935,7 @@ void Spell::cast(bool skipCheck)
 
         // Trigger procs for spells with no unit targets at cast time.
         if (m_UniqueTargetInfo.empty())
-        {
-            if (uint32 procAttacker = m_procAttacker & (PROC_FLAG_SUCCESSFUL_AOE | PROC_FLAG_SUCCESSFUL_SPELL_CAST | PROC_FLAG_SUCCESSFUL_MANA_SPELL_CAST))
-                m_casterUnit->ProcDamageAndSpell(ProcSystemArguments(nullptr, procAttacker, PROC_FLAG_NONE, PROC_EX_NORMAL_HIT, 1, m_attackType, m_spellInfo, this));
-        }
+            m_casterUnit->ProcDamageAndSpell(ProcSystemArguments(nullptr, m_procAttacker, PROC_FLAG_NONE, PROC_EX_NORMAL_HIT, 1, m_attackType, m_spellInfo, this));
     }
 
     // Okay, everything is prepared. Now we need to distinguish between immediate and evented delayed spells
@@ -4011,7 +3992,7 @@ void Spell::cast(bool skipCheck)
         }
     }
 
-    if (m_casterUnit && IsMeleeAttackResetSpell() && !(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_NOT_RESET_AUTO_ACTIONS))
+    if (m_casterUnit && IsMeleeAttackResetSpell() && !(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_DO_NOT_RESET_COMBAT_TIMERS))
     {
         m_casterUnit->ResetAttackTimer(BASE_ATTACK);
         if (m_casterUnit->HaveOffhandWeapon())
@@ -4607,12 +4588,13 @@ void Spell::finish(bool ok)
     if (m_casterUnit)
     {
         // Stop Attack for some spells
-        if (m_spellInfo->Attributes & SPELL_ATTR_CANCELS_AUTO_ATTACK_COMBAT)
+        if (m_spellInfo->HasAttribute(SPELL_ATTR_CANCELS_AUTO_ATTACK_COMBAT))
         {
             m_casterUnit->AttackStop();
             m_casterUnit->InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
         }
-        else if ((m_spellInfo->AttributesEx & SPELL_ATTR_EX_INITIATES_COMBAT))
+        else if (m_spellInfo->HasAttribute(SPELL_ATTR_EX_INITIATES_COMBAT) ||
+                 m_spellInfo->HasAttribute(SPELL_ATTR_EX2_INITIATE_COMBAT_POST_CAST))
         {
             // Pets should initiate melee combat on spell with this flag. (Growl)
             if (Pet* pPet = m_casterUnit->ToPet())
@@ -4646,7 +4628,7 @@ void Spell::SendCastResult(Player* caster, SpellEntry const* spellInfo, SpellCas
     WorldPacket data(SMSG_CAST_RESULT, (4 + 1 + 1));
     data << uint32(spellInfo->Id);
 
-    if (result != SPELL_CAST_OK)
+    if (result != SPELL_CAST_OK && !spellInfo->HasAttribute(SPELL_ATTR_EX2_DO_NOT_REPORT_SPELL_FAILURE))
     {
         data << uint8(2); // status = fail
         data << uint8(spellInfo->IsPassiveSpell() ? SPELL_FAILED_DONT_REPORT : result);                                  // problem
@@ -5281,7 +5263,7 @@ void Spell::TakePower()
     m_casterUnit->ModifyPower(powerType, -(int32)m_powerCost);
 
     // Set the five second timer
-    if (powerType == POWER_MANA && m_powerCost > 0)
+    if (powerType == POWER_MANA && m_powerCost > 0 && !m_spellInfo->HasAttribute(SPELL_ATTR_EX2_DONT_BLOCK_MANA_REGEN))
         m_casterUnit->SetLastManaUse(m_spellInfo->Id);
 }
 
@@ -5685,6 +5667,13 @@ SpellCastResult Spell::CheckCast(bool strict)
                 }
             }
         }
+
+        if (m_spellInfo->HasAttribute(SPELL_ATTR_EX2_NO_ACTIVE_PETS) &&
+           (m_casterUnit->GetPetGuid() || m_casterUnit->GetCharmGuid()))
+        {
+            ((Player*)m_casterUnit)->SendPetTameFailure(PETTAME_ANOTHERSUMMONACTIVE);
+            return SPELL_FAILED_DONT_REPORT;
+        }
     }
 
     if (Unit* target = m_targets.getUnitTarget())
@@ -5741,7 +5730,7 @@ SpellCastResult Spell::CheckCast(bool strict)
 
             if (!m_IsTriggeredSpell)
             {
-                if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS) && !m_caster->IsWithinLOSInMap(target))
+                if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) && !m_caster->IsWithinLOSInMap(target))
                     return SPELL_FAILED_LINE_OF_SIGHT;
 
                 // check if target is in combat
@@ -5750,14 +5739,14 @@ SpellCastResult Spell::CheckCast(bool strict)
 
                 // auto selection spell rank implemented in WorldSession::HandleCastSpellOpcode
                 // this case can be triggered if rank not found (too low-level target for first rank)
-                if (m_caster->IsPlayer() && !m_CastItem)
+                if (m_caster->IsPlayer() && !m_CastItem && !m_spellInfo->HasAttribute(SPELL_ATTR_EX2_ALLOW_LOW_LEVEL_BUFF))
                 {
                     // spell expected to be auto-downranking in cast handle, so must be same
                     if (m_spellInfo != sSpellMgr.SelectAuraRankForLevel(m_spellInfo, target->GetLevel()))
                         return SPELL_FAILED_LOWLEVEL;
                 }
 
-                if (m_spellInfo->HasAttribute(SPELL_ATTR_EX2_CANT_TARGET_TAPPED))
+                if (m_spellInfo->HasAttribute(SPELL_ATTR_EX2_CANNOT_CAST_ON_TAPPED))
                 {
                     // Mob tapped by another player or group.
                     if (Player* pCaster = m_caster->ToPlayer())
@@ -5840,10 +5829,12 @@ SpellCastResult Spell::CheckCast(bool strict)
                     else
                         return SPELL_FAILED_TARGETS_DEAD;
                 }
-                else if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS) && !pet->IsWithinLOSInMap(m_caster))
+                else if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) && !pet->IsWithinLOSInMap(m_caster))
                     return SPELL_FAILED_LINE_OF_SIGHT;
                 break;
             }
+            else if (IsExplicitlySelectedUnitTarget(j) && !m_spellInfo->CanTargetAliveState(target->IsAlive()))
+                return SPELL_FAILED_BAD_TARGETS;
         }
 
         // check creature type
@@ -5942,7 +5933,7 @@ SpellCastResult Spell::CheckCast(bool strict)
         // Prevents abuse with object id 165554 for example.
         if (goTarget->GetGoType() == GAMEOBJECT_TYPE_CHEST)
         {
-            if (!m_IsTriggeredSpell && !(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS)
+            if (!m_IsTriggeredSpell && !(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT)
               && !goTarget->GetGOInfo()->chest.minSuccessOpens                // don't check for gathering nodes, too many are halfway in walls
               && !goTarget->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_INTERACT_COND)  // don't check for quest items
               && !(goTarget->GetEntry() == 160845)                            // exemption for Dark Coffer
@@ -5955,7 +5946,7 @@ SpellCastResult Spell::CheckCast(bool strict)
         // check LOS for ground targeted AOE spells like Blizzard, Flamestrike ...
         if (m_caster->IsPlayer() && (m_targets.m_targetMask & TARGET_FLAG_DEST_LOCATION) && 
             m_targets.m_destX && m_targets.m_destY && m_targets.m_destZ &&
-            !m_spellInfo->HasAttribute(SPELL_ATTR_EX2_IGNORE_LOS) &&
+            !m_spellInfo->HasAttribute(SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) &&
             !m_caster->IsWithinLOS(m_targets.m_destX, m_targets.m_destY, m_targets.m_destZ))
         {
             return SPELL_FAILED_LINE_OF_SIGHT;
@@ -6117,27 +6108,24 @@ SpellCastResult Spell::CheckCast(bool strict)
 
                 if (creatureScriptTarget)
                 {
+                    // store explicit target for TARGET_UNIT_SCRIPT_NEAR_CASTER
+                    if (m_spellInfo->EffectImplicitTargetA[j] == TARGET_UNIT_SCRIPT_NEAR_CASTER ||
+                        m_spellInfo->EffectImplicitTargetB[j] == TARGET_UNIT_SCRIPT_NEAR_CASTER)
+                    {
+                        // Fixes Toss Fuel on Bonfire (28806) and Dominion of Soul (16053)
+                        if (m_CastItem)
+                            m_targets.setUnitTarget(creatureScriptTarget);
+
+                        AddUnitTarget(creatureScriptTarget, SpellEffectIndex(j));
+                    }
                     // store coordinates for TARGET_LOCATION_SCRIPT_NEAR_CASTER
-                    if (m_spellInfo->EffectImplicitTargetA[j] == TARGET_LOCATION_SCRIPT_NEAR_CASTER ||
-                            m_spellInfo->EffectImplicitTargetB[j] == TARGET_LOCATION_SCRIPT_NEAR_CASTER)
+                    else if (m_spellInfo->EffectImplicitTargetA[j] == TARGET_LOCATION_SCRIPT_NEAR_CASTER ||
+                             m_spellInfo->EffectImplicitTargetB[j] == TARGET_LOCATION_SCRIPT_NEAR_CASTER)
                     {
                         m_targets.setDestination(creatureScriptTarget->GetPositionX(), creatureScriptTarget->GetPositionY(), creatureScriptTarget->GetPositionZ());
 
                         if (m_spellInfo->EffectImplicitTargetA[j] == TARGET_LOCATION_SCRIPT_NEAR_CASTER && m_spellInfo->Effect[j] != SPELL_EFFECT_PERSISTENT_AREA_AURA)
                             AddUnitTarget(creatureScriptTarget, SpellEffectIndex(j));
-                    }
-                    // store explicit target for TARGET_UNIT_SCRIPT_NEAR_CASTER
-                    else
-                    {
-                        if (m_spellInfo->EffectImplicitTargetA[j] == TARGET_UNIT_SCRIPT_NEAR_CASTER ||
-                            m_spellInfo->EffectImplicitTargetB[j] == TARGET_UNIT_SCRIPT_NEAR_CASTER)
-                        {
-                            // Fixes Toss Fuel on Bonfire (28806) and Dominion of Soul (16053)
-                            if (m_CastItem)
-                                m_targets.setUnitTarget(creatureScriptTarget);
-
-                            AddUnitTarget(creatureScriptTarget, SpellEffectIndex(j));                            
-                        }
                     }
                 }
                 else if (goScriptTarget)
@@ -7870,9 +7858,13 @@ SpellCastResult Spell::CheckItems()
 
                 if (targetItem->GetProto()->ItemLevel < m_spellInfo->baseLevel)
                     return SPELL_FAILED_LOWLEVEL;
+
                 // Not allow enchant in trade slot for some enchant type
                 if (targetItem->GetOwner() != m_caster)
                 {
+                    if (m_spellInfo->HasAttribute(SPELL_ATTR_EX2_ENCHANT_OWN_ITEM_ONLY))
+                        return SPELL_FAILED_NOT_TRADEABLE;
+
                     uint32 enchant_id = m_spellInfo->EffectMiscValue[i];
                     SpellItemEnchantmentEntry const* pEnchant = sSpellItemEnchantmentStore.LookupEntry(enchant_id);
                     if (!pEnchant)
@@ -7887,9 +7879,13 @@ SpellCastResult Spell::CheckItems()
                 Item *item = m_targets.getItemTarget();
                 if (!item)
                     return SPELL_FAILED_ITEM_GONE;
+
                 // Not allow enchant in trade slot for some enchant type
                 if (item->GetOwner() != m_caster)
                 {
+                    if (m_spellInfo->HasAttribute(SPELL_ATTR_EX2_ENCHANT_OWN_ITEM_ONLY))
+                        return SPELL_FAILED_NOT_TRADEABLE;
+
                     uint32 enchant_id = m_spellInfo->EffectMiscValue[i];
                     SpellItemEnchantmentEntry const* pEnchant = sSpellItemEnchantmentStore.LookupEntry(enchant_id);
                     if (!pEnchant)
@@ -8216,7 +8212,7 @@ bool Spell::CheckTarget(Unit* target, SpellEffectIndex eff)
         case SPELL_EFFECT_RESURRECT:
         case SPELL_EFFECT_RESURRECT_NEW:
             // player far away, maybe his corpse near?
-            if (target != m_caster && !(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS) && !target->IsWithinLOSInMap(m_caster))
+            if (target != m_caster && !(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) && !target->IsWithinLOSInMap(m_caster))
             {
                 if (!m_targets.getCorpseTargetGuid())
                     return false;
@@ -8228,7 +8224,7 @@ bool Spell::CheckTarget(Unit* target, SpellEffectIndex eff)
                 if (target->GetObjectGuid() != corpse->GetOwnerGuid())
                     return false;
 
-                if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS) && !corpse->IsWithinLOSInMap(m_caster))
+                if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) && !corpse->IsWithinLOSInMap(m_caster))
                     return false;
             }
 
@@ -8239,7 +8235,7 @@ bool Spell::CheckTarget(Unit* target, SpellEffectIndex eff)
             if (target != m_caster && !IsIgnoreLosTarget(m_spellInfo->EffectImplicitTargetA[eff]) &&
                (m_spellInfo->EffectChainTarget[eff] == 0 || target == m_targets.getUnitTarget()))
                 if (SpellCaster* caster = GetCastingObject())
-                    if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS) && !target->IsWithinLOSInMap(caster))
+                    if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) && !target->IsWithinLOSInMap(caster))
                         return false;
             break;
     }

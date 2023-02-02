@@ -112,6 +112,32 @@ enum UnitStandStateType
 
 #define MAX_UNIT_STAND_STATE             9
 
+static char const* UnitStandStateToString(uint32 state)
+{
+    switch (state)
+    {
+        case UNIT_STAND_STATE_STAND:
+            return "Stand";
+        case UNIT_STAND_STATE_SIT:
+            return "Sit";
+        case UNIT_STAND_STATE_SIT_CHAIR:
+            return "Sit Chair";
+        case UNIT_STAND_STATE_SLEEP:
+            return "Sleep";
+        case UNIT_STAND_STATE_SIT_LOW_CHAIR:
+            return "Sit Low Chair";
+        case UNIT_STAND_STATE_SIT_MEDIUM_CHAIR:
+            return "Sit Medium Chair";
+        case UNIT_STAND_STATE_SIT_HIGH_CHAIR:
+            return "Sit High Chair";
+        case UNIT_STAND_STATE_DEAD:
+            return "Dead";
+        case UNIT_STAND_STATE_KNEEL:
+            return "Kneel";
+    }
+    return "UNKNOWN";
+}
+
 // byte flags value (UNIT_FIELD_BYTES_1,3)
 // These flags seem to be related to visibility
 // In wotlk+ they are moved to UNIT_FIELD_BYTES_1,2
@@ -132,6 +158,20 @@ enum SheathState
 };
 
 #define MAX_SHEATH_STATE    3
+
+static char const* SheathStateToString(uint32 state)
+{
+    switch (state)
+    {
+        case SHEATH_STATE_UNARMED:
+            return "Unarmed";
+        case SHEATH_STATE_MELEE:
+            return "Melee";
+        case SHEATH_STATE_RANGED:
+            return "Ranged";
+    }
+    return "UNKNOWN";
+}
 
 // byte flags value (UNIT_FIELD_BYTES_2,1)
 enum UnitBytes2_Flags
@@ -335,12 +375,15 @@ enum UnitState
     UNIT_STAT_FLYING_ALLOWED        = 0x00400000,               // has gm fly mode enabled
 
     // High-level states
-    UNIT_STAT_NO_COMBAT_MOVEMENT = 0x01000000,
-    UNIT_STAT_RUNNING            = 0x02000000,
-    UNIT_STAT_IGNORE_MOVE_LOS    = 0x04000000,
+    UNIT_STAT_RUNNING            = 0x00800000,
 
-    UNIT_STAT_ALLOW_INCOMPLETE_PATH = 0x08000000, // allow movement with incomplete or partial paths
-    UNIT_STAT_ALLOW_LOS_ATTACK      = 0x10000000, // allow melee attacks without LoS
+    UNIT_STAT_ALLOW_INCOMPLETE_PATH = 0x01000000, // allow movement with incomplete or partial paths
+    UNIT_STAT_ALLOW_LOS_ATTACK      = 0x02000000, // allow melee attacks without LoS
+
+    UNIT_STAT_NO_SEARCH_FOR_OTHERS   = 0x04000000, // MoveInLineOfSight will not be called
+    UNIT_STAT_NO_BROADCAST_TO_OTHERS = 0x08000000, // ScheduleAINotify will not be called
+    UNIT_STAT_AI_USES_MOVE_IN_LOS    = 0x10000000, // AI overrides MoveInLineOfSight so always search for others
+
     // masks (only for check)
 
     // can't move currently
@@ -351,7 +394,7 @@ enum UnitState
                                 UNIT_STAT_DISTRACTED,
 
     // stay or scripted movement for effect( = in player case you can't move by client command)
-    UNIT_STAT_NO_FREE_MOVE    = UNIT_STAT_ROOT | UNIT_STAT_STUNNED | UNIT_STAT_FEIGN_DEATH |
+    UNIT_STAT_NO_FREE_MOVE    = UNIT_STAT_ROOT | UNIT_STAT_STUNNED |
                                 UNIT_STAT_TAXI_FLIGHT |
                                 UNIT_STAT_CONFUSED | UNIT_STAT_FLEEING,
 
@@ -371,8 +414,72 @@ enum UnitState
     UNIT_STAT_MOVING          = UNIT_STAT_ROAMING_MOVE | UNIT_STAT_CHASE_MOVE | UNIT_STAT_FOLLOW_MOVE | UNIT_STAT_FLEEING_MOVE,
 
     UNIT_STAT_ALL_STATE       = 0xFFFFFFFF,
-    UNIT_STAT_ALL_DYN_STATES  = UNIT_STAT_ALL_STATE & ~(UNIT_STAT_NO_COMBAT_MOVEMENT | UNIT_STAT_RUNNING | UNIT_STAT_IGNORE_PATHFINDING),
+    UNIT_STAT_ALL_DYN_STATES  = UNIT_STAT_ALL_STATE & ~(UNIT_STAT_RUNNING | UNIT_STAT_IGNORE_PATHFINDING | UNIT_STAT_NO_SEARCH_FOR_OTHERS | UNIT_STAT_NO_BROADCAST_TO_OTHERS | UNIT_STAT_AI_USES_MOVE_IN_LOS),
 };
+
+static char const* UnitStateToString(uint32 state)
+{
+    switch (state)
+    {
+        case UNIT_STAT_MELEE_ATTACKING:
+            return "Melee Attacking";
+        case UNIT_STAT_NO_KILL_REWARD:
+            return "No Kill Reward";
+        case UNIT_STAT_FEIGN_DEATH:
+            return "Feign Death";
+        case UNIT_STAT_STUNNED:
+            return "Stunned";
+        case UNIT_STAT_ROOT:
+            return "Root";
+        case UNIT_STAT_ISOLATED:
+            return "Isolated";
+        case UNIT_STAT_POSSESSED:
+            return "Possessed";
+        case UNIT_STAT_TAXI_FLIGHT:
+            return "Taxi Flight";
+        case UNIT_STAT_DISTRACTED:
+            return "Distracted";
+        case UNIT_STAT_CONFUSED:
+            return "Confused";
+        case UNIT_STAT_ROAMING:
+            return "Roaming";
+        case UNIT_STAT_ROAMING_MOVE:
+            return "Roaming Move";
+        case UNIT_STAT_CHASE:
+            return "Chase";
+        case UNIT_STAT_CHASE_MOVE:
+            return "Chase Move";
+        case UNIT_STAT_FOLLOW:
+            return "Follow";
+        case UNIT_STAT_FOLLOW_MOVE:
+            return "Follow Move";
+        case UNIT_STAT_FLEEING:
+            return "Fleeing";
+        case UNIT_STAT_FLEEING_MOVE:
+            return "Fleeing Move";
+        case UNIT_STAT_IGNORE_PATHFINDING:
+            return "Ignore Pathfinding";
+        case UNIT_STAT_PENDING_ROOT:
+            return "Pending Root";
+        case UNIT_STAT_PENDING_STUNNED:
+            return "Pending Stunned";
+        case UNIT_STAT_FLYING_ALLOWED:
+            return "Flying Allowed";
+        case UNIT_STAT_RUNNING:
+            return "Running";
+        case UNIT_STAT_ALLOW_INCOMPLETE_PATH:
+            return "Allow Incomplete Path";
+        case UNIT_STAT_ALLOW_LOS_ATTACK:
+            return "Allow LoS Attack";
+        case UNIT_STAT_NO_SEARCH_FOR_OTHERS:
+            return "No Search for Others";
+        case UNIT_STAT_NO_BROADCAST_TO_OTHERS:
+            return "No Broadcast to Others";
+        case UNIT_STAT_AI_USES_MOVE_IN_LOS:
+            return "AI Uses Move in LoS";
+    }
+    return "UNKNOWN";
+}
 
 enum UnitVisibility
 {
@@ -475,7 +582,7 @@ enum ReactStates
     REACT_AGGRESSIVE = 2
 };
 
-inline char const* ReactStateToString(uint32 reactState)
+static char const* ReactStateToString(uint32 reactState)
 {
     switch (reactState)
     {
@@ -497,7 +604,7 @@ enum CommandStates
     COMMAND_DISMISS = 3
 };
 
-inline char const* CommandStateToString(uint32 commandState)
+static char const* CommandStateToString(uint32 commandState)
 {
     switch (commandState)
     {

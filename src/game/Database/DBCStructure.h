@@ -305,7 +305,7 @@ struct DurabilityQualityEntry
 struct EmotesEntry
 {
     uint32  Id;                                             // 0        m_ID
-    //char*   Name;                                         // 1        m_EmoteSlashCommand
+    char*   Name;                                           // 1        m_EmoteSlashCommand
     //uint32  AnimationId;                                  // 2        m_AnimID
     uint32  Flags;                                          // 3        m_EmoteFlags
     uint32  EmoteType;                                      // 4        m_EmoteSpecProc (determine how emote are shown)
@@ -405,6 +405,7 @@ struct FactionTemplateEntry
         return hostileMask == 0 && friendlyMask == 0;
     }
     bool IsContestedGuardFaction() const { return (factionFlags & FACTION_TEMPLATE_FLAG_ATTACK_PVP_ACTIVE_PLAYERS)!=0; }
+    bool HasFactionFlag(uint32 flag) const { return factionFlags & flag; }
 };
 
 struct GameObjectDisplayInfoEntry

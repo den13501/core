@@ -412,9 +412,6 @@ AreaAura::AreaAura(SpellEntry const* spellproto, SpellEffectIndex eff, int32 *cu
                 m_areaAuraType = AREA_AURA_CREATURE_GROUP;
             if (target->GetTypeId() == TYPEID_UNIT && ((Creature*)target)->IsTotem())
                 m_modifier.m_auraname = SPELL_AURA_NONE;
-            // Light's Beacon not applied to caster itself (TODO: more generic check for another similar spell if any?)
-            else if (target == caster_ptr && spellproto->Id == 53651)
-                m_modifier.m_auraname = SPELL_AURA_NONE;
             break;
         case SPELL_EFFECT_APPLY_AREA_AURA_FRIEND:
             m_areaAuraType = AREA_AURA_FRIEND;
@@ -588,7 +585,9 @@ void AreaAura::Update(uint32 diff)
                         for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
                         {
                             Player* Target = itr->getSource();
-                            if (Target && Target->IsAlive() && Target->GetSubGroup() == subgroup && (!Target->duel || owner == Target) && caster->IsFriendlyTo(Target))
+                            if (Target && Target->IsAlive() && Target->GetSubGroup() == subgroup &&
+                               (!Target->duel || owner == Target) && caster->IsFriendlyTo(Target) &&
+                               (caster->IsPvP() || !Target->IsPvP())) // auras dont affect pvp flagged targets if caster is not flagged
                             {
                                 if (caster->IsWithinDistInMap(Target, m_radius))
                                     targets.push_back(Target);
@@ -622,7 +621,9 @@ void AreaAura::Update(uint32 diff)
                         for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
                         {
                             Player* Target = itr->getSource();
-                            if (Target && Target->IsAlive() && caster->IsFriendlyTo(Target))
+                            if (Target && Target->IsAlive() &&
+                                caster->IsFriendlyTo(Target) &&
+                               (caster->IsPvP() || !Target->IsPvP())) // auras dont affect pvp flagged targets if caster is not flagged
                             {
                                 if (caster->IsWithinDistInMap(Target, m_radius))
                                     targets.push_back(Target);
@@ -1427,7 +1428,7 @@ void Aura::TriggerSpell()
                 break;
         }
 
-        // Reget trigger spell proto
+        // Reset trigger spell proto
         triggeredSpellInfo = sSpellMgr.GetSpellEntry(trigger_spell_id);
     }
     else
@@ -1505,17 +1506,18 @@ void Aura::TriggerSpell()
             }
             case 16191:                                     // Mana Tide
             {
-            triggerTarget->CastCustomSpell(triggerTarget, trigger_spell_id, dither(m_modifier.m_amount), {}, {}, true, nullptr, this);
+                triggerTarget->CastCustomSpell(triggerTarget, trigger_spell_id, dither(m_modifier.m_amount), {}, {}, true, nullptr, this);
                 return;
             }
-            //Frost Trap Aura
+            // Frost Trap Aura
             case 13810:
             {
                 Unit* caster = GetCaster();
                 if (!caster)
                     return;
-                // Pour le talent hunt 'Piege' par exemple (chances de stun)
-                caster->ProcDamageAndSpell(ProcSystemArguments(target, (PROC_FLAG_ON_TRAP_ACTIVATION | PROC_FLAG_SUCCESSFUL_AOE), PROC_FLAG_NONE, PROC_EX_NORMAL_HIT, 1, BASE_ATTACK, GetSpellProto()));
+
+                // Talent 'Entrapment' for example (chance to root)
+                caster->ProcDamageAndSpell(ProcSystemArguments(target, PROC_FLAG_ON_TRAP_ACTIVATION, PROC_FLAG_NONE, PROC_EX_NORMAL_HIT, 1, BASE_ATTACK, GetSpellProto()));
                 return;
             }
             // Thaddius negative charge
@@ -1645,11 +1647,18 @@ void Aura::TriggerSpell()
     // All ok cast by default case
     if (triggeredSpellInfo)
     {
+        Item* pItem = nullptr;
+        if (auraSpellInfo->HasAttribute(SPELL_ATTR_EX2_RETAIN_ITEM_CAST) && !GetCastItemGuid().IsEmpty())
+        {
+            if (Player* pPlayer = ToPlayer(GetCaster()))
+                pItem = pPlayer->GetItemByGuid(GetCastItemGuid());
+        }
+
         if (triggerTargetObject)
             triggerCaster->CastSpell(triggerTargetObject->GetPositionX(), triggerTargetObject->GetPositionY(), triggerTargetObject->GetPositionZ(),
-                                     triggeredSpellInfo, true, nullptr, this, casterGUID);
+                                     triggeredSpellInfo, true, pItem, this, casterGUID);
         else
-            triggerCaster->CastSpell(triggerTarget, triggeredSpellInfo, true, nullptr, this, casterGUID);
+            triggerCaster->CastSpell(triggerTarget, triggeredSpellInfo, true, pItem, this, casterGUID);
     }
     else
     {
@@ -1740,8 +1749,10 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     {
                         // root to self part of (root_target->charge->root_self sequence
                         if (Unit* caster = GetCaster())
+                        {
                             caster->CastSpell(caster, 13138, true, nullptr, this);
-                        GetHolder()->SetAuraDuration(0); // Remove aura (else stays for ever, and casts at login)
+                            caster->RemoveAurasDueToSpell(13139);  // Remove aura (else stays for ever, and casts at login)
+                        }
                         return;
                     }
                     case 13910: // Force Create Elemental Totem
@@ -1836,7 +1847,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
     // AT REMOVE
     else
     {
-        if (IsQuestTameSpell(GetId()) && target->IsAlive())
+        if (GetSpellProto()->HasAttribute(SPELL_ATTR_EX2_SPECIAL_TAMING_FLAG) && target->IsAlive())
         {
             if (m_removeMode != AURA_REMOVE_BY_CHANNEL)
                 return;
@@ -3184,27 +3195,27 @@ void Unit::ModPossess(Unit* pTarget, bool apply, AuraRemoveMode m_removeMode)
         pTarget->CombatStop(true);
         pTarget->UpdateControl();
         pTarget->SetWalk(false);
+        pTarget->StopMoving();
 
         if (!pTarget->IsPet())
             pTarget->ClearCharmInfo();
 
         if (Creature* pCreature = pTarget->ToCreature())
         {
-            if (!pCreature->HasUnitState(UNIT_STAT_CAN_NOT_REACT))
-            {
-                pTarget->StopMoving(true);
-                if (pCreature->AI() && pCreature->AI()->SwitchAiAtControl())
-                    pCreature->AIM_Initialize();
+            bool canAttack; // never attack if we needed to switch AI but couldn't
+            if (pCreature->AI() && pCreature->AI()->SwitchAiAtControl())
+                canAttack = pCreature->AIM_Initialize();
+            else
+                canAttack = true;
 
+            if (canAttack && m_removeMode != AURA_REMOVE_BY_DEATH &&
+                pCaster->IsValidAttackTarget(pCreature))
                 pCreature->AttackedBy(pCaster);
-            }
 
             // remove pvp flag on charm end if creature is not pvp flagged by default
             if (pCreature->IsPvP() && !pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_PVP))
                 pCreature->SetPvP(false);
         }
-        else
-            pTarget->StopMoving(true);
 
         // cast mind exhaustion on self when the posess possess ends if the creature
         // is death knight understudy (razuvious).
@@ -3459,6 +3470,10 @@ void Aura::HandleModCharm(bool apply, bool Real)
             caster->SetCharm(nullptr);
             if (caster->IsPlayer())
                 static_cast<Player*>(caster)->RemovePetActionBar();
+
+            // Clear threat generated when charm ends.
+            if (pCreatureTarget)
+                pCreatureTarget->RemoveAttackersThreat(caster);
         }
 
         target->UpdateControl();
@@ -3500,10 +3515,14 @@ void Aura::HandleModCharm(bool apply, bool Real)
 
         if (pCreatureTarget)
         {
+            bool canAttack; // never attack if we needed to switch AI but couldn't
             if (pCreatureTarget->AI() && pCreatureTarget->AI()->SwitchAiAtControl())
-                pCreatureTarget->AIM_Initialize();
+                canAttack = pCreatureTarget->AIM_Initialize();
+            else
+                canAttack = true;
 
-            if (caster)
+            if (canAttack && m_removeMode != AURA_REMOVE_BY_DEATH &&
+                caster && caster->IsValidAttackTarget(pCreatureTarget))
                 pCreatureTarget->AttackedBy(caster);
         }
         else if (pPlayerTarget)
@@ -4215,7 +4234,7 @@ void Aura::HandleAuraModSchoolImmunity(bool apply, bool Real)
 
     // remove all flag auras (they are positive, but they must be removed when you are immune)
     if (apply && GetSpellProto()->HasAttribute(SPELL_ATTR_EX_IMMUNITY_PURGES_EFFECT)
-              && GetSpellProto()->HasAttribute(SPELL_ATTR_EX2_DAMAGE_REDUCED_SHIELD)
+              && GetSpellProto()->HasAttribute(SPELL_ATTR_EX2_FAIL_ON_ALL_TARGETS_IMMUNE)
               && target->IsPlayer() && !target->IsCharmed())
         target->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_INVULNERABILITY_BUFF_CANCELS);
 
@@ -7325,9 +7344,7 @@ void SpellAuraHolder::Update(uint32 diff)
 
                 Unit* target = GetTarget();
                 if (manaPerSecond && // avoid double cost for health funnel :
-                    !(m_spellProto->SpellFamilyName == SPELLFAMILY_WARLOCK &&
-                    m_spellProto->IsFitToFamilyMask<CF_WARLOCK_HEALTH_FUNNEL>() &&
-                    target && (target->GetCharmerOrOwnerGuid() == GetCasterGuid())))
+                   (!GetSpellProto()->HasAttribute(SPELL_ATTR_EX2_NO_TARGET_PER_SECOND_COSTS) || GetCasterGuid() == target->GetTargetGuid()))
                 {
                     if (powertype == POWER_HEALTH && int32(caster->GetHealth()) > manaPerSecond)
                         caster->ModifyHealth(-manaPerSecond);
@@ -8293,7 +8310,7 @@ bool _IsExclusiveSpellAura(SpellEntry const* spellproto, SpellEffectIndex eff, A
     }
 
     // La bouffe
-    if (spellproto->AttributesEx2 & SPELL_ATTR_EX2_FOOD_BUFF)
+    if (spellproto->AttributesEx2 & SPELL_ATTR_EX2_RETAIN_ITEM_CAST)
         return false;
 
     switch (auraname)
