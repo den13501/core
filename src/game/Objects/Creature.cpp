@@ -1671,12 +1671,17 @@ float Creature::_GetHealthMod(int32 rank)
     //BEGIN-custom feature, option to nerf instance, scale creature's health or damage
         uint32 dungeons[] = {
             36, // Deadmine 死礦
+            48, // Blackfathom 黑暗深淵
+            90, // GnomeragonInstance 諾姆瑞根
             109, // Sunken Temple 沉沒的神廟
             209, // Zul'Farrak 祖爾法拉克
             229, // Blackrock Spire 黑石塔
+            289, // SchoolofNecromancy 通靈學院
             230, // Blackrock Depths 黑石深淵
             309, // Zul'gurub 祖爾格拉布
+            329, // Stratholme 斯坦索姆
             349, // Maraudon 馬拉頓
+            409, // MoltenCore 熔火之心
             429  // Dire Maul 厄運之槌
         };
 
