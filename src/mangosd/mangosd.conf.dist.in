@@ -2948,14 +2948,20 @@ PetXPGain.Quest.Enabled                 = 0
 # Custom - Dungeon/Raid Instance nerf setting
 #   To enable nerf creatures' health value within the map id of dungeon/instance  for groups
 #   Currently implement on 
-#       MapID:36, // Deadmine 死礦
-#             109, // Sunken Temple 沉沒的神廟
-#             209, // Zul'Farrak 祖爾法拉克
-#             229, // Blackrock Spire 黑石塔
-#             230, // Blackrock Depths 黑石深淵
-#             309, // Zul'gurub 祖爾格拉布
-#             349, // Maraudon 馬拉頓
-#             429  // Dire Maul 厄運之槌
+#       MapID:
+#       36, // Deadmine 死礦
+#       48, // Blackfathom 黑暗深淵
+#       90, // GnomeragonInstance 諾姆瑞根
+#       109, // Sunken Temple 沉沒的神廟
+#       209, // Zul'Farrak 祖爾法拉克
+#       229, // Blackrock Spire 黑石塔
+#       289, // SchoolofNecromancy 通靈學院
+#       230, // Blackrock Depths 黑石深淵
+#       309, // Zul'gurub 祖爾格拉布
+#       329, // Stratholme 斯坦索姆
+#       349, // Maraudon 馬拉頓
+#       409, // MoltenCore 熔火之心
+#       429  // Dire Maul 厄運之槌
 #
 #	Instance.HP.NerfLevel
 #       case 0 = 1.0f(default)
