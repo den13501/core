@@ -2933,15 +2933,11 @@ DualSpecTimeDelta = 300
 
 ###################################################################################################################
 # Custom - Hunter's pet xp setting
-#   Rate.XP.Pet.Basic
-#       Hunter's pet basic xp rate
-#       Default = 1.0
 #   PetXPGain.Quest.Enabled
 #       Hunter's pet can get 1/5 experience from quest
 #       If setting Rate.XP.Pet.Basic = 2, then pet will get xp= 1/5 * 2
 #       Default = 0
 ###################################################################################################################
-Rate.XP.Pet.Basic                       = 1.0
 PetXPGain.Quest.Enabled                 = 0
 
 ###################################################################################################################

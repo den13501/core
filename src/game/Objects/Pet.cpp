@@ -1212,7 +1212,7 @@ void Pet::DelayedUnsummon(uint32 timeMSToDespawn, PetSaveMode mode)
 
 void Pet::GivePetXP(uint32 xp)
 {
-    xp = xp * sWorld.getConfig(CONFIG_FLOAT_RATE_XP_PET_BASIC); //custom pet basic experience rate
+    xp = xp * 3; //custom pet basic experience rate *3
 
     if (getPetType() != HUNTER_PET)
         return;
