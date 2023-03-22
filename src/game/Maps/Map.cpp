@@ -3023,7 +3023,7 @@ bool Map::GetLosHitPosition(float srcX, float srcY, float srcZ, float& destX, fl
         destZ = resultPos.z;
     }
 
-    return result0;
+    return result0 || result1;
 }
 
 bool Map::GetWalkHitPosition(GenericTransport* transport, float srcX, float srcY, float srcZ, float& destX, float& destY, float& destZ, uint32 moveAllowedFlags, float zSearchDist, bool locatedOnSteepSlope) const
@@ -3562,16 +3562,16 @@ Creature* Map::LoadCreatureSpawn(uint32 dbGuid, bool delaySpawn)
 
 Creature* Map::LoadCreatureSpawnWithGroup(uint32 leaderDbGuid, bool delaySpawn)
 {
-    Creature* pLeader = LoadCreatureSpawn(leaderDbGuid);
+    Creature* pLeader = LoadCreatureSpawn(leaderDbGuid, delaySpawn);
     if (!pLeader)
         return nullptr;
 
     if (CreatureGroup* pGroup = pLeader->GetCreatureGroup())
     {
         for (auto const& itr : pGroup->GetMembers())
-            LoadCreatureSpawn(itr.first.GetCounter());
+            LoadCreatureSpawn(itr.first.GetCounter(), delaySpawn);
 
-        if (pGroup->HasGroupFlag(OPTION_RESPAWN_TOGETHER) && pLeader->IsAlive())
+        if (!delaySpawn && pGroup->HasGroupFlag(OPTION_RESPAWN_TOGETHER) && pLeader->IsAlive())
             pGroup->RespawnAll(pLeader);
     }
 
