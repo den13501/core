@@ -210,6 +210,7 @@ enum eConfigUInt32Values
     CONFIG_UINT32_GROUP_VISIBILITY,
     CONFIG_UINT32_MAIL_DELIVERY_DELAY,
     CONFIG_UINT32_MASS_MAILER_SEND_PER_TICK,
+    CONFIG_UINT32_RETURNED_MAIL_PR_TICK,
     CONFIG_UINT32_UPTIME_UPDATE,
     CONFIG_UINT32_AUCTION_DEPOSIT_MIN,
     CONFIG_UINT32_SKILL_CHANCE_ORANGE,
@@ -456,14 +457,16 @@ enum eConfigBoolValues
     CONFIG_BOOL_GM_JOIN_OPPOSITE_FACTION_CHANNELS,
     CONFIG_BOOL_GM_ALLOW_TRADES,
     CONFIG_BOOL_DIE_COMMAND_CREDIT,
+    CONFIG_BOOL_LOGSDB_GM,
     CONFIG_BOOL_LOGSDB_CHAT,
+    CONFIG_BOOL_LOGSDB_LOOT,
     CONFIG_BOOL_LOGSDB_TRADES,
     CONFIG_BOOL_LOGSDB_CHARACTERS,
+    CONFIG_BOOL_LOGSDB_LEVELUP,
     CONFIG_BOOL_LOGSDB_TRANSACTIONS,
     CONFIG_BOOL_LOGSDB_BATTLEGROUNDS,
     CONFIG_BOOL_SMARTLOG_DEATH,
     CONFIG_BOOL_SMARTLOG_LONGCOMBAT,
-    CONFIG_BOOL_SMARTLOG_SCRIPTINFO,
     CONFIG_BOOL_TERRAIN_PRELOAD_CONTINENTS,
     CONFIG_BOOL_TERRAIN_PRELOAD_INSTANCES,
     CONFIG_BOOL_CLEANUP_TERRAIN,
@@ -787,6 +790,8 @@ class World
         void LoadConfigSettings(bool reload = false);
 
         void SendWorldText(int32 string_id, ...);
+        void SendBroadcastTextToWorld(uint32 textId);
+
          // Only for GMs with ticket notification ON
         void SendGMTicketText(int32 string_id, ...);
         void SendGMTicketText(char const* text);
@@ -888,7 +893,7 @@ class World
          * Database logs system
          */
         void LogMoneyTrade(ObjectGuid sender, ObjectGuid receiver, uint32 amount, char const* type, uint32 dataInt);
-        void LogChat(WorldSession* sess, char const* type, std::string const& msg, PlayerPointer target = nullptr, uint32 chanId = 0, char const* chanStr = nullptr);
+        void LogChat(WorldSession* sess, char const* type, char const* msg, PlayerPointer target = nullptr, uint32 chanId = 0, char const* chanStr = nullptr);
         void LogTransaction(PlayerTransactionData const& data);
         void Shutdown();
         void AddSessionToSessionsMap(WorldSession* sess);
