@@ -175,8 +175,12 @@ World::~World()
         m_charDbWorkerThread.reset(nullptr);
     }
 
-    if (m_lfgQueueThread.joinable())
-        m_lfgQueueThread.join();
+    if (m_lfgQueueThread)
+    {
+        if (m_lfgQueueThread->joinable())
+            m_lfgQueueThread->join();
+        m_lfgQueueThread.reset(nullptr);
+    }
 
     //TODO free addSessQueue
 }
@@ -190,8 +194,10 @@ void World::Shutdown()
     if (m_charDbWorkerThread && m_charDbWorkerThread->joinable())
         m_charDbWorkerThread->join();
 
-    if (m_lfgQueueThread.joinable())
-        m_lfgQueueThread.join();
+    if (m_lfgQueueThread && m_lfgQueueThread->joinable())
+        m_lfgQueueThread->join();
+
+    sAnticheatMgr->StopWardenUpdateThread();
 }
 
 /// Find a session by its id
@@ -1163,6 +1169,13 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_FORBIDDEN_AREA_ENABLED, "Anticheat.ForbiddenArea.Enable", true);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_FORBIDDEN_AREA_THRESHOLD, "Anticheat.ForbiddenArea.Threshold", 1);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_FORBIDDEN_AREA_PENALTY, "Anticheat.ForbiddenArea.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS);
+    setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_BOTTING_ENABLED, "Anticheat.Botting.Enable", true);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_PERIOD, "Anticheat.Botting.Period", 300000);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_MIN_PACKETS, "Anticheat.Botting.MinPackets", 160);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_MIN_TURNS_MOUSE, "Anticheat.Botting.MinTurnsMouse", 20);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_MIN_TURNS_KEYBOARD, "Anticheat.Botting.MinTurnsKeyboard", 80);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_MIN_TURNS_ABNORMAL, "Anticheat.Botting.MinTurnsAbnormal", 5);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_PENALTY, "Anticheat.Botting.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS);
 
     // Warden Anticheat
     setConfig(CONFIG_BOOL_AC_WARDEN_WIN_ENABLED, "Warden.WinEnabled", true);
@@ -1809,7 +1822,15 @@ void World::SetInitialWorldSettings()
         sObjectMgr.RestoreDeletedItems();
     }
 
-    StartLFGQueueThread();
+    if (GetWowPatch() >= WOW_PATCH_103 || !getConfig(CONFIG_BOOL_ACCURATE_LFG))
+    {
+        m_lfgQueueThread.reset(new std::thread([&]()
+        {
+            m_lfgQueue.Update();
+        }));
+    }
+
+    sAnticheatMgr->StartWardenUpdateThread();
 
     m_broadcaster =
         std::make_unique<MovementBroadcaster>(getConfig(CONFIG_UINT32_PACKET_BCAST_THREADS),
@@ -2507,14 +2528,6 @@ bool World::RemoveBanAccount(BanMode mode, std::string const& source, std::strin
         sAccountMgr.UnbanAccount(account);
     }
     return true;
-}
-
-void World::StartLFGQueueThread()
-{
-    m_lfgQueueThread = std::thread([&]()
-    {
-        m_lfgQueue.Update();
-    });
 }
 
 /// Update the game time
