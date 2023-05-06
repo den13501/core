@@ -7990,7 +7990,10 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
         }
     }
     else
+    {
+        SendLootRelease(guid);
         return;
+    }
 
     if (ObjectGuid lootGuid = GetLootGuid())
         m_session->DoLootRelease(lootGuid);
@@ -8217,7 +8220,10 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
                 // the player whose group may loot the corpse
                 Player* recipient = creature->GetLootRecipient();
                 if (!recipient)
+                {
+                    SendLootRelease(guid);
                     return;
+                }
 
                 if (creature->lootForPickPocketed)
                 {
@@ -8311,6 +8317,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
         default:
         {
             sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s is unsupported for looting.", guid.GetString().c_str());
+            SendLootRelease(guid);
             return;
         }
     }
@@ -10965,7 +10972,7 @@ void Player::DestroyItemCount(uint32 item, uint32 count, bool update, bool unequ
                 {
                     ItemRemovedQuestCheck(pItem->GetEntry(), count - remcount);
                     pItem->SetCount(pItem->GetCount() - count + remcount);
-                    if (IsInWorld() & update)
+                    if (IsInWorld() && update)
                         pItem->SendCreateUpdateToPlayer(this);
                     pItem->SetState(ITEM_CHANGED, this);
                     return;
@@ -10993,7 +11000,7 @@ void Player::DestroyItemCount(uint32 item, uint32 count, bool update, bool unequ
                 {
                     ItemRemovedQuestCheck(pItem->GetEntry(), count - remcount);
                     pItem->SetCount(pItem->GetCount() - count + remcount);
-                    if (IsInWorld() & update)
+                    if (IsInWorld() && update)
                         pItem->SendCreateUpdateToPlayer(this);
                     pItem->SetState(ITEM_CHANGED, this);
                     return;
@@ -11059,7 +11066,7 @@ void Player::DestroyItemCount(uint32 item, uint32 count, bool update, bool unequ
                 {
                     ItemRemovedQuestCheck(pItem->GetEntry(), count - remcount);
                     pItem->SetCount(pItem->GetCount() - count + remcount);
-                    if (IsInWorld() & update)
+                    if (IsInWorld() && update)
                         pItem->SendCreateUpdateToPlayer(this);
                     pItem->SetState(ITEM_CHANGED, this);
                     return;
@@ -11088,7 +11095,7 @@ void Player::DestroyItemCount(uint32 item, uint32 count, bool update, bool unequ
                     else
                     {
                         pItem->SetCount(pItem->GetCount() - count + remcount);
-                        if (IsInWorld() & update)
+                        if (IsInWorld() && update)
                             pItem->SendCreateUpdateToPlayer(this);
                         pItem->SetState(ITEM_CHANGED, this);
                         return;
@@ -11223,7 +11230,7 @@ void Player::DestroyItemCount(Item* pItem, uint32& count, bool update)
         ItemRemovedQuestCheck(pItem->GetEntry(), count);
         pItem->SetCount(pItem->GetCount() - count);
         count = 0;
-        if (IsInWorld() & update)
+        if (IsInWorld() && update)
             pItem->SendCreateUpdateToPlayer(this);
         pItem->SetState(ITEM_CHANGED, this);
     }
