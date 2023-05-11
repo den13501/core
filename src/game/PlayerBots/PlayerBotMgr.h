@@ -100,6 +100,7 @@ class PlayerBotMgr
         bool IsPermanentBot(uint32 playerGuid);
         bool IsChatBot(uint32 playerGuid);
         bool IsSavingAllowed() { return m_confAllowSaving; }
+        std::shared_ptr<PlayerBotEntry> GetBotWithName(std::string name);
 
         uint32 GenBotAccountId() { return ++m_maxAccountId; }
         PlayerBotStats& GetStats(){ return m_stats; }

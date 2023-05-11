@@ -36,6 +36,7 @@ class PlayerBotAI: public PlayerAI
         }
         void Remove() override;
 
+        virtual void OnWhisper(Player* pWho, std::string text) {};
         virtual bool OnSessionLoaded(PlayerBotEntry* entry, WorldSession* sess);
         virtual void OnBotEntryLoad(PlayerBotEntry* entry) {}
         virtual void OnPacketReceived(WorldPacket const* /*packet*/) {} // server has sent a packet to this session

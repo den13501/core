@@ -342,6 +342,15 @@ Unit* PartyBotAI::GetMarkedTarget(RaidTargetIcon mark) const
 
 Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
 {
+    if (!m_spamGuid.IsEmpty())
+    {
+        if (Unit* pTarget = me->GetMap()->GetUnit(m_spamGuid))
+        {
+            if (IsValidHostileTarget(pTarget))
+                return pTarget;
+        }
+    }
+
     // Stick to marked target in combat.
     if (me->IsInCombat() || pLeader->GetVictim())
     {
@@ -506,6 +515,27 @@ void PartyBotAI::AddToPlayerGroup()
 
         group->AddMember(me->GetObjectGuid(), me->GetName());
     } 
+}
+
+void PartyBotAI::OnWhisper(Player* pWho, std::string text)
+{
+    uint32 spellId = atoi(text.c_str());
+    if (spellId)
+    {
+        m_spamSpell = sSpellMgr.GetSpellEntry(spellId);
+        m_spamGuid = pWho->GetTargetGuid();
+
+        std::string chatResponse = "I will now spam spell ";
+        chatResponse += std::to_string(spellId) + " on ";
+        chatResponse += m_spamGuid.GetString();
+        me->MonsterWhisper(chatResponse.c_str(), pWho);
+    }
+    else
+    {
+        m_spamSpell = nullptr;
+        m_spamGuid = ObjectGuid();
+    }
+
 }
 
 void PartyBotAI::SendFakePacket(uint16 opcode)
@@ -910,6 +940,16 @@ void PartyBotAI::UpdateOutOfCombatAI()
 
 void PartyBotAI::UpdateInCombatAI()
 {
+    if (m_spamSpell)
+    {
+        if (Unit* pTarget = !m_spamGuid.IsEmpty() ? me->GetMap()->GetUnit(m_spamGuid) : me->GetVictim())
+        {
+            if (CanTryToCastSpell(pTarget, m_spamSpell))
+                if (DoCastSpell(pTarget, m_spamSpell) == SPELL_CAST_OK)
+                    return;
+        }
+    }
+
     if (m_role == ROLE_TANK)
     {
         Unit* pVictim = me->GetVictim();
@@ -1540,6 +1580,16 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 
 void PartyBotAI::UpdateOutOfCombatAI_Mage()
 {
+/*    if (m_spamSpell)
+    {
+        if (Unit* pTarget = !m_spamGuid.IsEmpty() ? me->GetMap()->GetUnit(m_spamGuid) : me->GetVictim())
+        {
+            if (CanTryToCastSpell(pTarget, m_spamSpell))
+                if (DoCastSpell(pTarget, m_spamSpell) == SPELL_CAST_OK)
+                    return;
+        }
+    }
+*/
     if (m_spells.mage.pArcaneBrilliance)
     {
         if (CanTryToCastSpell(me, m_spells.mage.pArcaneBrilliance))
