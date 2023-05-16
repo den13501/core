@@ -431,7 +431,7 @@ WeaponAttackType SpellEntry::GetWeaponAttackType() const
     switch (DmgClass)
     {
         case SPELL_DAMAGE_CLASS_MELEE:
-            if (HasAttribute(SPELL_ATTR_EX3_REQ_OFFHAND))
+            if (HasAttribute(SPELL_ATTR_EX3_REQUIRES_OFFHAND_WEAPON))
                 return OFF_ATTACK;
             else
                 return BASE_ATTACK;
@@ -455,6 +455,10 @@ uint32 SpellEntry::GetCastTime(SpellCaster const* caster, Spell* spell) const
     {
         // some triggered spells have data only usable for client
         if (spell->IsTriggeredSpellWithRedundentData())
+            return 0;
+
+        // chance on hit procs should be instant
+        if (spell->IsTriggered() && spell->IsCastByItem())
             return 0;
 
         // spell targeted to non-trading trade slot item instant at trade success apply

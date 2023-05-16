@@ -1044,6 +1044,10 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
                 if (((spellInfo_1->SpellFamilyFlags & UI64LIT(0x1)) && (spellInfo_2->SpellFamilyFlags & UI64LIT(0x400000))) ||
                         ((spellInfo_2->SpellFamilyFlags & UI64LIT(0x1)) && (spellInfo_1->SpellFamilyFlags & UI64LIT(0x400000))))
                     return false;
+
+                // Arcane Missiles
+                if (spellInfo_1->IsFitToFamilyMask(1 << CF_MAGE_ARCANE_MISSILES_CHANNEL) && spellInfo_2->IsFitToFamilyMask(1 << CF_MAGE_ARCANE_MISSILES_CHANNEL))
+                    return false;
             }
             // Detect Invisibility and Mana Shield (multi-family check)
             if (spellInfo_2->Id == 132 && spellInfo_1->SpellIconID == 209 && spellInfo_1->SpellVisual == 968)
@@ -1226,7 +1230,7 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
             // Exception :
             spellInfo_1->SpellIconID != 516 && // Improved Sprint
             // World of Warcraft Client Patch 1.8.0 (2005-10-11)
-            // - Sayge?s buffs at the Darkmoon Faire are now exclusive to one another.
+            // - Sayge's buffs at the Darkmoon Faire are now exclusive to one another.
 #if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_7_1
             !(spellInfo_1->SpellIconID == 1595 && spellInfo_1->SpellVisual == 7042 && spellInfo_2->SpellIconID == 1595 && spellInfo_2->SpellVisual == 7042) &&
 #endif
@@ -2556,10 +2560,10 @@ void SpellMgr::LoadSpellAreas()
 
 SpellCastResult SpellMgr::GetSpellAllowedInLocationError(SpellEntry const* spellInfo, Unit const* caster, Player const* player)
 {
-    // Spell casted only on battleground
-    if ((spellInfo->AttributesEx3 & SPELL_ATTR_EX3_BATTLEGROUND))
-        if (!player || !player->InBattleGround())
-            return SPELL_FAILED_ONLY_BATTLEGROUNDS;
+    // Spell can be casted only in battleground
+    if (spellInfo->HasAttribute(SPELL_ATTR_EX3_ONLY_BATTLEGROUNDS) &&
+        (!player || !player->InBattleGround()))
+        return SPELL_FAILED_ONLY_BATTLEGROUNDS;
 
     uint32 mapId = caster ? caster->GetMapId() : (player ? player->GetMapId() : 0);
 
