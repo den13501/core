@@ -86,7 +86,7 @@ class Creature : public Unit
         void RemoveFromWorld() override;
 
         bool Create(uint32 guidlow, CreatureCreatePos& cPos, CreatureInfo const* cinfo, uint32 firstCreatureId, GameEventCreatureData const* eventData = nullptr);
-        void LoadDefaultAuras(uint32 const* auras, bool reload);
+        void LoadDefaultAuras(uint32 const* auras);
         void LoadCreatureAddon(bool reload = false);
 
         // CreatureGroups
@@ -354,8 +354,9 @@ class Creature : public Unit
         void ApplyDynamicRespawnDelay(uint32& delay);
         void CastSpawnSpell();
 
+        // the delay is in seconds
         uint32 GetRespawnDelay() const { return m_respawnDelay; }
-        void SetRespawnDelay(uint32 delay) { m_respawnDelay = delay; }
+        void SetRespawnDelay(uint32 seconds) { m_respawnDelay = seconds; }
 
         float GetWanderDistance() const { return m_wanderDistance; }
         void SetWanderDistance(float dist) { m_wanderDistance = dist; }

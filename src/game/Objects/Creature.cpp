@@ -2111,12 +2111,10 @@ void Creature::Respawn()
     RemoveCorpse();
 
     // forced recreate creature object at clients
-    UnitVisibility currentVis = GetVisibility();
-    SetVisibility(VISIBILITY_RESPAWN);
     SetUnitMovementFlags(MOVEFLAG_NONE);
-    UpdateObjectVisibility();
+    UnitVisibility currentVis = GetVisibility();
+    SetVisibility(VISIBILITY_RESPAWN);                      // this will call UpdateObjectVisibility
     SetVisibility(currentVis);                              // restore visibility state
-    UpdateObjectVisibility();
 
     if (IsDespawned())
     {
@@ -2629,7 +2627,7 @@ void Creature::UpdateLeashExtensionTime()
 }
 
 
-void Creature::LoadDefaultAuras(uint32 const* auras, bool reload)
+void Creature::LoadDefaultAuras(uint32 const* auras)
 {
     for (uint32 const* cAura = auras; *cAura; ++cAura)
     {
@@ -2670,9 +2668,9 @@ void Creature::LoadCreatureAddon(bool reload)
             SetUInt32Value(UNIT_NPC_EMOTESTATE, cainfo->emote_state);
 
         if (cainfo->auras)
-            LoadDefaultAuras(cainfo->auras, reload);
+            LoadDefaultAuras(cainfo->auras);
         else if (m_creatureInfo->auras)
-            LoadDefaultAuras(m_creatureInfo->auras, reload);
+            LoadDefaultAuras(m_creatureInfo->auras);
     }
     else
     {
@@ -2686,7 +2684,7 @@ void Creature::LoadCreatureAddon(bool reload)
         SetSheath(SHEATH_STATE_MELEE);
 
         if (m_creatureInfo->auras)
-            LoadDefaultAuras(m_creatureInfo->auras, reload);
+            LoadDefaultAuras(m_creatureInfo->auras);
     }
 }
 

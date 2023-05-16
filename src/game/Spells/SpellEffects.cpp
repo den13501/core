@@ -257,7 +257,7 @@ void Spell::EffectResurrectNew(SpellEffectIndex effIdx)
     uint32 health = damage;
     uint32 mana = m_spellInfo->EffectMiscValue[effIdx];
     pTarget->SetResurrectRequestData(m_caster->GetObjectGuid(), m_caster->GetMapId(), m_caster->GetPositionX(), m_caster->GetPositionY(), m_caster->GetPositionZ(), health, mana);
-    SendResurrectRequest(pTarget);
+    SendResurrectRequest(pTarget, m_casterUnit && m_casterUnit->IsSpiritHealer());
 
     AddExecuteLogInfo(effIdx, ExecuteLogInfo(unitTarget->GetObjectGuid()));
 }
@@ -1623,15 +1623,6 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                     }
                     return;
                 }
-                case 23852: // Jubling Cooldown
-                {
-                    // Trigger 7 day cooldown
-                    SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(23851);
-                    ItemPrototype const* itemProto = sObjectMgr.GetItemPrototype(19462);
-                    if (spellInfo && itemProto)
-                        unitTarget->AddCooldown(*spellInfo, itemProto);
-                    return;
-                }
                 case 29518: // Sillithus Flag Click (DND)
                 {
                     // Also mark player with pvp on
@@ -2145,7 +2136,7 @@ void Spell::EffectTriggerSpell(SpellEffectIndex effIdx)
     if (spellInfo->EquippedItemClass >= 0 && m_caster->GetTypeId() == TYPEID_PLAYER)
     {
         // main hand weapon required
-        if (spellInfo->AttributesEx3 & SPELL_ATTR_EX3_MAIN_HAND)
+        if (spellInfo->HasAttribute(SPELL_ATTR_EX3_REQUIRES_MAIN_HAND_WEAPON))
         {
             Item* item = ((Player*)m_caster)->GetWeaponForAttack(BASE_ATTACK, true, false);
 
@@ -2159,7 +2150,7 @@ void Spell::EffectTriggerSpell(SpellEffectIndex effIdx)
         }
 
         // offhand hand weapon required
-        if (spellInfo->AttributesEx3 & SPELL_ATTR_EX3_REQ_OFFHAND)
+        if (spellInfo->AttributesEx3 & SPELL_ATTR_EX3_REQUIRES_OFFHAND_WEAPON)
         {
             Item* item = ((Player*)m_caster)->GetWeaponForAttack(OFF_ATTACK, true, false);
 
@@ -3610,9 +3601,6 @@ void Spell::EffectSummonGuardian(SpellEffectIndex effIdx)
         spawnCreature->AIM_Initialize();
         spawnCreature->LoadCreatureAddon();
 
-        if (m_casterUnit->IsPvP())
-            spawnCreature->SetPvP(true);
-
         map->Add((Creature*)spawnCreature);
         m_casterUnit->AddGuardian(spawnCreature);
 
@@ -4562,6 +4550,15 @@ void Spell::EffectScriptEffect(SpellEffectIndex effIdx)
 
                     // Shadow Flame
                     m_caster->CastSpell(unitTarget, 22682, true);
+                    return;
+                }
+                case 23853: // Jubling Cooldown
+                {
+                    // Trigger 7 day cooldown
+                    SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(23851);
+                    ItemPrototype const* itemProto = sObjectMgr.GetItemPrototype(19462);
+                    if (spellInfo && itemProto)
+                        unitTarget->AddCooldown(*spellInfo, itemProto);
                     return;
                 }
                 case 24194:                                 // Uther's Tribute
@@ -6100,7 +6097,7 @@ void Spell::EffectResurrect(SpellEffectIndex effIdx)
     uint32 mana   = ditheru(pTarget->GetMaxPower(POWER_MANA) * damage / 100);
 
     pTarget->SetResurrectRequestData(m_caster->GetObjectGuid(), m_caster->GetMapId(), m_caster->GetPositionX(), m_caster->GetPositionY(), m_caster->GetPositionZ(), health, mana);
-    SendResurrectRequest(pTarget);
+    SendResurrectRequest(pTarget, m_casterUnit && m_casterUnit->IsSpiritHealer());
 
     AddExecuteLogInfo(effIdx, ExecuteLogInfo(unitTarget->GetObjectGuid()));
 }
