@@ -41,7 +41,7 @@ enum PartyBotSpells
 #define PB_MIN_FOLLOW_DIST 3.0f
 #define PB_MAX_FOLLOW_DIST 6.0f
 #define PB_MIN_FOLLOW_ANGLE 0.0f
-#define PB_MAX_FOLLOW_ANGLE 6.0f
+#define PB_MAX_FOLLOW_ANGLE 6.283f
 
 bool PartyBotAI::OnSessionLoaded(PlayerBotEntry* entry, WorldSession* sess)
 {
@@ -127,7 +127,7 @@ Player* PartyBotAI::GetPartyLeader() const
     return nullptr;
 }
 
-//Custom Function
+//Custom Function 向目標移動
 void PartyBotAI::MoveToTarget(Unit* pTarget, float pDistance)
 {
     float x, y, z;
@@ -144,7 +144,7 @@ void PartyBotAI::MoveToTarget(Unit* pTarget, float pDistance)
     me->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
 }
 
-//Custom Function
+//Custom Function - RunAwayFromTarget的改版，增加而外兩個參數
 void PartyBotAI::RunAwayFromTargetPlus(Unit* pTarget, bool pFollowLeader, float pDist)
 {
     float minLeadDist = pDist < 20.0f ? 20.0f : pDist;
@@ -771,7 +771,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             me->GetMotionMaster()->MoveIdle();
             char name[128] = {};
             strcpy(name, pLeader->GetName());
-            ChatHandler(me).HandleGonameCommand(name);
+            ChatHandler(me).HandleGonameCommand(name); //機器人自己用goname命令傳送自己到隊長身邊
             return;
         }
     }
@@ -790,7 +790,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             return;
     }
 
-    Unit* pVictim = me->GetVictim();
+    Unit* pVictim = me->GetVictim(); //鎖定對象，進行攻擊
 
     if (m_role != ROLE_HEALER)
     {
@@ -838,8 +838,15 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     {
         if (!pVictim)
         {
-            if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
-                me->GetMotionMaster()->MoveFollow(pLeader, urand(PB_MIN_FOLLOW_DIST, PB_MAX_FOLLOW_DIST), frand(PB_MIN_FOLLOW_ANGLE, PB_MAX_FOLLOW_ANGLE)); //跟隨隊長(玩家)
+            if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE) {
+                float FollowAngle;
+                if (m_role != ROLE_TANK)
+                    FollowAngle = frand(2.1, 4.43);
+                else
+                    FollowAngle =0.0f;
+                me->GetMotionMaster()->MoveFollow(pLeader, urand(PB_MIN_FOLLOW_DIST, PB_MAX_FOLLOW_DIST), FollowAngle); //跟隨隊長(玩家)
+                //me->GetMotionMaster()->MoveFollow(pLeader, urand(PB_MIN_FOLLOW_DIST, PB_MAX_FOLLOW_DIST), frand(PB_MIN_FOLLOW_ANGLE, PB_MAX_FOLLOW_ANGLE)); //跟隨隊長(玩家)
+            }
         }
         else
         {
