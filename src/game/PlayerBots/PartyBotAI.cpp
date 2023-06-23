@@ -418,6 +418,9 @@ Unit* PartyBotAI::SelectPartyAttackTarget() const
 
 Player* PartyBotAI::SelectResurrectionTarget() const
 {
+    std::vector<Player*> vRessTargets;
+    Player* pTarget = nullptr;
+
     Group* pGroup = me->GetGroup();
     for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
     {
@@ -434,11 +437,13 @@ Player* PartyBotAI::SelectResurrectionTarget() const
                 continue;
 
             if (m_resurrectionSpell->IsTargetInRange(me, pMember))
-                return pMember;
+                vRessTargets.push_back(pMember);
         }
     }
+    if (!vRessTargets.empty())
+        pTarget = SelectRandomContainerElement(vRessTargets);
 
-    return nullptr;
+    return pTarget;
 }
 
 Player* PartyBotAI::SelectShieldTarget() const
