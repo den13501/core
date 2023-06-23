@@ -2465,6 +2465,10 @@ bool CombatBotBaseAI::IsValidBuffTarget(Unit const* pTarget, SpellEntry const* p
 
 Player* CombatBotBaseAI::SelectBuffTarget(SpellEntry const* pSpellEntry) const
 {
+    std::vector<Player*> vBuffTargets;
+
+    Player* pTarget = nullptr;
+
     Group* pGroup = me->GetGroup();
     if (pGroup)
     {
@@ -2473,16 +2477,19 @@ Player* CombatBotBaseAI::SelectBuffTarget(SpellEntry const* pSpellEntry) const
             if (Player* pMember = itr->getSource())
             {
                 if (pMember->IsAlive() &&
-                   !pMember->IsGameMaster() &&
+                    !pMember->IsGameMaster() &&
                     IsValidBuffTarget(pMember, pSpellEntry) &&
                     me->IsWithinLOSInMap(pMember) &&
                     me->IsWithinDist(pMember, 30.0f))
-                    return pMember;
+                    vBuffTargets.push_back(pMember);
             }
         }
     }
 
-    return nullptr;
+    if (!vBuffTargets.empty())
+        pTarget = SelectRandomContainerElement(vBuffTargets);
+
+    return pTarget;
 }
 
 Player* CombatBotBaseAI::SelectDispelTarget(SpellEntry const* pSpellEntry) const
