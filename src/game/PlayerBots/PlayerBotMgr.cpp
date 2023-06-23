@@ -895,23 +895,26 @@ bool ChatHandler::HandlePartyBotAddCommand(char* args)
         return false;
     }
 
-    //硬限制玩家在下面的條件下不能呼叫機器人
-    if (pPlayer->IsDead())
+    if (!GetSession()->GetSecurity() > SEC_PLAYER) 
     {
-        SendSysMessage("死亡時不能加入機器人。");
-        return false;
-    }
+        //硬限制玩家在下面的條件下不能呼叫機器人
+        if (pPlayer->IsDead())
+        {
+            SendSysMessage("死亡時不能加入機器人。");
+            return false;
+        }
 
-    if (pPlayer->IsInCombat())
-    {
-        SendSysMessage("戰鬥中不能加入機器人。");
-        return false;
-    }
+        if (pPlayer->IsInCombat())
+        {
+            SendSysMessage("戰鬥中不能加入機器人。");
+            return false;
+        }
 
-    if (pPlayer->GetMap()->IsDungeon())
-    {
-        SendSysMessage("在副本內不能加入機器人。");
-        return false;
+        if (pPlayer->GetMap()->IsDungeon())
+        {
+            SendSysMessage("在副本內不能加入機器人。");
+            return false;
+        }
     }
 
     if (!args)
