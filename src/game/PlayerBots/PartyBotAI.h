@@ -52,7 +52,7 @@ public:
     bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const final;
     Player* GetPartyLeader() const;
     bool AttackStart(Unit* pVictim);
-    Unit* SelectAttackTarget(Player* pLeader) const;
+    Unit* SelectAttackTarget() const;
     Unit* SelectPartyAttackTarget() const;
     Player* SelectResurrectionTarget() const;
     Player* SelectShieldTarget() const;
@@ -62,7 +62,11 @@ public:
     bool ShouldAutoRevive() const;
     bool RunAwayFromTarget(Unit* pTarget);
     void RunAwayFromTargetPlus(Unit* pTarget, bool pFollowLeader = true, float pDistance = 12.0f); //custom function
+    void RunAwayFromObject(GameObject* pObject, float pDistance = 10.0f); //custom function
+    void RunAwayFromAOE(float pDistance); //custom function
     void MoveToTarget(Unit* pTarget, float pDistance = 1.0f); //custom function
+    bool CheckThreat(Unit const* pTarget); //custom function
+    bool CheckCombatInstanceMechanics(bool& pCombatEngagementReady); //custom function
     bool CrowdControlMarkedTargets();
     bool EnterCombatDruidForm();
     bool ShouldEnterStealth() const;
@@ -102,6 +106,9 @@ public:
     uint8 m_level = 0;
     uint32 m_mapId = 0;
     uint32 m_instanceId = 0;
+    uint32 m_aoeSpellTimer = 0; //custom function
+    uint32 m_threatCheckTimer = 0; //custom function
+    bool  m_threatOK = true; //custom function
     float m_x = 0.0f;
     float m_y = 0.0f;
     float m_z = 0.0f;

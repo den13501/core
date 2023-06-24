@@ -127,6 +127,88 @@ Player* PartyBotAI::GetPartyLeader() const
     return nullptr;
 }
 
+//Custom Function 從物件跑開
+void PartyBotAI::RunAwayFromObject(GameObject* pObject, float pDistance)
+{
+
+    std::list<GameObject*> lObjects;
+
+    float x, y, z;
+    float angle;
+    bool directions[6] = { true, true, true, true, true, true };
+    int direction = 0;
+    std::vector<int> freeDirections;
+
+    me->GetGameObjectListWithEntryInGrid(lObjects, pObject->GetEntry(), (pDistance * 2));
+    for (const auto& pGo : lObjects)
+    {
+        if (pGo->isSpawned())
+        {
+            float pGoAngle = (me->GetAngle(pGo));
+            int direction = (int)((pGoAngle / 1.05) + 0.5f);
+            switch (direction)
+            {
+            case 0:
+            case 6:
+                directions[0] = false;
+            case 1:
+                directions[1] = false;
+            case 2:
+                directions[2] = false;
+            case 3:
+                directions[3] = false;
+            case 4:
+                directions[4] = false;
+            case 5:
+                directions[5] = false;
+            }
+        }
+    }
+
+    for (int i = 0; i < 6; i++)
+    {
+        if (directions[i])
+        {
+            freeDirections.push_back(i);
+            if (i == 1 || i == 5)
+            {
+                direction = i;
+                freeDirections.clear();
+                break;
+            }
+
+        }
+    }
+
+    if (!freeDirections.empty())
+    {
+        direction = SelectRandomContainerElement(freeDirections);
+    }
+
+    angle = (direction * 1.05) + frand(-0.1f, 0.1f);
+
+    me->GetNearPoint(me, x, y, z, 0.0f, pDistance, angle);
+
+    if (me->IsMoving())
+        me->StopMoving();
+    me->GetMotionMaster()->Clear();
+    me->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
+}
+
+//Custom Function 閃避AOE
+void PartyBotAI::RunAwayFromAOE(float pDistance)
+{
+    float x, y, z;
+    float angle = frand(1.0f, 2.0f);
+    if (urand(0, 1))
+        angle *= -1.0f;
+
+    me->GetNearPoint(me, x, y, z, 0.0f, pDistance, angle);
+
+    me->GetMotionMaster()->Clear();
+    me->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
+}
+
 //Custom Function 向目標移動
 void PartyBotAI::MoveToTarget(Unit* pTarget, float pDistance)
 {
@@ -340,8 +422,9 @@ Unit* PartyBotAI::GetMarkedTarget(RaidTargetIcon mark) const
     return nullptr;
 }
 
-Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
+Unit* PartyBotAI::SelectAttackTarget() const
 {
+    // Custom function
     if (!m_spamGuid.IsEmpty())
     {
         if (Unit* pTarget = me->GetMap()->GetUnit(m_spamGuid))
@@ -352,23 +435,19 @@ Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
     }
 
     // Stick to marked target in combat.
-    if (me->IsInCombat() || pLeader->GetVictim())
+    if (Player* pLeader = GetPartyLeader())
     {
-        for (auto markId : m_marksToFocus)
+        if (me->IsInCombat() || pLeader->GetVictim())
         {
-            ObjectGuid targetGuid = me->GetGroup()->GetTargetWithIcon(markId);
-            if (targetGuid.IsUnit())
-                if (Unit* pVictim = me->GetMap()->GetUnit(targetGuid))
-                    if (IsValidHostileTarget(pVictim))
-                        return pVictim;
+            for (auto markId : m_marksToFocus)
+            {
+                ObjectGuid targetGuid = me->GetGroup()->GetTargetWithIcon(markId);
+                if (targetGuid.IsUnit())
+                    if (Unit* pVictim = me->GetMap()->GetUnit(targetGuid))
+                        if (IsValidHostileTarget(pVictim))
+                            return pVictim;
+            }
         }
-    }
-
-    // Who is the leader attacking.
-    if (Unit* pVictim = pLeader->GetVictim())
-    {
-        if (IsValidHostileTarget(pVictim))
-            return pVictim;
     }
 
     // Who is attacking me.
@@ -376,6 +455,16 @@ Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
     {
         if (IsValidHostileTarget(pAttacker))
             return pAttacker;
+    }
+
+    // Who is the leader attacking.
+    if (Player* pLeader = GetPartyLeader())
+    {
+        if (Unit* pVictim = pLeader->GetVictim())
+        {
+            if (IsValidHostileTarget(pVictim))
+                return pVictim;
+        }
     }
 
     // Check if other group members are under attack.
@@ -835,14 +924,15 @@ void PartyBotAI::UpdateAI(uint32 const diff)
 
     if (m_role != ROLE_HEALER)
     {
-        if (!pVictim || !IsValidHostileTarget(pVictim))
+        if (!pVictim || pVictim->IsDead() || pVictim->GetHealth() == 0.0f || pVictim->HasBreakableByDamageCrowdControlAura() || !IsValidHostileTarget(pVictim))
         {
             if (pVictim)
                 me->AttackStop();
 
-            if (Unit* pVictim = SelectAttackTarget(pLeader))
+            // Force select new Victim if current should not be attacked
+            if (Unit* pNewVictim = SelectAttackTarget())
             {
-                AttackStart(pVictim);
+                AttackStart(pNewVictim);
                 return;
             }
         }
@@ -993,6 +1083,17 @@ void PartyBotAI::UpdateOutOfCombatAI()
 
 void PartyBotAI::UpdateInCombatAI()
 {
+    bool pCombatEngagementReady;
+
+    // Now check special Instance Mechanics
+    if (!CheckCombatInstanceMechanics(pCombatEngagementReady))
+        return;
+
+    // Check if combat engagement is ready
+    if (!pCombatEngagementReady)
+        return;
+
+    // custom function
     if (m_spamSpell)
     {
         if (Unit* pTarget = !m_spamGuid.IsEmpty() ? me->GetMap()->GetUnit(m_spamGuid) : me->GetVictim())
@@ -3417,4 +3518,193 @@ void PartyBotAI::UpdateInCombatAI_Druid()
             break;
         }
     }
+}
+
+// Custom function 檢查威脅程度
+bool PartyBotAI::CheckThreat(Unit const* pTarget)
+{
+    if (!pTarget || m_threatCheckTimer > 0)
+        return m_threatOK;
+
+    float myThreat = 0.0f;
+    float currentVictimThreat = 0.0f;
+
+    // Find own reference in target's threat list
+    for (const auto i : pTarget->GetThreatManager().getThreatList())
+    {
+        if (i->getUnitGuid() == me->GetObjectGuid())
+            myThreat = i->getThreat();
+    }
+
+    if (pTarget->GetThreatManager().getCurrentVictim())
+        currentVictimThreat = pTarget->GetThreatManager().getCurrentVictim()->getThreat() * 0.95;
+
+    if (currentVictimThreat > myThreat)
+    {
+        m_threatOK = true;
+        m_threatCheckTimer = 1000;
+    }
+    else
+    {
+        m_threatOK = false;
+        m_threatCheckTimer = 300;
+
+    }
+
+    return m_threatOK;
+}
+
+// Custom function 檢查副本機制
+bool PartyBotAI::CheckCombatInstanceMechanics(bool& pCombatEngagementReady)
+{
+    /// --------------
+    // Return FALSE while not ok with desired mechanics
+    /// --------------
+
+    std::list<GameObject*> lBombs;
+    Unit* pTarget = nullptr;
+
+    // Set Combat readiness
+    pCombatEngagementReady = true;
+
+    // If not in Raid Group or Inside Dungeon return
+    if (!(me->GetMap()->IsDungeon() || me->GetGroup()->isRaidGroup()))
+        return true;
+
+    // Get Target or Party Target
+    if (m_role == ROLE_HEALER)
+        pTarget = SelectAttackTarget();
+    else
+        pTarget = me->GetVictim();
+
+    switch (me->GetMap()->GetId())
+    {
+        // MOLTEN CORE 熔火之心
+        case 409:
+
+            // MAGMADAR - Fire Bomb (瑪格曼達 - 熔岩炸彈)
+            // While there is a bomb nearby try to run away
+            me->GetGameObjectListWithEntryInGrid(lBombs, 177704, 10.0f);
+            for (const auto& pGo : lBombs)
+            {
+                if (pGo->isSpawned())
+                {
+                    RunAwayFromObject(pGo, 12.5f);
+                    return false;
+                }
+            }
+
+            // GEHENNAS - Rain of Fire (基赫纳斯 - 火焰之雨)
+            // While under Rain of Fire, run away
+            if (me->HasAura(19717))
+            {
+                RunAwayFromAOE(12.0f);
+                return false;
+            }
+
+            // BARON GEDDON - Living Bomb (迦顿男爵 - 活化炸彈)
+            // If has Living Bomb aura, run to specific location in Baon's cave
+            if (me->HasAura(20475))
+            {
+                float x = 680;
+                float y = -810;
+                float z = me->GetPositionZ();
+                me->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
+                me->GetMotionMaster()->Clear();
+                me->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
+                return false;
+            }
+
+            // Target based behaviour 基於目標動作的判斷
+            if (pTarget)
+            {
+                switch (pTarget->GetEntry())
+                {
+                    // GARR -  do not use AoE - kill Garr first and do not aggro adds (加爾 - 不AOE，優先集火他)
+                    case 12057:
+                        // Do not attack if high threat
+                        if ((m_role == ROLE_RANGE_DPS || m_role == ROLE_MELEE_DPS) && !CheckThreat(pTarget))
+                            pCombatEngagementReady = false;
+                        m_aoeSpellTimer = 30 * IN_MILLISECONDS;
+                        // Move Away if too close
+                        if ((m_role == ROLE_RANGE_DPS || m_role == ROLE_HEALER) &&
+                            me->GetDistance(pTarget) < 20.0f)
+                        {
+                            RunAwayFromTargetPlus(pTarget, true, 25.0f);
+                            return false;
+                        }
+                        break;
+
+                    // Flamewalker Protector 烈焰行者護衛
+                    case 12119:
+                    // Flamewalker Elite 烈焰行者精英
+                    case 11664:
+                    // GEHENNAS 基赫纳斯
+                    case 12259:
+                    // LUCIFRON 鲁西弗隆
+                    case 12118:
+                        // Do not attack if high threat
+                        if ((m_role == ROLE_RANGE_DPS || m_role == ROLE_MELEE_DPS) && !CheckThreat(pTarget))
+                            pCombatEngagementReady = false;
+                        break;
+
+                    // Try to keep distance
+                    // Molten Giant 熔核巨人
+                    case 11658:
+                    // MAGMADAR 瑪格曼達
+                    case 11982:
+                    // SHAZZRAH 沙斯拉爾
+                    case 12264:
+
+                        // Do not attack if high threat
+                     if ((m_role == ROLE_RANGE_DPS || m_role == ROLE_MELEE_DPS) && !CheckThreat(pTarget))
+                            pCombatEngagementReady = false;
+
+                        break;
+
+                }
+
+                // BARON GEDDON 迦頓男爵
+                if (pTarget->GetEntry() == 12056)
+                {
+                    if (m_role == ROLE_TANK)
+                        return true;
+
+                    // Do not attack if high threat
+                    if ((m_role == ROLE_RANGE_DPS || m_role == ROLE_MELEE_DPS) && !CheckThreat(pTarget->ToCreature()))
+                        pCombatEngagementReady = false;
+
+                    // Inferno Aura and prepare for final bomb explosion (當迦頓身上出現地獄火或生命小於2.5%時非坦克BOT遠離)
+                    if (pTarget->HasAura(19695) || pTarget->GetHealthPercent() < 2.5f)
+                    {
+                        if (me->GetDistance(pTarget) < 22.0f)
+                        {
+                            RunAwayFromTargetPlus(pTarget, false, 25.0f);
+                            return false;
+                        }
+
+                        // Melee DPS should not engage while Baron has inferno or low health
+                        if (m_role == ROLE_MELEE_DPS)
+                            return pCombatEngagementReady = false;
+                    }
+
+                    // Ranged and Healers should always keep distance
+                    if ((m_role == ROLE_RANGE_DPS || m_role == ROLE_HEALER) &&
+                        me->GetDistance(pTarget) < 20.0f)
+                    {
+                        RunAwayFromTargetPlus(pTarget, true, 25.0f);
+                        return false;
+                    }
+
+                }
+
+            }
+
+            break;
+
+        default:
+            break;
+    }
+
+    return true;
 }
