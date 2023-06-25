@@ -366,7 +366,7 @@ bool PartyBotAI::ShouldAutoRevive() const
     return alivePlayerNearby;
 }
 
-bool PartyBotAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const
+bool PartyBotAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry, uint32 maxStack) const
 {
     if (pSpellEntry->IsAreaOfEffectSpell() && !m_marksToCC.empty())
         return false;
@@ -2571,6 +2571,37 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
 {
     if (Unit* pVictim = me->GetVictim())
     {
+        // 戰鬥姿態選擇 以坦身分或血量依據，優先切防禦姿態，其次是狂暴姿態，最後才是戰鬥姿態
+        if (pVictim->CanReachWithMeleeAutoAttack(me))
+        {
+            if (m_role == ROLE_TANK || me->GetHealthPercent() < 25.0f)
+            {
+                if (m_spells.warrior.pDefensiveStance &&
+                    CanTryToCastSpell(me, m_spells.warrior.pDefensiveStance))
+                {
+                    DoCastSpell(me, m_spells.warrior.pDefensiveStance);
+                }
+            }
+            else if (me->GetHealthPercent() > 60.0f)
+            {
+                if (m_spells.warrior.pBloodthirst &&
+                    m_spells.warrior.pBerserkerStance &&
+                    me->GetShapeshiftForm() != FORM_BERSERKERSTANCE &&
+                    CanTryToCastSpell(me, m_spells.warrior.pBerserkerStance))
+                {
+                    DoCastSpell(me, m_spells.warrior.pBerserkerStance);
+                }
+                else if (m_spells.warrior.pMortalStrike &&
+                    m_spells.warrior.pBattleStance &&
+                    me->GetShapeshiftForm() != FORM_BATTLESTANCE &&
+                    CanTryToCastSpell(me, m_spells.warrior.pBattleStance))
+                {
+                    DoCastSpell(me, m_spells.warrior.pBattleStance);
+                }
+            }
+        }
+
+        // 判斷敵方是否施展非進戰技能，是則用拳擊或盾擊打斷
         if (pVictim->IsNonMeleeSpellCasted(false, false, true))
         {
             if (m_spells.warrior.pPummel &&
@@ -2589,21 +2620,43 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
             }
         }
 
-        if (m_spells.warrior.pExecute &&
-           (pVictim->GetHealthPercent() < 20.0f) &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pExecute))
+        // 挑戰怒吼
+        if (m_role == ROLE_TANK &&
+            me->GetEnemyCountInRadiusAround(me, 10.0f) > 3 &&
+            GetAttackersInRangeCount(10.0f) <= 1 &&
+            m_spells.warrior.pChallengingShout &&
+            CanTryToCastSpell(me, m_spells.warrior.pChallengingShout))
         {
-            if (DoCastSpell(pVictim, m_spells.warrior.pExecute) == SPELL_CAST_OK)
+            if (DoCastSpell(me, m_spells.warrior.pChallengingShout) == SPELL_CAST_OK)
                 return;
         }
 
-        if (m_spells.warrior.pOverpower &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pOverpower))
+        // 防禦姿態+持盾下，防禦招式之選擇
+        if (me->GetShapeshiftForm() == FORM_DEFENSIVESTANCE && IsWearingShield())
         {
-            if (DoCastSpell(pVictim, m_spells.warrior.pOverpower) == SPELL_CAST_OK)
-                return;
+            if (!me->GetAttackers().empty())
+            {
+                // 生命<70%，用盾牌格擋
+                if (m_spells.warrior.pShieldBlock &&
+                    (me->GetHealthPercent() < 70.0f) &&
+                    CanTryToCastSpell(me, m_spells.warrior.pShieldBlock))
+                {
+                    if (DoCastSpell(me, m_spells.warrior.pShieldBlock) == SPELL_CAST_OK)
+                        return;
+                }
+
+                // 生命<30%，用盾牆
+                if (m_spells.warrior.pShieldWall &&
+                    (me->GetHealthPercent() < 30.0f) &&
+                    CanTryToCastSpell(me, m_spells.warrior.pShieldWall))
+                {
+                    if (DoCastSpell(me, m_spells.warrior.pShieldWall) == SPELL_CAST_OK)
+                        return;
+                }
+            }
         }
 
+        // 生命<20%，用破釜沉舟
         if (m_spells.warrior.pLastStand &&
             me->GetHealthPercent() < 20.0f &&
             CanTryToCastSpell(me, m_spells.warrior.pLastStand))
@@ -2612,6 +2665,126 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
                 return;
         }
 
+        // 非坦身分下，生命<20%、10碼內敵人>2，用破膽怒吼
+        if (m_role != ROLE_TANK &&
+            m_spells.warrior.pIntimidatingShout &&
+            (me->GetHealthPercent() < 20.0f) &&
+            (GetAttackersInRangeCount(10.0f) > 2) &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pIntimidatingShout))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pIntimidatingShout) == SPELL_CAST_OK)
+                return;
+        }
+
+        /*
+        // 戰鬥怒吼，戰鬥中有必要加入技能循環嗎，待觀察?
+        if (m_spells.warrior.pBattleShout &&
+            CanTryToCastSpell(me, m_spells.warrior.pBattleShout))
+        {
+            if (DoCastSpell(me, m_spells.warrior.pBattleShout) == SPELL_CAST_OK)
+                return;
+        }
+        */
+
+        // 復仇仇恨高，當作正常情形下的第一個招式
+        if (m_spells.warrior.pRevenge &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pRevenge))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pRevenge) == SPELL_CAST_OK)
+                return;
+        }
+
+        // 壓制怒氣需求低，當作第二個招式
+        if (m_spells.warrior.pOverpower &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pOverpower))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pOverpower) == SPELL_CAST_OK)
+                return;
+        }
+
+        // 狂暴之怒可以幫助增加怒氣值，不用白不用
+        if (m_spells.warrior.pBerserkerRage &&
+            CanTryToCastSpell(me, m_spells.warrior.pBerserkerRage))
+        {
+            if (DoCastSpell(me, m_spells.warrior.pBerserkerRage) == SPELL_CAST_OK)
+                return;
+        }
+
+        // 敵人生命<20%，用斬殺
+        if (m_spells.warrior.pExecute &&
+           (pVictim->GetHealthPercent() < 20.0f) &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pExecute))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pExecute) == SPELL_CAST_OK)
+                return;
+        }
+
+        // 挫志怒吼DEBUFF敵人
+        if (m_role == ROLE_TANK &&
+            m_spells.warrior.pDemoralizingShout &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pDemoralizingShout))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pDemoralizingShout) == SPELL_CAST_OK)
+                return;
+        }
+
+        // Go on only if 15 rage is available so the most relevant skills can be used
+        // 加入保底怒氣值15的判定點，低於15不再繼續加入下面其他技能循環，確保上述基本招式可以優先用
+        if (me->GetPowerPercent(POWER_RAGE) < 15.0f)
+            return;
+
+        // For tanks, prioritize first Sunder Armor application
+        // 坦身分，優先用破甲
+        if (m_role == ROLE_TANK &&
+            m_spells.warrior.pSunderArmor &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pSunderArmor, 1))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pSunderArmor) == SPELL_CAST_OK)
+                return;
+        }
+
+        // 10碼內敵人>2，用AOE 範圍技
+        if (me->GetEnemyCountInRadiusAround(me, 10.0f) > 2)
+        {
+            // 坦身分用戰鬥怒吼2次
+            if (m_role == ROLE_TANK)
+            {
+                if (m_spells.warrior.pBattleShout &&
+                    CanTryToCastSpell(me, m_spells.warrior.pBattleShout, 2))
+                {
+                    if (DoCastSpell(me, m_spells.warrior.pBattleShout) == SPELL_CAST_OK)
+                        return;
+                }
+            }
+            else
+            {
+                // 非坦身分用先旋風展
+                if (m_spells.warrior.pWhirlwind &&
+                    CanTryToCastSpell(pVictim, m_spells.warrior.pWhirlwind))
+                {
+                    if (DoCastSpell(pVictim, m_spells.warrior.pWhirlwind) == SPELL_CAST_OK)
+                        return;
+                }
+                
+                // 非坦身分再用雷霆一擊
+                if (m_spells.warrior.pThunderClap &&
+                    CanTryToCastSpell(pVictim, m_spells.warrior.pThunderClap))
+                {
+                    if (DoCastSpell(pVictim, m_spells.warrior.pThunderClap) == SPELL_CAST_OK)
+                        return;
+                }
+            }
+        }
+
+        // 當只有單一對象時，用撕裂
+        if (m_spells.warrior.pRend &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pRend))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pRend) == SPELL_CAST_OK)
+                return;
+        }
+
+        // 當戰士生命<50%或敵方非使用進戰技或敵方移動中，用震盪猛擊
         if (m_spells.warrior.pConcussionBlow &&
            (pVictim->IsNonMeleeSpellCasted() || pVictim->IsMoving() || (me->GetHealthPercent() < 50.0f)) &&
             CanTryToCastSpell(pVictim, m_spells.warrior.pConcussionBlow))
@@ -2620,113 +2793,40 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
                 return;
         }
 
-        if (me->GetShapeshiftForm() == FORM_DEFENSIVESTANCE &&
-            IsWearingShield())
-        {
-            if (!me->GetAttackers().empty())
-            {
-                if (m_spells.warrior.pShieldBlock &&
-                    CanTryToCastSpell(me, m_spells.warrior.pShieldBlock))
-                {
-                    if (DoCastSpell(me, m_spells.warrior.pShieldBlock) == SPELL_CAST_OK)
-                        return;
-                }
-
-                if (m_spells.warrior.pShieldWall &&
-                   (me->GetHealthPercent() < 40.0f) &&
-                    CanTryToCastSpell(me, m_spells.warrior.pShieldWall))
-                {
-                    if (DoCastSpell(me, m_spells.warrior.pShieldWall) == SPELL_CAST_OK)
-                        return;
-                }
-            }
-
-            if (m_spells.warrior.pShieldSlam &&
-                CanTryToCastSpell(pVictim, m_spells.warrior.pShieldSlam))
-            {
-                if (DoCastSpell(pVictim, m_spells.warrior.pShieldSlam) == SPELL_CAST_OK)
-                    return;
-            }
-        }
-
-        if (m_spells.warrior.pThunderClap &&
-            m_role == ROLE_TANK &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pThunderClap))
-        {
-            if (DoCastSpell(pVictim, m_spells.warrior.pThunderClap) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (m_spells.warrior.pSunderArmor &&
-            m_role == ROLE_TANK &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pSunderArmor))
-        {
-            if (DoCastSpell(pVictim, m_spells.warrior.pSunderArmor) == SPELL_CAST_OK)
-                return;
-        }
-
+        // 當敵人移動+無減速Debuff，用斷筋
         if (m_spells.warrior.pHamstring &&
             pVictim->IsMoving() &&
-           !pVictim->HasUnitState(UNIT_STAT_ROOT) &&
-           !pVictim->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) &&
+            !pVictim->HasUnitState(UNIT_STAT_ROOT) &&
+            !pVictim->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) &&
             CanTryToCastSpell(pVictim, m_spells.warrior.pHamstring))
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pHamstring) == SPELL_CAST_OK)
                 return;
         }
 
-        if (m_spells.warrior.pRend &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pRend))
+        // Now wait for more rage for main skills
+        // 加入保底怒氣值30的判定點，低於30不再繼續加入下面其他技能循環，確保上述基本招式可以優先用
+        if (me->GetPowerPercent(POWER_RAGE) < 30.0f)
+            return;
+
+        // 盾牌猛擊
+        if (m_spells.warrior.pShieldSlam &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pShieldSlam))
         {
-            if (DoCastSpell(pVictim, m_spells.warrior.pRend) == SPELL_CAST_OK)
+            if (DoCastSpell(pVictim, m_spells.warrior.pShieldSlam) == SPELL_CAST_OK)
                 return;
         }
 
-        if (m_spells.warrior.pIntimidatingShout &&
-           (me->GetHealthPercent() < 30.0f) &&
-           (GetAttackersInRangeCount(10.0f) > 2) &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pIntimidatingShout))
-        {
-            if (DoCastSpell(pVictim, m_spells.warrior.pIntimidatingShout) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (m_spells.warrior.pRetaliation &&
-           (GetAttackersInRangeCount(10.0f) > 2) &&
-            CanTryToCastSpell(me, m_spells.warrior.pRetaliation))
-        {
-            if (DoCastSpell(me, m_spells.warrior.pRetaliation) == SPELL_CAST_OK)
-                return;
-        }
-
+        // 當10碼內敵人>1，用橫掃攻擊
         if (m_spells.warrior.pSweepingStrikes &&
             CanTryToCastSpell(me, m_spells.warrior.pSweepingStrikes) &&
-           (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 2))
+            (me->GetEnemyCountInRadiusAround(pVictim, 10.0f) > 1))
         {
             if (DoCastSpell(me, m_spells.warrior.pSweepingStrikes) == SPELL_CAST_OK)
                 return;
         }
 
-        if (m_role != ROLE_TANK &&
-           (me->GetHealthPercent() > 60.0f) && (pVictim->GetHealthPercent() > 40.0f) &&
-           !me->HasUnitState(UNIT_STAT_ROOT) &&
-           !me->IsImmuneToMechanic(MECHANIC_FEAR))
-        {
-            if (m_spells.warrior.pRecklessness &&
-                CanTryToCastSpell(me, m_spells.warrior.pRecklessness))
-            {
-                if (DoCastSpell(me, m_spells.warrior.pRecklessness) == SPELL_CAST_OK)
-                    return;
-            }
-
-            if (m_spells.warrior.pDeathWish &&
-                CanTryToCastSpell(me, m_spells.warrior.pDeathWish))
-            {
-                if (DoCastSpell(me, m_spells.warrior.pDeathWish) == SPELL_CAST_OK)
-                    return;
-            }
-        }
-
+        // 致死打擊
         if (m_spells.warrior.pMortalStrike &&
             CanTryToCastSpell(pVictim, m_spells.warrior.pMortalStrike))
         {
@@ -2734,6 +2834,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
                 return;
         }
 
+        // 嗜血
         if (m_spells.warrior.pBloodthirst &&
             CanTryToCastSpell(pVictim, m_spells.warrior.pBloodthirst))
         {
@@ -2741,38 +2842,16 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
                 return;
         }
 
-        if ((me->GetHealthPercent() < 20.0f) ||
-            (m_role == ROLE_TANK && pVictim->GetLevel() >= me->GetLevel()))
+        // 坦身分時，第二次使用破甲
+        if (m_role == ROLE_TANK &&
+            m_spells.warrior.pSunderArmor &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pSunderArmor, 2))
         {
-            if (m_spells.warrior.pDefensiveStance &&
-                CanTryToCastSpell(me, m_spells.warrior.pDefensiveStance))
-            {
-                DoCastSpell(me, m_spells.warrior.pDefensiveStance);
-            }
-        }
-        else
-        {
-            if (m_spells.warrior.pBerserkerStance &&
-                CanTryToCastSpell(me, m_spells.warrior.pBerserkerStance))
-            {
-                DoCastSpell(me, m_spells.warrior.pBerserkerStance);
-            }
-        }
-
-        if (m_spells.warrior.pIntercept &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pIntercept))
-        {
-            if (DoCastSpell(pVictim, m_spells.warrior.pIntercept) == SPELL_CAST_OK)
+            if (DoCastSpell(pVictim, m_spells.warrior.pSunderArmor) == SPELL_CAST_OK)
                 return;
         }
 
-        if (m_spells.warrior.pWhirlwind &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pWhirlwind))
-        {
-            if (DoCastSpell(pVictim, m_spells.warrior.pWhirlwind) == SPELL_CAST_OK)
-                return;
-        }
-
+        // 缴械，是否適合加入技能循環，待觀察?
         if (m_spells.warrior.pDisarm &&
             IsMeleeWeaponClass(pVictim->GetClass()) &&
             CanTryToCastSpell(pVictim, m_spells.warrior.pDisarm))
@@ -2781,40 +2860,80 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
                 return;
         }
 
-        if (m_spells.warrior.pDemoralizingShout &&
-            m_role == ROLE_TANK &&
-            CanTryToCastSpell(pVictim, m_spells.warrior.pDemoralizingShout))
+        // 10碼內敵人>2，用反擊風暴，需要加入低生命的條件
+        if (m_spells.warrior.pRetaliation &&
+            (GetAttackersInRangeCount(10.0f) > 2) &&
+            CanTryToCastSpell(me, m_spells.warrior.pRetaliation))
         {
-            if (DoCastSpell(pVictim, m_spells.warrior.pDemoralizingShout) == SPELL_CAST_OK)
+            if (DoCastSpell(me, m_spells.warrior.pRetaliation) == SPELL_CAST_OK)
                 return;
         }
 
+        // 若身分非坦，戰士生命>60，敵方<40%，且戰士非定身狀態，且非免疫恐懼狀態
+        if (m_role != ROLE_TANK &&
+            (me->GetHealthPercent() > 60.0f) && (pVictim->GetHealthPercent() > 40.0f) &&
+            !me->HasUnitState(UNIT_STAT_ROOT) &&
+            !me->IsImmuneToMechanic(MECHANIC_FEAR))
+        {
+            // 死亡之願
+            if (m_spells.warrior.pDeathWish &&
+                CanTryToCastSpell(me, m_spells.warrior.pDeathWish))
+            {
+                if (DoCastSpell(me, m_spells.warrior.pDeathWish) == SPELL_CAST_OK)
+                    return;
+            }
+
+            // 鲁莽
+            if (m_spells.warrior.pRecklessness &&
+                CanTryToCastSpell(me, m_spells.warrior.pRecklessness))
+            {
+                if (DoCastSpell(me, m_spells.warrior.pRecklessness) == SPELL_CAST_OK)
+                    return;
+            }
+        }
+
+        // 攔截
+        if (m_spells.warrior.pIntercept &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pIntercept))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pIntercept) == SPELL_CAST_OK)
+                return;
+        }
+
+        // LASTLY USE FILLER SPELLS 當目標身邊8碼內敵人>1，用順劈斬
+        if (me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 1 &&
+            m_spells.warrior.pCleave &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pCleave))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pCleave) == SPELL_CAST_OK)
+                return;
+        }
+
+        // 最後仍有怒氣的話，坦身分時最後一次堆破甲，數量5層
+        if (m_role == ROLE_TANK &&
+            m_spells.warrior.pSunderArmor &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pSunderArmor, 5))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pSunderArmor) == SPELL_CAST_OK)
+                return;
+        }
+
+        // 剩餘的怒氣用於英勇打擊
+        if (m_spells.warrior.pHeroicStrike &&
+            CanTryToCastSpell(pVictim, m_spells.warrior.pHeroicStrike))
+        {
+            if (DoCastSpell(pVictim, m_spells.warrior.pHeroicStrike) == SPELL_CAST_OK)
+                return;
+        }
+        
+        /*
         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
             && !me->CanReachWithMeleeAutoAttack(pVictim))
         {
             me->GetMotionMaster()->MoveChase(pVictim);
         }
+        */
 
-        if (me->GetPower(POWER_RAGE) > 30)
-        {
-            if (m_spells.warrior.pCleave && me->GetEnemyCountInRadiusAround(pVictim, 8.0f) > 1)
-            {
-                if (CanTryToCastSpell(pVictim, m_spells.warrior.pCleave))
-                {
-                    if (DoCastSpell(pVictim, m_spells.warrior.pCleave) == SPELL_CAST_OK)
-                        return;
-                }
-            }
-            else
-            {
-                if (m_spells.warrior.pHeroicStrike &&
-                    CanTryToCastSpell(pVictim, m_spells.warrior.pHeroicStrike))
-                {
-                    if (DoCastSpell(pVictim, m_spells.warrior.pHeroicStrike) == SPELL_CAST_OK)
-                        return;
-                }
-            }
-        }
     }
     else // no victim
     {

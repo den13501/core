@@ -49,7 +49,7 @@ public:
     void CloneFromPlayer(Player const* pPlayer);
     void AddToPlayerGroup();
 
-    bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const final;
+    bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry, uint32 maxStack = 1) const;
     Player* GetPartyLeader() const;
     bool AttackStart(Unit* pVictim);
     Unit* SelectAttackTarget() const;

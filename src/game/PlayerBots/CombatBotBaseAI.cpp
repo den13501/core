@@ -1392,6 +1392,20 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.warrior.pPiercingHowl->Id < pSpellEntry->Id)
                         m_spells.warrior.pPiercingHowl = pSpellEntry;
                 }
+                else if (pSpellEntry->SpellName[0].find("Revenge") != std::string::npos) //復仇
+                {
+                    if (!m_spells.warrior.pRevenge ||
+                        m_spells.warrior.pRevenge->Id < pSpellEntry->Id ||
+                        m_spells.warrior.pRevenge->Rank < pSpellEntry->Rank)
+                        m_spells.warrior.pRevenge = pSpellEntry;
+                }
+                else if (pSpellEntry->SpellName[0].find("Challenging Shout") != std::string::npos) //挑戰怒吼
+                {
+                    if (!m_spells.warrior.pChallengingShout ||
+                        m_spells.warrior.pChallengingShout->Id < pSpellEntry->Id ||
+                        m_spells.warrior.pChallengingShout->Rank < pSpellEntry->Rank)
+                        m_spells.warrior.pChallengingShout = pSpellEntry;
+                }
                 break;
             }
             case CLASS_ROGUE:
@@ -2883,7 +2897,7 @@ void CombatBotBaseAI::AutoEquipGear(uint32 option)
     }
 }
 
-bool CombatBotBaseAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const
+bool CombatBotBaseAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry, uint32 maxStack) const
 {
     if (!me->IsSpellReady(pSpellEntry->Id))
         return false;
@@ -2918,8 +2932,31 @@ bool CombatBotBaseAI::CanTryToCastSpell(Unit const* pTarget, SpellEntry const* p
     if (pSpellEntry->GetErrorAtShapeshiftedCast(me->GetShapeshiftForm()) != SPELL_CAST_OK)
         return false;
 
-    if (pSpellEntry->IsSpellAppliesAura() && pTarget->HasAura(pSpellEntry->Id))
-        return false;
+    // custom, 對方身上有反射性法術效果，判定為否
+    if (pSpellEntry->DmgClass == SPELL_DAMAGE_CLASS_MAGIC)
+    {
+        if (pTarget->HasAuraType(SPELL_AURA_REFLECT_SPELLS))
+            return false;
+
+        Unit::AuraList const& mReflectSpellsSchool = pTarget->GetAurasByType(SPELL_AURA_REFLECT_SPELLS_SCHOOL);
+        for (const auto i : mReflectSpellsSchool)
+        {
+            if (i->GetModifier()->m_miscvalue & pSpellEntry->GetSpellSchoolMask())
+                return false;
+        }
+    }
+
+    if (pSpellEntry->IsSpellAppliesAura())
+    {
+        // custom, 加入堆疊判斷，可堆疊法術效果已達到上限則回傳否
+        if (SpellAuraHolder* pSpellAuraHolder = pTarget->GetSpellAuraHolder(pSpellEntry->Id))
+        {
+            if (pSpellAuraHolder->GetStackAmount() >= maxStack)
+                return false;
+        }
+        else if (pTarget->HasAura(pSpellEntry->Id))
+            return false;
+    }
 
     SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(pSpellEntry->rangeIndex);
     if (me != pTarget && pSpellEntry->EffectImplicitTargetA[0] != TARGET_UNIT_CASTER)
