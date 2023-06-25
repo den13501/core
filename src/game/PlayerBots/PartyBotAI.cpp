@@ -40,8 +40,8 @@ enum PartyBotSpells
 #define PB_UPDATE_INTERVAL 1000
 #define PB_MIN_FOLLOW_DIST 3.0f
 #define PB_MAX_FOLLOW_DIST 6.0f
-#define PB_MIN_FOLLOW_ANGLE 0.0f
-#define PB_MAX_FOLLOW_ANGLE 6.283f
+#define PB_MIN_FOLLOW_ANGLE 2.0f
+#define PB_MAX_FOLLOW_ANGLE 4.0f
 
 bool PartyBotAI::OnSessionLoaded(PlayerBotEntry* entry, WorldSession* sess)
 {
@@ -484,6 +484,8 @@ Unit* PartyBotAI::SelectAttackTarget() const
 
 Unit* PartyBotAI::SelectPartyAttackTarget() const
 {
+    std::vector<Unit*> vAttackers;
+
     Group* pGroup = me->GetGroup();
     for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
     {
@@ -495,11 +497,44 @@ Unit* PartyBotAI::SelectPartyAttackTarget() const
 
             for (const auto pAttacker : pMember->GetAttackers())
             {
+                /*
                 if (IsValidHostileTarget(pAttacker) &&
                     me->IsWithinDist(pAttacker, 50.0f))
                     return pAttacker;
+                */
+                if (pAttacker->IsPlayer() ||
+                    !IsValidHostileTarget(pAttacker) ||
+                    !me->IsWithinDist(pAttacker, 50.0f))
+                    continue;
+
+                // 排除其他坦克攻擊目標
+                if (m_role == ROLE_TANK && IsTank(pMember))
+                {
+                    if (pMember->GetVictim() != pAttacker)
+                        vAttackers.push_back(pAttacker);
+                }
+                else
+                    vAttackers.push_back(pAttacker);
+            }
+
+            // 寵物的目標也納入攻擊目標
+            if (Pet* pPet = pMember->GetPet())
+            {
+                for (const auto pAttacker : pPet->GetAttackers())
+                {
+                    if (IsValidHostileTarget(pAttacker) &&
+                        me->IsWithinDist(pAttacker, 50.0f))
+                        vAttackers.push_back(pAttacker);
+                }
             }
         }
+    }
+
+    // 如果以上條件皆不符合，vAttackers隨機
+    if (!vAttackers.empty())
+    {
+        uint8 rand = urand(0, (vAttackers.size() - 1));
+        return vAttackers[rand];
     }
 
     return nullptr;

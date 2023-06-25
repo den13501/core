@@ -3166,6 +3166,27 @@ bool CombatBotBaseAI::IsWearingShield() const
     return false;
 }
 
+// Custom function 判斷是否為坦克
+bool CombatBotBaseAI::IsTank(Player* pPlayer) const
+{
+    // Do not attack other tanks tagert 不攻擊其他坦克的目標
+    if (pPlayer->AI())
+    {
+        if (CombatBotBaseAI* pAI = dynamic_cast<CombatBotBaseAI*>(pPlayer->AI()))
+        {
+            if (pAI->m_role == ROLE_TANK)
+                return true;
+        }
+    }
+    else if (pPlayer->HasSpell(SPELL_SHIELD_SLAM) ||
+        pPlayer->HasSpell(SPELL_HOLY_SHIELD) ||
+        pPlayer->GetShapeshiftForm() == FORM_BEAR ||
+        pPlayer->GetShapeshiftForm() == FORM_DIREBEAR)
+        return true;
+
+    return false;
+}
+
 void CombatBotBaseAI::SendBattlefieldPortPacket()
 {
     for (uint32 i = BATTLEGROUND_QUEUE_AV; i <= BATTLEGROUND_QUEUE_AB; i++)
