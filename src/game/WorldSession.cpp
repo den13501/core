@@ -72,7 +72,7 @@ bool MapSessionFilter::Process(std::unique_ptr<WorldPacket> const& packet)
 
 static uint32 g_sessionCounter = 0;
 
-/// WorldSession constructor
+// WorldSession constructor
 WorldSession::WorldSession(uint32 id, WorldSocket *sock, AccountTypes sec, time_t mute_time, LocaleConstant locale) :
     m_guid(g_sessionCounter++), m_muteTime(mute_time), m_connected(true), m_disconnectTimer(0), m_who_recvd(false), m_ah_list_recvd(false),
     m_accountFlags(0), m_idleTime(WorldTimer::getMSTime()), _player(nullptr), m_socket(sock), m_security(sec), m_accountId(id),
@@ -91,14 +91,14 @@ WorldSession::WorldSession(uint32 id, WorldSocket *sock, AccountTypes sec, time_
         m_address = "<BOT>";
 }
 
-/// WorldSession destructor
+// WorldSession destructor
 WorldSession::~WorldSession()
 {
-    ///- unload player if not unloaded
+    // unload player if not unloaded
     if (_player)
         LogoutPlayer(!m_bot || sPlayerBotMgr.IsSavingAllowed());
 
-    /// - If have unclosed socket, close it
+    // If have unclosed socket, close it
     if (m_socket)
     {
         m_socket->CloseSocket();
@@ -106,7 +106,7 @@ WorldSession::~WorldSession()
         m_socket = nullptr;
     }
 
-    ///- empty incoming packet queue
+    // empty incoming packet queue
     for (auto& i : m_recvQueue)
         i.clear();
 
@@ -116,13 +116,13 @@ WorldSession::~WorldSession()
     delete m_cheatData;
 }
 
-/// Get the player name
+// Get the player name
 char const* WorldSession::GetPlayerName() const
 {
     return GetPlayer() ? GetPlayer()->GetName() : "<none>";
 }
 
-/// Send a packet to the client
+// Send a packet to the client
 void WorldSession::SendPacket(WorldPacket const* packet)
 {
     // There is a maximum size packet.
@@ -208,7 +208,7 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 
 #endif                                                  // !_DEBUG
 
-    //sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[%s]Send packet : %u|0x%x (%s)", GetPlayerName(), packet->GetOpcode(), packet->GetOpcode(), LookupOpcodeName(packet->GetOpcode()));
+    // sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[%s]Send packet : %u|0x%x (%s)", GetPlayerName(), packet->GetOpcode(), packet->GetOpcode(), LookupOpcodeName(packet->GetOpcode()));
     if (m_sniffFile)
         m_sniffFile->WritePacket(*packet, false, time(nullptr));
 
@@ -216,7 +216,7 @@ void WorldSession::SendPacket(WorldPacket const* packet)
         m_socket->CloseSocket();
 }
 
-/// Add an incoming packet to the queue
+// Add an incoming packet to the queue
 void WorldSession::QueuePacket(std::unique_ptr<WorldPacket> newPacket)
 {
     if (m_sniffFile)
@@ -248,7 +248,7 @@ void WorldSession::QueuePacket(std::unique_ptr<WorldPacket> newPacket)
         m_recvQueue[processing].add(std::move(newPacket));
 }
 
-/// Logging helper for unexpected opcodes
+// Logging helper for unexpected opcodes
 void WorldSession::LogUnexpectedOpcode(WorldPacket* packet, char const* reason)
 {
     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "SESSION: received unexpected opcode %s (0x%.4X) %s",
@@ -257,7 +257,7 @@ void WorldSession::LogUnexpectedOpcode(WorldPacket* packet, char const* reason)
                   reason);
 }
 
-/// Logging helper for unexpected opcodes
+// Logging helper for unexpected opcodes
 void WorldSession::LogUnprocessedTail(WorldPacket* packet)
 {
     sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SESSION: opcode %s (0x%.4X) have unprocessed tail data (read stop at " SIZEFMTD " from " SIZEFMTD ")",
@@ -343,14 +343,14 @@ bool WorldSession::ForcePlayerLogoutDelay()
     return false;
 }
 
-/// Update the WorldSession (triggered by World update)
+// Update the WorldSession (triggered by World update)
 bool WorldSession::Update(PacketFilter& updater)
 {
     uint32 sessionUpdateTime = WorldTimer::getMSTime();
     for (uint32 & i : m_floodPacketsCount)
         i = 0;
 
-    ///- Retrieve packets from the receive queue and call the appropriate handlers
+    // Retrieve packets from the receive queue and call the appropriate handlers
     ProcessPackets(updater);
 
     if (CharacterScreenIdleKick(sessionUpdateTime))
@@ -371,7 +371,7 @@ bool WorldSession::Update(PacketFilter& updater)
             return false;
         }
 
-        ///- Cleanup socket pointer if need
+        // Cleanup socket pointer if need
         if (m_socket && m_socket->IsClosed())
         {
             m_socket->RemoveReference();
@@ -387,7 +387,6 @@ bool WorldSession::Update(PacketFilter& updater)
             return ForcePlayerLogoutDelay();
         }
 
-        
         time_t currTime = time(nullptr);
         if (sWorld.getConfig(CONFIG_BOOL_LIMIT_PLAY_TIME) &&
             GetPlayer() && GetPlayer()->IsInWorld())
@@ -555,7 +554,7 @@ bool WorldSession::UpdateDisconnected(uint32 diff)
     return true;
 }
 
-/// %Log the player out
+// %Log the player out
 void WorldSession::LogoutPlayer(bool Save)
 {
     // finish pending transfers before starting the logout
@@ -577,7 +576,7 @@ void WorldSession::LogoutPlayer(bool Save)
 
         if (inWorld)
         {
-            ///- If the player just died before logging out, make him appear as a ghost
+            // If the player just died before logging out, make him appear as a ghost
             if (_player->GetDeathTimer())
             {
                 _player->GetHostileRefManager().deleteReferences();
@@ -610,7 +609,7 @@ void WorldSession::LogoutPlayer(bool Save)
             queue->RemovePlayerFromQueue(playerGuid, PLAYER_SYSTEM_LEAVE);
         });
 
-        ///- Teleport to home if the player is in an invalid instance
+        // Teleport to home if the player is in an invalid instance
         if (!_player->m_InstanceValid && !_player->IsGameMaster())
         {
             _player->TeleportToHomebind();
@@ -653,7 +652,7 @@ void WorldSession::LogoutPlayer(bool Save)
 
         sBattleGroundMgr.PlayerLoggedOut(_player);
 
-        ///- Reset the online field in the account table
+        // Reset the online field in the account table
         // no point resetting online in character table here as Player::SaveToDB() will set it to 1 since player has not been removed from world at this stage
         // No SQL injection as AccountID is uint32
         static SqlStatementID id;
@@ -661,7 +660,7 @@ void WorldSession::LogoutPlayer(bool Save)
         SqlStatement stmt = LoginDatabase.CreateStatement(id, "UPDATE `account` SET `current_realm` = ?, `online` = 0 WHERE `id` = ?");
         stmt.PExecute(uint32(0), GetAccountId());
 
-        ///- If the player is in a guild, update the guild roster and broadcast a logout message to other guild members
+        // If the player is in a guild, update the guild roster and broadcast a logout message to other guild members
         if (Guild* guild = sGuildMgr.GetGuildById(_player->GetGuildId()))
         {
             if (MemberSlot* slot = guild->GetMemberSlot(_player->GetObjectGuid()))
@@ -673,7 +672,7 @@ void WorldSession::LogoutPlayer(bool Save)
             guild->BroadcastEvent(GE_SIGNED_OFF, _player->GetObjectGuid(), _player->GetName());
         }
 
-        ///- Remove pet
+        // Remove pet
         _player->RemovePet(PET_SAVE_AS_CURRENT);
 
         // Dungeon anti-exploit. Should be before save
@@ -692,15 +691,15 @@ void WorldSession::LogoutPlayer(bool Save)
             }
         }
 
-        ///- empty buyback items and save the player in the database
+        // empty buyback items and save the player in the database
         // some save parts only correctly work in case player present in map/player_lists (pets, etc)
         if (Save)
             _player->SaveToDB(false, removedFromMap);
 
-        ///- Leave all channels before player delete...
+        // Leave all channels before player delete...
         _player->CleanupChannels();
 
-        ///- If the player is in a group (or invited), remove him. If the group if then only 1 person, disband the group.
+        // If the player is in a group (or invited), remove him. If the group if then only 1 person, disband the group.
         _player->UninviteFromGroup();
 
         // remove player from the group if he is:
@@ -708,7 +707,7 @@ void WorldSession::LogoutPlayer(bool Save)
         if (_player->GetGroup() && !_player->GetGroup()->isRaidGroup() && m_socket)
             _player->RemoveFromGroup();
 
-        ///- Send update to group
+        // Send update to group
         if (Group* group = _player->GetGroup())
             group->UpdatePlayerOnlineStatus(_player, false);
 
@@ -724,13 +723,13 @@ void WorldSession::LogoutPlayer(bool Save)
 #endif
         //End Transmog
 
-        ///- Update cached data at logout
+        // Update cached data at logout
         sObjectMgr.UpdatePlayerCache(_player);
 
-        ///- No need to create any new maps
+        // No need to create any new maps
         sMapMgr.CancelInstanceCreationForPlayer(_player);
 
-        ///- Remove the player from the world
+        // Remove the player from the world
         // the player may not be in the world when logging out
         // e.g if he got disconnected during a transfer to another map
         // calls to GetMap in this case may cause crashes
@@ -748,7 +747,7 @@ void WorldSession::LogoutPlayer(bool Save)
 
         SetPlayer(nullptr);                                    // deleted in Remove/DeleteFromWorld call
 
-        ///- Send the 'logout complete' packet to the client
+        // Send the 'logout complete' packet to the client
         WorldPacket data(SMSG_LOGOUT_COMPLETE, 0);
         SendPacket(&data);
 
@@ -757,7 +756,7 @@ void WorldSession::LogoutPlayer(bool Save)
 
     if (m_masterPlayer)
     {
-        ///- Broadcast a logout message to the player's friends
+        // Broadcast a logout message to the player's friends
         if (m_masterPlayer->GetSocial())
         {
             sSocialMgr.SendFriendStatus(m_masterPlayer, FRIEND_OFFLINE, m_masterPlayer->GetObjectGuid(), true);
@@ -776,7 +775,7 @@ void WorldSession::LogoutPlayer(bool Save)
     LogoutRequest(0);
 }
 
-/// Kick a player out of the World
+// Kick a player out of the World
 void WorldSession::KickPlayer()
 {
     if (m_socket)
@@ -785,7 +784,7 @@ void WorldSession::KickPlayer()
         m_bot->requestRemoval = true;
 }
 
-/// Cancel channeling handler
+// Cancel channeling handler
 
 void WorldSession::SendAreaTriggerMessage(char const* Text, ...)
 {

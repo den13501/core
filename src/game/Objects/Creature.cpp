@@ -229,7 +229,7 @@ void Creature::AddToWorld()
 {
     bool bWasInWorld = IsInWorld();
 
-    ///- Register the creature for guid lookup
+    // Register the creature for guid lookup
     if (!IsInWorld() && GetObjectGuid().GetHigh() == HIGHGUID_UNIT)
         GetMap()->InsertObject<Creature>(GetObjectGuid(), this);
 
@@ -252,7 +252,7 @@ void Creature::AddToWorld()
 
 void Creature::RemoveFromWorld()
 {
-    ///- Remove the creature from the accessor
+    // Remove the creature from the accessor
     if (IsInWorld())
     {
         if (GetUInt32Value(UNIT_CREATED_BY_SPELL))
@@ -2741,7 +2741,7 @@ void Creature::LoadCreatureAddon(bool reload)
     }
 }
 
-/// Send a message to LocalDefense channel for players opposition team in the zone
+// Send a message to LocalDefense channel for players opposition team in the zone
 void Creature::SendZoneUnderAttackMessage(Player* attacker)
 {
     uint32 areaId = GetAreaId();
