@@ -2418,7 +2418,7 @@ bool CombatBotBaseAI::IsValidDispelTarget(Unit const* pTarget, SpellEntry const*
                                 if (FactionTemplateEntry const* ft2 = me->GetFactionTemplateEntry())
                                     if (charm->GetOriginalFactionTemplate()->IsFriendlyTo(*ft2))
                                         bFoundOneDispell = true;
-                    if (positive == friendly_dispel)
+                    if (positive == friendly_dispel || holder->GetSpellProto()->Id == 24321) //哈卡之子的酸性血液
                         continue;
                 }
                 bFoundOneDispell = true;
