@@ -123,7 +123,7 @@ public:
     SpellCastResult DoCastSpell(Unit* pTarget, SpellEntry const* pSpellEntry);
     //virtual bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
     bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry, uint32 maxStack = 1) const;
-    bool IsWearingShield() const;
+    bool IsWearingShield(Player* pPlayer) const;
     bool IsTank(Player* pPlayer) const;
 
     void EquipOrUseNewItem();

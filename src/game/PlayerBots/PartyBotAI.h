@@ -60,7 +60,9 @@ public:
     bool CanUseCrowdControl(SpellEntry const* pSpellEntry, Unit* pTarget) const;
     bool DrinkAndEat();
     bool ShouldAutoRevive() const;
-    bool RunAwayFromTarget(Unit* pTarget);
+    bool IsValidDistancingTarget(Unit* pTarget, Unit* pEnemy);
+    Unit* GetDistancingTarget(Unit* pEnemy);
+    bool RunAwayFromTarget(Unit* pEnemy);
     void RunAwayFromTargetPlus(Unit* pTarget, bool pFollowLeader = true, float pDistance = 12.0f); //custom function
     void RunAwayFromObject(GameObject* pObject, float pDistance = 10.0f); //custom function
     void RunAwayFromAOE(float pDistance); //custom function

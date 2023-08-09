@@ -263,24 +263,57 @@ void PartyBotAI::RunAwayFromTargetPlus(Unit* pTarget, bool pFollowLeader, float 
     me->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
 }
 
-bool PartyBotAI::RunAwayFromTarget(Unit* pTarget)
+bool PartyBotAI::IsValidDistancingTarget(Unit* pTarget, Unit* pEnemy)
+{
+    if (pTarget->IsInWorld() && pTarget->IsAlive() &&
+        pTarget->GetMap() == me->GetMap())
+    {
+        float const distance = me->GetDistance(pTarget);
+        if (distance >= 15.0f && distance <= 30.0f &&
+            pTarget->GetDistance(pEnemy) >= 15.0f)
+            return true;
+    }
+
+    return false;
+}
+
+Unit* PartyBotAI::GetDistancingTarget(Unit* pEnemy)
 {
     if (Player* pLeader = GetPartyLeader())
+        if (IsValidDistancingTarget(pLeader, pEnemy))
+            return pLeader;
+
+    Unit* pNonTank = nullptr;
+    Group* pGroup = me->GetGroup();
+    for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
     {
-        if (pLeader->IsInWorld() &&
-            pLeader->GetMap() == me->GetMap())
+        if (Player* pMember = itr->getSource())
         {
-            float const distance = me->GetDistance(pLeader);
-            if (distance >= 15.0f && distance <= 30.0f &&
-                pLeader->GetDistance(pTarget) >= 15.0f)
+            if (pMember == me)
+                continue;
+
+            if (IsValidDistancingTarget(pMember, pEnemy))
             {
-                me->MonsterMove(pLeader->GetPositionX(), pLeader->GetPositionY(), pLeader->GetPositionZ());
-                return true;
+                if (IsTankingForm(pMember->GetShapeshiftForm()) || IsWearingShield(pMember))
+                    return pMember;
+                else
+                    pNonTank = pMember;
             }
         }
     }
 
-    return me->GetMotionMaster()->MoveDistance(pTarget, 15.0f);
+    return pNonTank;
+}
+
+bool PartyBotAI::RunAwayFromTarget(Unit* pEnemy)
+{
+    if (Unit* pTarget = GetDistancingTarget(pEnemy))
+    {
+        me->MonsterMove(pTarget->GetPositionX(), pTarget->GetPositionY(), pTarget->GetPositionZ());
+        return true;
+    }
+
+    return me->GetMotionMaster()->MoveDistance(pEnemy, 15.0f);
 }
 
 bool PartyBotAI::DrinkAndEat()
@@ -2612,7 +2645,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
             }
 
             if (m_spells.warrior.pShieldBash &&
-                IsWearingShield() &&
+                IsWearingShield(me) &&
                 CanTryToCastSpell(pVictim, m_spells.warrior.pShieldBash))
             {
                 if (DoCastSpell(pVictim, m_spells.warrior.pShieldBash) == SPELL_CAST_OK)
@@ -2632,7 +2665,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
         }
 
         // 防禦姿態+持盾下，防禦招式之選擇
-        if (me->GetShapeshiftForm() == FORM_DEFENSIVESTANCE && IsWearingShield())
+        if (me->GetShapeshiftForm() == FORM_DEFENSIVESTANCE && IsWearingShield(me))
         {
             if (!me->GetAttackers().empty())
             {
