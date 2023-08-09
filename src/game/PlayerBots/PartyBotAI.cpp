@@ -3811,6 +3811,7 @@ bool PartyBotAI::CheckCombatInstanceMechanics(bool& pCombatEngagementReady)
         // MOLTEN CORE 熔火之心
         case 409:
 
+            /*
             // MAGMADAR - Fire Bomb (瑪格曼達 - 熔岩炸彈)
             // While there is a bomb nearby try to run away
             me->GetGameObjectListWithEntryInGrid(lBombs, 177704, 10.0f);
@@ -3822,6 +3823,7 @@ bool PartyBotAI::CheckCombatInstanceMechanics(bool& pCombatEngagementReady)
                     return false;
                 }
             }
+            */
 
             // GEHENNAS - Rain of Fire (基赫纳斯 - 火焰之雨)
             // While under Rain of Fire, run away
