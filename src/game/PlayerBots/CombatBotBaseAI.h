@@ -84,6 +84,8 @@ public:
     virtual void OnPacketReceived(WorldPacket const* packet) override;
     void SendBattlefieldPortPacket();
     void SendBattlemasterJoinPacket(uint8 battlegroundId);
+    void SendAreaTriggerPacket(uint32 areaTriggerId);
+    void ActivateNearbyAreaTrigger();
 
     void AutoAssignRole();
     void PopulateSpellData();
@@ -120,7 +122,7 @@ public:
 
     SpellCastResult DoCastSpell(Unit* pTarget, SpellEntry const* pSpellEntry);
     virtual bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
-    bool IsWearingShield() const;
+    bool IsWearingShield(Player* pPlayer) const;
 
     void EquipOrUseNewItem();
     void AddItemToInventory(uint32 itemId, uint32 count = 1);

@@ -117,8 +117,6 @@ Unit::Unit()
     m_canModifyStats = false;
     m_modelCollisionHeight = 2.f;
 
-    for (auto& immunityList : m_spellImmune)
-        immunityList.clear();
     for (auto& modifier : m_auraModifiersGroup)
     {
         modifier[BASE_VALUE] = 0.0f;
@@ -201,8 +199,8 @@ Unit::~Unit()
     delete movespline;
 
     // those should be already removed at "RemoveFromWorld()" call
-    MANGOS_ASSERT(m_gameObj.empty());
-    MANGOS_ASSERT(m_dynObjGUIDs.empty());
+    MANGOS_ASSERT(m_spellGameObjects.empty());
+    MANGOS_ASSERT(m_spellDynObjects.empty());
     MANGOS_ASSERT(m_deletedAuras.empty());
     MANGOS_ASSERT(m_deletedHolders.empty());
     MANGOS_ASSERT(!m_needUpdateVisibility);
@@ -1649,13 +1647,13 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
         for (const auto& itr : vAuras)
         {
             SpellEntry const* spellInfo = itr.second->GetSpellProto();
-            if (spellInfo->AttributesEx3 & 0x40000 && spellInfo->SpellFamilyName == SPELLFAMILY_PALADIN && (itr.second->GetCasterGuid() == GetObjectGuid()))
+            if (spellInfo->AttributesEx3 & SPELL_ATTR_EX3_ALWAYS_HIT && spellInfo->SpellFamilyName == SPELLFAMILY_PALADIN && (itr.second->GetCasterGuid() == GetObjectGuid()))
                 itr.second->RefreshHolder();
         }
     }
 
-    // If not miss
-    if (!(damageInfo->HitInfo & HITINFO_MISS) && damageInfo->TargetState != VICTIMSTATE_PARRY &&  damageInfo->TargetState != VICTIMSTATE_DODGE)
+    // Confirmed on classic that Thorns does not trigger on Immune, Absorb and Dodge.
+    if ((damageInfo->HitInfo & HITINFO_AFFECTS_VICTIM) && damageInfo->TargetState != VICTIMSTATE_PARRY &&  damageInfo->TargetState != VICTIMSTATE_DODGE)
     {
         // on weapon hit casts
         if (IsPlayer() && pVictim->IsAlive())
@@ -2746,22 +2744,20 @@ void Unit::_UpdateSpells(uint32 time)
             ++iter;
     }
 
-    if (!m_gameObj.empty())
+    if (!m_spellGameObjects.empty())
     {
-        GameObjectList::iterator ite1, dnext1;
-        for (ite1 = m_gameObj.begin(); ite1 != m_gameObj.end(); ite1 = dnext1)
+        for (auto i = m_spellGameObjects.begin(); i != m_spellGameObjects.end();)
         {
-            dnext1 = ite1;
             //(*i)->Update(difftime);
-            if (!(*ite1)->isSpawned())
+            if (!(*i)->isSpawned())
             {
-                (*ite1)->SetOwnerGuid(ObjectGuid());
-                (*ite1)->SetRespawnTime(0);
-                (*ite1)->Delete();
-                dnext1 = m_gameObj.erase(ite1);
+                (*i)->SetOwnerGuid(ObjectGuid());
+                (*i)->SetRespawnTime(0);
+                (*i)->Delete();
+                i = m_spellGameObjects.erase(i);
             }
             else
-                ++dnext1;
+                ++i;
         }
     }
 }
@@ -3380,7 +3376,7 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
     uint32 spellId = holder->GetId();
 
     // passive spell special case (only non stackable with ranks)
-    if (spellProto->Attributes & (SPELL_ATTR_PASSIVE | 0x80))
+    if (spellProto->Attributes & (SPELL_ATTR_PASSIVE | SPELL_ATTR_DO_NOT_DISPLAY))
     {
         if (spellProto->IsPassiveSpellStackableWithRanks())
             return true;
@@ -3448,7 +3444,7 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
             continue;
 
         // early checks that spellId is passive non stackable spell
-        if (i_spellProto->Attributes & (SPELL_ATTR_PASSIVE | 0x80))
+        if (i_spellProto->Attributes & (SPELL_ATTR_PASSIVE | SPELL_ATTR_DO_NOT_DISPLAY))
         {
             // passive non-stackable spells not stackable only for same caster
             // -> Sauf si 2 AreaAuras
@@ -3492,9 +3488,9 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
         if (rule != SPELL_GROUP_STACK_RULE_DEFAULT)
         {
             // Attempt to add apply less powerfull spell
-            if (rule == SPELL_GROUP_STACK_RULE_POWERFULL_CHAIN && sSpellMgr.IsMorePowerfullSpell(i_spellId, spellId, spellGroup))
+            if (rule == SPELL_GROUP_STACK_RULE_POWERFULL_CHAIN && sSpellMgr.IsMorePowerfulSpell(i_spellId, spellId, spellGroup))
             {
-                sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "[STACK][DB] Powerfull chain %u > %u (group %u). Aura %u will not be applied.", i_spellId, spellId, spellGroup, spellId);
+                sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "[STACK][DB] Powerful chain %u > %u (group %u). Aura %u will not be applied.", i_spellId, spellId, spellGroup, spellId);
                 return false;
             }
             sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "[STACK][DB] Unable to stack %u and %u. %u will be removed.", spellId, i_spellId, i_spellId);
@@ -3607,9 +3603,9 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
         }
     }
     // Sorts moins puissants :
-    std::list<uint32> lessPowerfullSpells;
-    if (sSpellMgr.ListLessPowerfullSpells(spellId, lessPowerfullSpells))
-        for (const auto& it : lessPowerfullSpells)
+    std::vector<uint32> lessPowerfulSpells;
+    if (sSpellMgr.ListLessPowerfulSpells(spellId, lessPowerfulSpells))
+        for (const auto& it : lessPowerfulSpells)
             RemoveAurasDueToSpell(it);
     return true;
 }
@@ -3934,7 +3930,7 @@ void Unit::RemoveAura(Aura* Aur, AuraRemoveMode mode)
 
     // some ShapeshiftBoosts at remove trigger removing other auras including parent Shapeshift aura
     // remove aura from list before to prevent deleting it before
-    ///m_Auras.erase(i);
+    // m_Auras.erase(i);
 
     DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "Aura %u [spell%u] now is remove mode %d. Caster %s", Aur->GetModifier()->m_auraname, Aur->GetSpellProto()->Id, mode, GetName());
 
@@ -4092,7 +4088,7 @@ bool Unit::HasAura(uint32 spellId, SpellEffectIndex effIndex) const
 
 GameObject* Unit::GetGameObject(uint32 spellId) const
 {
-    for (const auto& i : m_gameObj)
+    for (const auto& i : m_spellGameObjects)
         if (i->GetSpellId() == spellId)
             return i;
 
@@ -4102,7 +4098,7 @@ GameObject* Unit::GetGameObject(uint32 spellId) const
 void Unit::AddGameObject(GameObject* pGo)
 {
     MANGOS_ASSERT(pGo && !pGo->GetOwnerGuid());
-    m_gameObj.push_back(pGo);
+    m_spellGameObjects.push_back(pGo);
     pGo->SetOwnerGuid(GetObjectGuid());
     pGo->SetWorldMask(GetWorldMask());
 
@@ -4140,7 +4136,13 @@ void Unit::RemoveGameObject(GameObject* pGo, bool del)
 
     }
 
-    m_gameObj.remove(pGo);
+    for (auto itr = m_spellGameObjects.begin(); itr != m_spellGameObjects.end();)
+    {
+        if ((*itr) == pGo)
+            itr = m_spellGameObjects.erase(itr);
+        else
+            ++itr;
+    }
 
     if (del)
     {
@@ -4151,12 +4153,11 @@ void Unit::RemoveGameObject(GameObject* pGo, bool del)
 
 void Unit::RemoveGameObject(uint32 spellid, bool del)
 {
-    if (m_gameObj.empty())
+    if (m_spellGameObjects.empty())
         return;
-    GameObjectList::iterator i, next;
-    for (i = m_gameObj.begin(); i != m_gameObj.end(); i = next)
+
+    for (auto i = m_spellGameObjects.begin(); i != m_spellGameObjects.end();)
     {
-        next = i;
         if (spellid == 0 || (*i)->GetSpellId() == spellid)
         {
             (*i)->SetOwnerGuid(ObjectGuid());
@@ -4166,23 +4167,23 @@ void Unit::RemoveGameObject(uint32 spellid, bool del)
                 (*i)->Delete();
             }
 
-            next = m_gameObj.erase(i);
+            i = m_spellGameObjects.erase(i);
         }
         else
-            ++next;
+            ++i;
     }
 }
 
 void Unit::RemoveAllGameObjects()
 {
     // remove references to unit
-    for (GameObjectList::iterator i = m_gameObj.begin(); i != m_gameObj.end();)
+    for (auto const& pGo : m_spellGameObjects)
     {
-        (*i)->SetOwnerGuid(ObjectGuid());
-        (*i)->SetRespawnTime(0);
-        (*i)->Delete();
-        i = m_gameObj.erase(i);
+        pGo->SetOwnerGuid(ObjectGuid());
+        pGo->SetRespawnTime(0);
+        pGo->Delete();
     }
+    m_spellGameObjects.clear();
 }
 
 void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo, AuraType auraTypeOverride) const
@@ -4908,7 +4909,7 @@ void Unit::SetFactionTemplateId(uint32 faction)
     {
         if (FactionTemplateEntry const* pFaction = sObjectMgr.GetFactionTemplateEntry(faction))
         {
-            if (pFaction->hostileMask ||
+            if (pFaction->hostileMask || pFaction->isEnemyOfAnother ||
                 pFaction->HasFactionFlag(FACTION_TEMPLATE_BROADCAST_TO_ENEMIES_LOW_PRIO |
                                          FACTION_TEMPLATE_BROADCAST_TO_ENEMIES_MED_PRIO |
                                          FACTION_TEMPLATE_BROADCAST_TO_ENEMIES_HIG_PRIO))
@@ -5153,25 +5154,32 @@ uint32 Unit::GetSpellRank(SpellEntry const* spellInfo) const
  */
 float Unit::SpellDamageBonusTaken(SpellCaster* pCaster, SpellEntry const* spellProto, SpellEffectIndex effectIndex, float pdamage, DamageEffectType damagetype, uint32 stack, Spell* spell) const
 {
-    if (!spellProto || !pCaster || damagetype == DIRECT_DAMAGE)
+    if (!spellProto || !pCaster || damagetype == DIRECT_DAMAGE || spellProto->HasAttribute(SPELL_ATTR_EX4_IGNORE_DAMAGE_TAKEN_MODIFIERS))
         return pdamage;
 
     uint32 schoolMask = spell ? spell->m_spellSchoolMask : spellProto->GetSpellSchoolMask();
 
     // Taken total percent damage auras
-    float TakenTotalMod = 1.0f;
-    float TakenTotal = 0;
+    float takenTotalMod = 1.0f;
+    takenTotalMod *= GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);
 
-    // ..taken
-    TakenTotalMod *= GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);
+    float tmpDamage;
 
     // Taken fixed damage bonus auras
-    int32 TakenAdvertisedBenefit = SpellBaseDamageBonusTaken(spellProto->GetSpellSchoolMask());
+    int32 takenFlatMod = SpellBaseDamageBonusTaken(spellProto->GetSpellSchoolMask());
+    if (takenFlatMod < 0)
+    {
+        if ((-takenFlatMod > (pdamage / 2)))
+            takenFlatMod = -int(pdamage / 2);
 
-    // apply benefit affected by spell power implicit coeffs and spell level penalties
-    TakenTotal = SpellBonusWithCoeffs(spellProto, effectIndex, TakenTotal, TakenAdvertisedBenefit, 0, damagetype, false, pCaster, spell);
-
-    float tmpDamage = (pdamage + TakenTotal * int32(stack)) * TakenTotalMod;
+        tmpDamage = (pdamage + takenFlatMod) * takenTotalMod;
+    }
+    else
+    {
+        // apply benefit affected by spell power implicit coeffs and spell level penalties
+        float takenTotal = SpellBonusWithCoeffs(spellProto, effectIndex, 0, takenFlatMod, 0, damagetype, false, pCaster, spell);
+        tmpDamage = (pdamage + takenTotal * int32(stack)) * takenTotalMod;
+    }
 
     return tmpDamage > 0 ? tmpDamage : 0;
 }
@@ -5617,6 +5625,9 @@ float Unit::MeleeDamageBonusTaken(SpellCaster* pCaster, float pdamage, WeaponAtt
         return pdamage;
 
     if (pdamage == 0)
+        return pdamage;
+
+    if (spellProto && spellProto->HasAttribute(SPELL_ATTR_EX4_IGNORE_DAMAGE_TAKEN_MODIFIERS))
         return pdamage;
 
     // Exception for Seal of Command and Seal of Righteousness
@@ -6539,7 +6550,7 @@ void Unit::CheckPendingMovementChanges()
     }
 
     PlayerMovementPendingChange& oldestChange = m_pendingMovementChanges.front();
-    uint32 waitTimeMultiplier = pPlayer && pPlayer->IsBeingTeleported() || pController->IsBeingTeleported() ? 5 : 1;
+    uint32 waitTimeMultiplier = (pPlayer && pPlayer->IsBeingTeleported()) || pController->IsBeingTeleported() ? 5 : 1;
     if (WorldTimer::getMSTime() > oldestChange.time + sWorld.getConfig(CONFIG_UINT32_MOVEMENT_CHANGE_ACK_TIME) * waitTimeMultiplier)
     {
         // This shouldn't really happen but handle it anyway.
@@ -7271,6 +7282,9 @@ float Unit::ApplyTotalThreatModifier(float threat, SpellSchoolMask schoolMask)
 
 void Unit::AddThreat(Unit* pVictim, float threat /*= 0.0f*/, bool crit /*= false*/, SpellSchoolMask schoolMask /*= SPELL_SCHOOL_MASK_NONE*/, SpellEntry const* threatSpell /*= nullptr*/)
 {
+    if (threatSpell && threatSpell->HasAttribute(SPELL_ATTR_EX4_NO_HARMFUL_THREAT))
+        return;
+
     // Only mobs can manage threat lists
     if (CanHaveThreatList() && IsInMap(pVictim))
         m_ThreatManager.addThreat(pVictim, threat, crit, schoolMask, threatSpell, false);
@@ -7355,33 +7369,32 @@ void Unit::TauntFadeOut(Unit* taunter)
 
 //======================================================================
 
+void Unit::RemoveTauntCaster(ObjectGuid guid)
+{
+    // remove only 1 occurance, starting from the front
+    // since guids are pushed back on taunt aura apply
+    for (auto itr = m_tauntGuids.begin(); itr != m_tauntGuids.end(); ++itr)
+    {
+        if ((*itr) == guid)
+        {
+            m_tauntGuids.erase(itr);
+            return;
+        }
+    }
+}
+
+//======================================================================
+
 Unit* Unit::GetTauntTarget() const
 {
-    AuraList const& tauntAuras = GetAurasByType(SPELL_AURA_MOD_TAUNT);
-    if (tauntAuras.empty())
-        return nullptr;
-
-    Unit* caster = nullptr;
-
-    // The last taunt aura caster is alive an we are happy to attack him
-    if ((caster = tauntAuras.back()->GetCaster()) && IsValidAttackTarget(caster))
-        return caster;
-    else if (tauntAuras.size() > 1)
+    // taunters are pushed back, last caster will be at the end
+    for (auto itr = m_tauntGuids.rbegin(); itr != m_tauntGuids.rend(); ++itr)
     {
-        // We do not have last taunt aura caster but we have more taunt auras,
-        // so find first available target
-
-        // Auras are pushed_back, last caster will be on the end
-        AuraList::const_iterator aura = --tauntAuras.end();
-        do
+        if (Unit* pTaunter = GetMap()->GetUnit(*itr))
         {
-            --aura;
-            if ((caster = (*aura)->GetCaster()) && caster->IsInMap(this) && IsValidAttackTarget(caster))
-            {
-                return caster;
-                break;
-            }
-        } while (aura != tauntAuras.begin());
+            if (IsValidAttackTarget(pTaunter))
+                return pTaunter;
+        }
     }
 
     return nullptr;
@@ -7389,21 +7402,21 @@ Unit* Unit::GetTauntTarget() const
 
 bool Unit::SelectHostileTarget()
 {
-    //function provides main threat functionality
-    //next-victim-selection algorithm and evade mode are called
-    //threat list sorting etc.
+    // function provides main threat functionality
+    // next-victim-selection algorithm and evade mode are called
+    // threat list sorting etc.
 
     MANGOS_ASSERT(IsCreature());
 
-    if (!this->IsAlive())
+    if (!IsAlive())
         return false;
 
-    //This function only useful once AI has been initialized
+    // This function is only useful once AI has been initialized
     if (!((Creature*)this)->AI())
         return false;
 
-    // Nostalrius: delai de 5 sec avant attaque apres spawn.
-    if (ToCreature()->IsTempPacified())
+    // Nostalrius: 5 sec delay before attack after spawn.
+    if (((Creature*)this)->IsTempPacified())
         return false;
 
     Unit* target = GetTauntTarget();
@@ -7537,7 +7550,7 @@ bool Unit::IsVisibleForInState(WorldObject const* pDetector, WorldObject const* 
     return IsVisibleForOrDetect(pDetector, viewPoint, false, inVisibleList);
 }
 
-/// returns true if creature can't be seen by alive units
+// returns true if creature can't be seen by alive units
 bool Unit::IsInvisibleForAlive() const
 {
     // Ghost
@@ -7548,7 +7561,7 @@ bool Unit::IsInvisibleForAlive() const
     return IsSpiritService();
 }
 
-/// returns true if creature can be seen by dead units
+// returns true if creature can be seen by dead units
 bool Unit::IsVisibleForDead() const
 {
     if (IsCreature() && ToCreature()->GetCreatureInfo()->type_flags & CREATURE_TYPEFLAGS_GHOST_VISIBLE)
@@ -8618,13 +8631,14 @@ uint32 CreateProcExtendMask(SpellNonMeleeDamage* damageInfo, SpellMissInfo missC
     return procEx;
 }
 
-void Unit::ProcSkillsAndReactives(bool isVictim, Unit* pTarget, uint32 procFlag, uint32 procExtra, WeaponAttackType attType)
+void Unit::ProcSkillsAndReactives(bool isVictim, Unit* pTarget, uint32 procFlag, uint32 procExtra, WeaponAttackType attType, SpellEntry const* procSpell)
 {
     // For melee/ranged based attack need update skills and set some Aura states
     if (procFlag & MELEE_BASED_TRIGGER_MASK && pTarget)
     {
         // Update skills here for players
-        if (IsPlayer())
+        // Bloodthirst and Hammer of Wrath do not increase weapon skills
+        if (IsPlayer() && (!procSpell || procSpell->EquippedItemClass == ITEM_CLASS_WEAPON))
         {
             // On melee based hit/miss/resist/parry/dodge/block need update skill
             if (procExtra & (PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT | PROC_EX_MISS | PROC_EX_DODGE | PROC_EX_PARRY | PROC_EX_BLOCK | PROC_EX_RESIST))
@@ -8724,7 +8738,6 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, ProcSystemArgumen
                     break;
                 }
             }
-            
         }
 
         // don't reroll chance for each target in this case
@@ -8801,7 +8814,7 @@ Player* Unit::GetSpellModOwner() const
     return nullptr;
 }
 
-///----------Pet responses methods-----------------
+// ----------Pet responses methods-----------------
 void Unit::SendPetCastFail(uint32 spellid, SpellCastResult msg)
 {
     if (msg == SPELL_CAST_OK)
@@ -8851,7 +8864,7 @@ void Unit::SendPetAIReaction()
     }
 }
 
-///----------End of Pet responses methods----------
+// ----------End of Pet responses methods----------
 
 void Unit::StopMoving(bool force)
 {
@@ -10028,7 +10041,7 @@ bool Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
         --attacker_number;
 
     // Don't compute a random position for a moving player or when swimming to player near shore
-    if (IsPlayer() && IsMoving() || canOnlySwim && !reachableBySwiming)
+    if ((IsPlayer() && IsMoving()) || (canOnlySwim && !reachableBySwiming))
         attacker_number = 0;
 
     angle += (attacker_number ? ((float(M_PI / 2) - float(M_PI) * rand_norm_f()) * attacker_number / sizeFactor) * 0.3f : 0);
@@ -10322,11 +10335,11 @@ SpellAuraHolder* Unit::RefreshAura(uint32 spellId, int32 duration)
 
 bool Unit::HasMorePowerfulSpellActive(SpellEntry const* spell) const
 {
-    std::list<uint32> morePowerfullSpells;
-    if (!sSpellMgr.ListMorePowerfullSpells(spell->Id, morePowerfullSpells))
+    std::vector<uint32> morePowerfulSpells;
+    if (!sSpellMgr.ListMorePowerfulSpells(spell->Id, morePowerfulSpells))
         return false;
     for (const auto& i : m_spellAuraHolders)
-        for (const auto& it : morePowerfullSpells)
+        for (const auto& it : morePowerfulSpells)
             if (it == i.first)
                 return true;
     return false;
