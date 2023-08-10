@@ -1441,6 +1441,18 @@ enum ShapeshiftForm
     FORM_SPIRITOFREDEMPTION = 0x20
 };
 
+inline bool IsTankingForm(ShapeshiftForm form)
+{
+    switch (form)
+    {
+        case FORM_BEAR:
+        case FORM_DIREBEAR:
+        case FORM_DEFENSIVESTANCE:
+            return true;
+    }
+    return false;
+}
+
 enum ShapeshiftFlags
 {
     SHAPESHIFT_FLAG_STANCE                  = 0x00000001,   // Form allows various player activities, which normally cause "You can't X while shapeshifted." errors (npc/go interaction, item use, etc)
@@ -1556,7 +1568,7 @@ enum ResponseCodes
     CHAR_NAME_SUCCESS,
 };
 
-/// Ban function modes
+// Ban function modes
 enum BanMode
 {
     BAN_ACCOUNT,
@@ -1564,7 +1576,7 @@ enum BanMode
     BAN_IP
 };
 
-/// Ban function return codes
+// Ban function return codes
 enum BanReturn
 {
     BAN_SUCCESS,
