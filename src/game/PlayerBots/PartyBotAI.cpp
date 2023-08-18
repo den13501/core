@@ -625,6 +625,12 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         return;
     }
 
+    if (me->IsInCombat() && !me->InBattleGround())
+    {
+        Position pos = me->GetPosition();
+        me->UpdateGroundPositionZ(pos.x,pos.y,pos.z);
+    }
+    
     if (m_resetSpellData)
     {
         ResetSpellData();
