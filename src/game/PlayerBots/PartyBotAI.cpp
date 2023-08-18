@@ -766,6 +766,8 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             char name[128] = {};
             strcpy(name, pLeader->GetName());
             ChatHandler(me).HandleGonameCommand(name);
+            Position pos = me->GetPosition();
+            me->SetPosition(pos.x,pos.y,pos.z,pos.o);
             return;
         }
     }
