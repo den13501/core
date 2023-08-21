@@ -3723,6 +3723,15 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
         if (GetSpellProto()->GetSpellSchoolMask() & SPELL_SCHOOL_MASK_FROST)
             target->ModifyAuraState(AURA_STATE_FROZEN, apply);
 
+        if (!inCharge)
+        {
+            target->SetRooted(true);
+
+            // SetRooted will call StopMoving, so we have to set facing after.
+            if (target->IsCreature())
+                target->SetFacingTo(target->GetOrientation());
+        }
+        
         target->AddUnitState(inCharge ? UNIT_STAT_PENDING_STUNNED : UNIT_STAT_STUNNED);
         target->SetTargetGuid(ObjectGuid());
         target->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED);
@@ -3742,9 +3751,6 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
             if (ObjectGuid lootGuid = targetPlayer->GetLootGuid())
                 targetPlayer->GetSession()->DoLootRelease(lootGuid);
         }
-
-        if (!inCharge)
-            target->SetRooted(true);
     }
     else
     {
