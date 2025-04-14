@@ -2628,6 +2628,19 @@ float Unit::GetUnitParryChance() const
 
 float Unit::GetUnitBlockChance() const
 {
+    // Test results from classic:
+    // Sheath State Unarmed - Can't Block
+    // Sheath State Melee - Can Block
+    // Sheath State Ranged - Can Block
+    // Parry and Dodge don't have any sheath state restrictions.
+    // https://warcraft.wiki.gg/wiki/Patch_2.1.0_(undocumented_changes)
+    // "You can now block attacks while your shield is in the sheathed position."
+    // "Previously, Warriors, Shamans and Paladins were vulnerable while using"
+    // "instant-cast abilities that caused their shield to momentarily appear on their back."
+    // Make bot can block
+    if (!pPlayer->IsBot() && pPlayer->GetSheath() == SHEATH_STATE_UNARMED)
+            return 0.0f;
+
     if (IsNonMeleeSpellCasted(false) || HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_PENDING_STUNNED))
         return 0.0f;
 
